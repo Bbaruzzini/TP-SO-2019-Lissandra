@@ -114,7 +114,7 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
         return;
     }
 
-    size_t payloadSize = sizeof header + header.size;
+    size_t payloadSize = sizeof header + packetSize;
     if (MessageBuffer_GetRemainingSpace(&s->SendBuffer) < payloadSize)
     {
         MessageBuffer_Normalize(&s->SendBuffer);
