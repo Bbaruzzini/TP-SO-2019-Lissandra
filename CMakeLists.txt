@@ -12,13 +12,13 @@ include_directories(Shared/Protocol)
 include_directories(Shared/Utility)
 
 file(GLOB_RECURSE SHARED_SRCS Shared/*.c Shared/*.h)
-add_library(shared STATIC ${SHARED_SRCS} LFS/Lissandra.c LFS/Lissandra.h LFS/FileSystem.c LFS/FileSystem.h)
+add_library(shared STATIC ${SHARED_SRCS} LFS/Lissandra.c LFS/Lissandra.h LFS/FileSystem.c LFS/FileSystem.h LFS/Compactador.c LFS/Compactador.h)
 
 file(GLOB KERNEL_SRCS Kernel/*.c Kernel/*.h)
-add_executable(Kernel ${KERNEL_SRCS} LFS/FileSystem.c LFS/FileSystem.h)
+add_executable(Kernel ${KERNEL_SRCS} LFS/FileSystem.c LFS/FileSystem.h LFS/Compactador.c LFS/Compactador.h)
 
 # dame warnings baby
-add_library(warnings-interface INTERFACE LFS/Lissandra.c LFS/Lissandra.h LFS/FileSystem.c LFS/FileSystem.h)
+add_library(warnings-interface INTERFACE LFS/Lissandra.c LFS/Lissandra.h LFS/FileSystem.c LFS/FileSystem.h LFS/Compactador.c LFS/Compactador.h)
 target_compile_options(warnings-interface
         INTERFACE
         -Wall
