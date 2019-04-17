@@ -1,5 +1,5 @@
 //
-// Created by
+
 //
 
 #ifndef LISSANDRA_LISSANDRA_H
