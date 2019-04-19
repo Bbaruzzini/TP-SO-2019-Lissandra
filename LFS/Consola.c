@@ -3,3 +3,8 @@
 //
 
 #include "Consola.h"
+
+struct Consola
+{
+    int prueba;
+};
