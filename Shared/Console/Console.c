@@ -1,15 +1,8 @@
 
 #include "Console.h"
-#include "LockedQueue.h"
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <stdatomic.h>
-#include <stdbool.h>
-
-extern CLICommand CLICommands[];
-extern char const* CLIPrompt;
-extern LockedQueue* CLICommandQueue;
-extern atomic_bool ProcessRunning;
+#include <stdint.h>
 
 char* command_finder(char const* text, int state)
 {
@@ -92,4 +85,29 @@ void* CliThread(void* param)
 
     rl_clear_history();
     return 0;
+}
+
+void AtenderComando(char const* command)
+{
+    size_t spc = strcspn(command, " ");
+    char* cmd = Malloc(spc + 1);
+    strncpy(cmd, command, spc + 1);
+    cmd[spc] = '\0';
+
+    command = command + spc;
+
+    //skip any extra spaces
+    while (*command == ' ')
+        ++command;
+
+    for (uint32_t i = 0; CLICommands[i].CmdName != NULL; ++i)
+    {
+        if (!strcmp(CLICommands[i].CmdName, cmd))
+        {
+            CLICommands[i].Handler(command);
+            break;
+        }
+    }
+
+    Free(cmd);
 }

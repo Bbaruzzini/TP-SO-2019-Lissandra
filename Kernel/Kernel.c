@@ -1,20 +1,30 @@
 
-#include "CLIHandlers.h"
 #include "Appender.h"
 #include "AppenderConsole.h"
 #include "AppenderFile.h"
+#include "Console.h"
+#include "CLIHandlers.h"
 #include "EventDispatcher.h"
 #include "libcommons/string.h"
 #include "Logger.h"
-#include "LockedQueue.h"
-#include "Timer.h"
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <signal.h>
 
-#define SLEEP_CONST 50
+CLICommand CLICommands[] =
+{
+    { "SELECT",   HandleSelect   },
+    { "INSERT",   HandleInsert   },
+    { "CREATE",   HandleCreate   },
+    { "DESCRIBE", HandleDescribe },
+    { "DROP",     HandleDrop     },
+    { "JOURNAL",  HandleJournal  },
+    { "ADD",      HandleAdd      },
+    { "RUN",      HandleRun      },
+    { "METRICS",  HandleMetrics  },
+    { NULL,       NULL           }
+};
 
 char const* CLIPrompt = "KERNEL> ";
 
@@ -67,8 +77,7 @@ int main(void)
         pthread_t consoleTid;
         pthread_create(&consoleTid, NULL, CliThread, NULL);
 
-        void MainLoop(void);
-        MainLoop();
+        EventDispatcher_Loop();
 
         pthread_join(consoleTid, NULL);
     }
@@ -77,55 +86,4 @@ int main(void)
     LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();
-}
-
-void AtenderComando(char const* command)
-{
-    size_t spc = strcspn(command, " ");
-    char* cmd = Malloc(spc + 1);
-    strncpy(cmd, command, spc + 1);
-    cmd[spc] = '\0';
-
-    command = command + spc;
-
-    //skip any extra spaces
-    while (*command == ' ')
-        ++command;
-
-    for (uint32_t i = 0; CLICommands[i].CmdName != NULL; ++i)
-    {
-        if (!strcmp(CLICommands[i].CmdName, cmd))
-        {
-            CLICommands[i].Handler(command);
-            break;
-        }
-    }
-
-    Free(cmd);
-}
-
-void MainLoop(void)
-{
-    uint32_t realCurrTime = 0;
-
-    while (ProcessRunning)
-    {
-        realCurrTime = GetMSTime();
-
-        // procesar comandos
-        char* command;
-        while ((command = LockedQueue_Next(CLICommandQueue)))
-        {
-            AtenderComando(command);
-            Free(command);
-        }
-
-        // procesar fds (sockets, inotify, etc...)
-        EventDispatcher_Dispatch();
-
-        // si atendimos rapido ponemos a dormir un rato mas para no quemar la cpu (?
-        uint32_t executionTimeDiff = GetMSTimeDiff(realCurrTime, GetMSTime());
-        if (executionTimeDiff < SLEEP_CONST)
-            MSSleep(SLEEP_CONST - executionTimeDiff);
-    }
 }

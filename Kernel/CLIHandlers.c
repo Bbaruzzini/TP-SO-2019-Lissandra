@@ -2,20 +2,6 @@
 #include "CLIHandlers.h"
 #include <stddef.h>
 
-CLICommand CLICommands[] =
-{
-    { "SELECT",   HandleSelect   },
-    { "INSERT",   HandleInsert   },
-    { "CREATE",   HandleCreate   },
-    { "DESCRIBE", HandleDescribe },
-    { "DROP",     HandleDrop     },
-    { "JOURNAL",  HandleJournal  },
-    { "ADD",      HandleAdd      },
-    { "RUN",      HandleRun      },
-    { "METRICS",  HandleMetrics  },
-    { NULL,       NULL           }
-};
-
 void HandleSelect(char const* args)
 {
     (void) args;

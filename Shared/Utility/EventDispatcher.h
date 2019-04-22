@@ -4,6 +4,9 @@
 
 #include <stdbool.h>
 
+// tiempo a dormir en milisegundos por iteración
+#define SLEEP_CONST 50
+
 typedef struct EventDispatcher EventDispatcher;
 
 enum
@@ -37,6 +40,11 @@ void EventDispatcher_RemoveFDI(void* interface);
  * Chequea la existencia de eventos, en cuyo caso invoca los callback correspondientes
  */
 void EventDispatcher_Dispatch(void);
+
+/*
+ * Main loop de los procesos
+ */
+void EventDispatcher_Loop(void);
 
 /*
  * Destruye el EventDispatcher
