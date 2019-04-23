@@ -33,3 +33,7 @@ target_compile_options(warnings-interface
 target_link_libraries(shared pthread readline warnings-interface)
 target_link_libraries(Kernel shared warnings-interface)
 target_link_libraries(LFS shared warnings-interface)
+
+add_custom_command(TARGET Kernel
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Kernel/kernel.conf ${CMAKE_BINARY_DIR}/)

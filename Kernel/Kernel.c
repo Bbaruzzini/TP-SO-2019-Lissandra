@@ -5,8 +5,10 @@
 #include "Console.h"
 #include "CLIHandlers.h"
 #include "EventDispatcher.h"
-#include "libcommons/string.h"
+#include "FileWatcher.h"
 #include "Logger.h"
+#include <libcommons/config.h>
+#include <libcommons/string.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -32,58 +34,100 @@ LockedQueue* CLICommandQueue = NULL;
 
 atomic_bool ProcessRunning = true;
 
-static void _gracefulExit(int signo)
+static t_config* sConfig = NULL;
+
+static Appender* consoleLog;
+static Appender* fileLog;
+
+static void SignalTrap(int signal)
 {
-    (void) signo;
+    (void) signal;
     ProcessRunning = false;
 }
 
-int main(void)
+static void IniciarLogger(void)
 {
-    // logger initialization
     Logger_Init(LOG_LEVEL_TRACE);
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
-    Appender* consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "198EDC");
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "198EDC");
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;
-    Appender* fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "kernel.log", "w", 0);
+    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "kernel.log", "w", 0);
     Logger_AddAppender(fileLog);
+}
 
-    // dispatcher initialization
-    {
-        if (!EventDispatcher_Init())
-            exit(1);
-    }
+static void IniciarDispatch(void)
+{
+    if (!EventDispatcher_Init())
+        exit(EXIT_FAILURE);
+}
 
+static void Trap(int signal)
+{
     struct sigaction sa = { 0 };
-    sa.sa_handler = _gracefulExit;
+    sa.sa_handler = SignalTrap;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGINT, &sa, NULL) < 0)
+    if (sigaction(signal, &sa, NULL) < 0)
     {
         LISSANDRA_LOG_FATAL("No pude registrar el handler de señales! Saliendo...");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
+}
 
+static void LoadConfig(char const* fileName)
+{
+    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+    config_destroy(sConfig);
+
+    sConfig = config_create(fileName);
+}
+
+static void InitConsole(void)
+{
     CLICommandQueue = LockedQueue_Create();
 
     // subimos el nivel a errores para no entorpecer la consola
     Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
+}
 
+static void MainLoop(void)
+{
     // el kokoro
-    {
-        pthread_t consoleTid;
-        pthread_create(&consoleTid, NULL, CliThread, NULL);
+    pthread_t consoleTid;
+    pthread_create(&consoleTid, NULL, CliThread, NULL);
 
-        EventDispatcher_Loop();
+    EventDispatcher_Loop();
 
-        pthread_join(consoleTid, NULL);
-    }
+    pthread_join(consoleTid, NULL);
+}
 
-    // cleanup
+static void Cleanup(void)
+{
     LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();
+}
+
+int main(void)
+{
+    static char const* const configFileName = "kernel.conf";
+
+    IniciarLogger();
+    IniciarDispatch();
+    Trap(SIGINT);
+    LoadConfig(configFileName);
+
+    // notificarme si hay cambios en la config
+    FileWatcher* fw = FileWatcher_Create();
+    FileWatcher_AddWatch(fw, configFileName, LoadConfig);
+    EventDispatcher_AddFDI(fw);
+
+    InitConsole();
+
+    MainLoop();
+
+    Cleanup();
 }
