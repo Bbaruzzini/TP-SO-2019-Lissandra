@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2012 Sistemas Operativos - UTN FRBA. All rights reserved.
  *
- * This program is Free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -14,35 +14,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- * Modificaciones by ariel-: 20190910
- * Cambio de key por 'int', este diccionario se va a usar para mapear fds con su abstracción
- * Ahora utiliza el TAD "vector" en lugar de hacer los alloc a mano
- */
-
 #ifndef DICTIONARY_H_
 #define DICTIONARY_H_
 
 #define DEFAULT_DICTIONARY_INITIAL_SIZE 20
 
-#include "vector.h"
 #include <stdbool.h>
 
 struct hash_element
 {
-    int key;
+    char* key;
     unsigned int hashcode;
-    void* value;
+    void* data;
     struct hash_element* next;
 };
 typedef struct hash_element t_hash_element;
 
 typedef struct
 {
-    Vector elements;
-    unsigned int table_max_size;
-    unsigned int table_current_size;
-    unsigned int elements_amount;
+    t_hash_element** elements;
+    int table_max_size;
+    int table_current_size;
+    int elements_amount;
 } t_dictionary;
 
 /**
@@ -53,86 +46,86 @@ t_dictionary* dictionary_create(void);
 
 /**
 * @NAME: dictionary_put
-* @DESC: Inserta un nuevo par (key->value) al diccionario, en caso de ya existir la key actualiza el value.
-* [Warning] - Tener en cuenta que esto no va a liberar la memoria del `value` original.
+* @DESC: Inserta un nuevo par (key->data) al diccionario, en caso de ya existir la key actualiza la data.
+* [Warning] - Tener en cuenta que esto no va a liberar la memoria del `data` original.
 */
-void dictionary_put(t_dictionary* d, int key, void* val);
+void dictionary_put(t_dictionary*, char const* key, void* data);
 
 /**
 * @NAME: dictionary_get
-* @DESC: Obtiene value asociado a key.
+* @DESC: Obtiene la data asociada a key.
 */
-void* dictionary_get(t_dictionary const* d, int key);
+void* dictionary_get(t_dictionary*, char const* key);
 
 /**
 * @NAME: dictionary_remove
 * @DESC: Remueve un elemento del diccionario y lo retorna.
 */
-void* dictionary_remove(t_dictionary* d, int key);
+void* dictionary_remove(t_dictionary*, char* key);
 
 /**
 * @NAME: dictionary_remove_and_destroy
 * @DESC: Remueve un elemento del diccionario y lo destruye.
 */
-void dictionary_remove_and_destroy(t_dictionary* d, int key, void(*data_destroyer)(void* val));
+void dictionary_remove_and_destroy(t_dictionary*, char const*, void(*data_destroyer)(void*));
 
 /**
-* @NAME: dictionary_iterate
+* @NAME: dictionary_iterator
 * @DESC: Aplica closure a todos los elementos del diccionario.
 *
-* La función que se pasa por paremtro recibe (int key, void* value)
+* La función que se pasa por paremtro recibe (char const* key, void* value)
 */
-void dictionary_iterate(t_dictionary const* d, void(*closure)(int key, void* val));
+void dictionary_iterator(t_dictionary*, void(* closure)(char const*, void*));
 
 /**
-* @NAME: dictionary_iterate_with_data
+* @NAME: dictionary_iterator_with_data
 * @DESC: Aplica closure a todos los elementos del diccionario.
-* Se permite pasar una estructura definida por el usuario a la función.
 *
-* La función que se pasa por paremtro recibe (int key, void* value, void* data)
+* La función que se pasa por paremtro recibe (char const* key, void* value, void* extra)
 */
-void dictionary_iterate_with_data(t_dictionary const* d, void(*closure)(int key, void* val, void* data), void* data);
+
+void dictionary_iterator_with_data(t_dictionary*, void(*closure)(char const*, void*, void*), void* extra);
 
 /**
 * @NAME: dictionary_clean
 * @DESC: Quita todos los elementos del diccionario
 */
-void dictionary_clean(t_dictionary* d);
+void dictionary_clean(t_dictionary*);
 
 /**
 * @NAME: dictionary_clean_and_destroy_elements
 * @DESC: Quita todos los elementos del diccionario y los destruye
 */
-void dictionary_clean_and_destroy_elements(t_dictionary* d, void(*data_destroyer)(void* val));
+void dictionary_clean_and_destroy_elements(t_dictionary*, void(* data_destroyer)(void*));
 
 /**
 * @NAME: dictionary_has_key
 * @DESC: Retorna true si key se encuentra en el diccionario
 */
-bool dictionary_has_key(t_dictionary const* d, int key);
+bool dictionary_has_key(t_dictionary*, char const* key);
 
 /**
 * @NAME: dictionary_is_empty
 * @DESC: Retorna true si el diccionario está vacío
 */
-bool dictionary_is_empty(t_dictionary const* d);
+bool dictionary_is_empty(t_dictionary*);
 
 /**
 * @NAME: dictionary_size
 * @DESC: Retorna la cantidad de elementos del diccionario
 */
-unsigned int dictionary_size(t_dictionary const* d);
+int dictionary_size(t_dictionary*);
 
 /**
 * @NAME: dictionary_destroy
 * @DESC: Destruye el diccionario
 */
-void dictionary_destroy(t_dictionary* d);
+void dictionary_destroy(t_dictionary*);
 
 /**
 * @NAME: dictionary_destroy_and_destroy_elements
 * @DESC: Destruye el diccionario y destruye sus elementos
 */
-void dictionary_destroy_and_destroy_elements(t_dictionary* d, void(*data_destroyer)(void* val));
+void dictionary_destroy_and_destroy_elements(t_dictionary*, void(* data_destroyer)(void*));
 
 #endif /* DICTIONARY_H_ */

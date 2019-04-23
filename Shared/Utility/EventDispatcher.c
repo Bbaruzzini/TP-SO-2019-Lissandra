@@ -7,7 +7,7 @@
 #include "Timer.h"
 #include "vector.h"
 #include <assert.h>
-#include <libcommons/dictionary.h>
+#include <libcommons/hashmap.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -19,7 +19,7 @@ typedef struct EventDispatcher
     int Handle;
 
     struct epoll_event _events[PER_LOOP_FDS];
-    t_dictionary* _fdiMap;
+    t_hashmap* _fdiMap;
 } EventDispatcher;
 
 static EventDispatcher sDispatcher;
@@ -37,7 +37,7 @@ bool EventDispatcher_Init(void)
     }
 
     memset(sDispatcher._events, 0, sizeof(struct epoll_event) * PER_LOOP_FDS);
-    sDispatcher._fdiMap = dictionary_create();
+    sDispatcher._fdiMap = hashmap_create();
     return true;
 }
 
@@ -48,7 +48,7 @@ void EventDispatcher_AddFDI(void* interface)
     struct epoll_event evt = _genEvent(fdi);
     if (epoll_ctl(sDispatcher.Handle, EPOLL_CTL_ADD, fdi->Handle, &evt) < 0)
         LISSANDRA_LOG_SYSERROR("epoll_ctl ADD");
-    dictionary_put(sDispatcher._fdiMap, fdi->Handle, fdi);
+    hashmap_put(sDispatcher._fdiMap, fdi->Handle, fdi);
 }
 
 void EventDispatcher_Notify(void* interface)
@@ -67,7 +67,7 @@ void EventDispatcher_RemoveFDI(void* interface)
     static struct epoll_event dummy;
     if (epoll_ctl(sDispatcher.Handle, EPOLL_CTL_DEL, fdi->Handle, &dummy) < 0)
         LISSANDRA_LOG_SYSERROR("epoll_ctl DEL");
-    dictionary_remove_and_destroy(sDispatcher._fdiMap, fdi->Handle, FDI_Destroy);
+    hashmap_remove_and_destroy(sDispatcher._fdiMap, fdi->Handle, FDI_Destroy);
 }
 
 void EventDispatcher_Dispatch(void)
@@ -112,7 +112,7 @@ void EventDispatcher_Loop(void)
 
 void EventDispatcher_Terminate(void)
 {
-    dictionary_destroy_and_destroy_elements(sDispatcher._fdiMap, FDI_Destroy);
+    hashmap_destroy_and_destroy_elements(sDispatcher._fdiMap, FDI_Destroy);
     close(sDispatcher.Handle);
 }
 

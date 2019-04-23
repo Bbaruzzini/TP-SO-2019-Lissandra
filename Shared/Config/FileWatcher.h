@@ -3,13 +3,13 @@
 #define FileWatcher_h__
 
 #include "FileDescInterface.h"
-#include <libcommons/dictionary.h>
+#include <libcommons/hashmap.h>
 
 typedef struct
 {
     FDI _impl;
 
-    t_dictionary* WatchCallbacks;
+    t_hashmap* WatchCallbacks;
 } FileWatcher;
 
 /*

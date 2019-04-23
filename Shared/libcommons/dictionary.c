@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2012 Sistemas Operativos - UTN FRBA. All rights reserved.
  *
- * This program is Free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -23,59 +23,67 @@
 
 #include "dictionary.h"
 #include "Malloc.h"
+#include <string.h>
 
-static unsigned int dictionary_hash(int key);
-static void dictionary_resize(t_dictionary* d, unsigned int new_max_size);
-static t_hash_element* dictionary_create_element(int key, unsigned int key_hash, void* val);
-static t_hash_element* dictionary_get_element(t_dictionary const* me, int key);
-static void* dictionary_remove_element(t_dictionary* me, int key);
-static void dictionary_destroy_element(t_hash_element* element, void(*data_destroyer)(void* val));
-static void internal_dictionary_clean_and_destroy_elements(t_dictionary* me, void(*data_destroyer)(void* val));
+static unsigned int dictionary_hash(char const* key, int key_len);
+static void dictionary_resize(t_dictionary*, int new_max_size);
 
-t_dictionary* dictionary_create(void)
+static t_hash_element* dictionary_create_element(char* key, unsigned int key_hash, void* data);
+static t_hash_element* dictionary_get_element(t_dictionary* self, char const* key);
+static void* dictionary_remove_element(t_dictionary* self, char const* key);
+static void dictionary_destroy_element(t_hash_element* element, void(* data_destroyer)(void*));
+static void internal_dictionary_clean_and_destroy_elements(t_dictionary* self, void(* data_destroyer)(void*));
+
+t_dictionary* dictionary_create()
 {
-    t_dictionary* me = Malloc(sizeof(t_dictionary));
-    me->table_max_size = DEFAULT_DICTIONARY_INITIAL_SIZE;
-    Vector_Construct(&me->elements, sizeof(t_hash_element*), NULL, 0);
-    Vector_resize_zero(&me->elements, me->table_max_size);
-    me->table_current_size = 0;
-    me->elements_amount = 0;
-    return me;
+    t_dictionary* self = Malloc(sizeof(t_dictionary));
+    self->table_max_size = DEFAULT_DICTIONARY_INITIAL_SIZE;
+    self->elements = Calloc(self->table_max_size, sizeof(t_hash_element*));
+    self->table_current_size = 0;
+    self->elements_amount = 0;
+    return self;
 }
 
-static unsigned int dictionary_hash(int key)
+static unsigned int dictionary_hash(char const* key, int key_len)
 {
-    unsigned int hash = 0x811C9DC5U;
-    unsigned char* bytearray = (unsigned char*) &key;
-    for (size_t idx = 0; idx < sizeof(int); ++idx)
+    unsigned int hash = 0;
+    for (int index = 0; index < key_len; ++index)
     {
-        hash ^= (unsigned int) bytearray[idx];
-        hash *= 0x01000193U;
+        unsigned char c = key[index];
+        hash += c;
+        hash += (hash << 10);
+        hash ^= (hash >> 6);
     }
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+
     return hash;
 }
 
-void dictionary_put(t_dictionary* me, int key, void* val)
+void dictionary_put(t_dictionary* self, char const* key, void* data)
 {
-    t_hash_element* existing_element = dictionary_get_element(me, key);
-    if (existing_element)
+    t_hash_element* existing_element = dictionary_get_element(self, key);
+
+    if (existing_element != NULL)
     {
-        existing_element->value = val;
+        existing_element->data = data;
         return;
     }
 
-    unsigned int key_hash = dictionary_hash(key);
-    unsigned int index = key_hash % me->table_max_size;
-    t_hash_element* new_element = dictionary_create_element(key, key_hash, val);
+    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    int index = key_hash % self->table_max_size;
+    t_hash_element* new_element = dictionary_create_element(strdup(key), key_hash, data);
 
-    t_hash_element* element = *((t_hash_element**) Vector_at(&me->elements, index));
-    if (!element)
+    t_hash_element* element = self->elements[index];
+
+    if (element == NULL)
     {
-        *((t_hash_element**) Vector_at(&me->elements, index)) = new_element;
-        ++me->table_current_size;
+        self->elements[index] = new_element;
+        ++self->table_current_size;
 
-        if (me->table_current_size >= me->table_max_size)
-            dictionary_resize(me, me->table_max_size * 2);
+        if (self->table_current_size >= self->table_max_size)
+            dictionary_resize(self, self->table_max_size * 2);
     }
     else
     {
@@ -85,123 +93,128 @@ void dictionary_put(t_dictionary* me, int key, void* val)
         element->next = new_element;
     }
 
-    ++me->elements_amount;
+    ++self->elements_amount;
 }
 
-void* dictionary_get(t_dictionary const* me, int key)
+void* dictionary_get(t_dictionary* self, char const* key)
 {
-    t_hash_element* element = dictionary_get_element(me, key);
-    return element != NULL ? element->value : NULL;
+    t_hash_element* element = dictionary_get_element(self, key);
+    return element != NULL ? element->data : NULL;
 }
 
-void* dictionary_remove(t_dictionary* me, int key)
+void* dictionary_remove(t_dictionary* self, char* key)
 {
-    void* data = dictionary_remove_element(me, key);
+    void* data = dictionary_remove_element(self, key);
     if (data != NULL)
-        --me->elements_amount;
+        --self->elements_amount;
 
     return data;
 }
 
-void dictionary_remove_and_destroy(t_dictionary* me, int key, void(*data_destroyer)(void* val))
+void dictionary_remove_and_destroy(t_dictionary* self, char const* key, void(*data_destroyer)(void*))
 {
-    void* value = dictionary_remove(me, key);
-    if (value != NULL)
-        data_destroyer(value);
+    void* data = dictionary_remove_element(self, key);
+    if (data != NULL)
+    {
+        --self->elements_amount;
+        data_destroyer(data);
+    }
 }
 
-void dictionary_iterate(t_dictionary const* d, void(*closure)(int key, void* val))
+void dictionary_iterator(t_dictionary* self, void(* closure)(char const*, void*))
 {
-    for (unsigned int table_index = 0; table_index < d->table_max_size; ++table_index)
+    int table_index;
+    for (table_index = 0; table_index < self->table_max_size; ++table_index)
     {
-        t_hash_element* element = *((t_hash_element**) Vector_at(&d->elements, table_index));
+        t_hash_element* element = self->elements[table_index];
+
         while (element != NULL)
         {
-            closure(element->key, element->value);
+            closure(element->key, element->data);
             element = element->next;
         }
     }
 }
 
-void dictionary_iterate_with_data(t_dictionary const* d, void(*closure)(int key, void* val, void* data), void* data)
+void dictionary_iterator_with_data(t_dictionary* self, void(* closure)(char const*, void*, void*), void* extra)
 {
-    for (unsigned int table_index = 0; table_index < d->table_max_size; ++table_index)
+    int table_index;
+    for (table_index = 0; table_index < self->table_max_size; ++table_index)
     {
-        t_hash_element* element = *((t_hash_element**) Vector_at(&d->elements, table_index));
+        t_hash_element* element = self->elements[table_index];
         while (element != NULL)
         {
-            closure(element->key, element->value, data);
+            closure(element->key, element->data, extra);
             element = element->next;
         }
     }
 }
 
-void dictionary_clean(t_dictionary* me)
+void dictionary_clean(t_dictionary* self)
 {
-    internal_dictionary_clean_and_destroy_elements(me, NULL);
+    internal_dictionary_clean_and_destroy_elements(self, NULL);
 }
 
-void dictionary_clean_and_destroy_elements(t_dictionary* me, void(*data_destroyer)(void* val))
+void dictionary_clean_and_destroy_elements(t_dictionary* self, void(* data_destroyer)(void*))
 {
-    internal_dictionary_clean_and_destroy_elements(me, data_destroyer);
+    internal_dictionary_clean_and_destroy_elements(self, data_destroyer);
 }
 
-bool dictionary_has_key(t_dictionary const* me, int key)
+bool dictionary_has_key(t_dictionary* self, char const* key)
 {
-    return dictionary_get_element(me, key) != NULL;
+    return dictionary_get_element(self, key) != NULL;
 }
 
-bool dictionary_is_empty(t_dictionary const* me)
+bool dictionary_is_empty(t_dictionary* self)
 {
-    return !me->elements_amount;
+    return self->elements_amount == 0;
 }
 
-unsigned int dictionary_size(t_dictionary const* me)
+int dictionary_size(t_dictionary* self)
 {
-    return me->elements_amount;
+    return self->elements_amount;
 }
 
-void dictionary_destroy(t_dictionary* me)
+void dictionary_destroy(t_dictionary* self)
 {
-    dictionary_clean(me);
-    Vector_Destruct(&me->elements);
-    Free(me);
+    dictionary_clean(self);
+    Free(self->elements);
+    Free(self);
 }
 
-void dictionary_destroy_and_destroy_elements(t_dictionary* me, void(*data_destroyer)(void*))
+void dictionary_destroy_and_destroy_elements(t_dictionary* self, void(* data_destroyer)(void*))
 {
-    dictionary_clean_and_destroy_elements(me, data_destroyer);
-    Vector_Destruct(&me->elements);
-    Free(me);
+    dictionary_clean_and_destroy_elements(self, data_destroyer);
+    Free(self->elements);
+    Free(self);
 }
 
-static void dictionary_resize(t_dictionary* me, unsigned int new_max_size)
+static void dictionary_resize(t_dictionary* self, int new_max_size)
 {
-    Vector* new_table = Malloc(sizeof(Vector));
-    Vector_Construct(new_table, sizeof(t_hash_element*), NULL, 0);
-    Vector_resize_zero(new_table, new_max_size);
+    t_hash_element** new_table = Calloc(new_max_size, sizeof(t_hash_element*));
+    t_hash_element** old_table = self->elements;
 
-    Vector* old_table = &me->elements;
+    self->table_current_size = 0;
 
-    me->table_current_size = 0;
-
-    for (unsigned int table_index = 0; table_index < me->table_max_size; ++table_index)
+    int table_index;
+    for (table_index = 0; table_index < self->table_max_size; table_index++)
     {
-        t_hash_element* old_element = *((t_hash_element**) Vector_at(old_table, table_index));
+        t_hash_element* old_element = old_table[table_index];
         t_hash_element* next_element;
+
         while (old_element != NULL)
         {
             // new position
-            unsigned int new_index = old_element->hashcode % new_max_size;
-            t_hash_element** elemAccessor = ((t_hash_element**) Vector_at(new_table, new_index));
-            if (*elemAccessor == NULL)
+            int new_index = old_element->hashcode % new_max_size;
+            t_hash_element* new_element = new_table[new_index];
+
+            if (new_element == NULL)
             {
-                *elemAccessor = old_element;
-                ++me->table_current_size;
+                new_table[new_index] = old_element;
+                ++self->table_current_size;
             }
             else
             {
-                t_hash_element* new_element = *elemAccessor;
                 while (new_element->next != NULL)
                     new_element = new_element->next;
 
@@ -214,90 +227,101 @@ static void dictionary_resize(t_dictionary* me, unsigned int new_max_size)
         }
     }
 
-    me->elements = *new_table;
-    me->table_max_size = new_max_size;
-    Vector_Destruct(old_table);
+    self->elements = new_table;
+    self->table_max_size = new_max_size;
+    Free(old_table);
 }
 
 /*
  * @NAME: dictionary_clean
  * @DESC: Destruye todos los elementos del diccionario
 */
-static void internal_dictionary_clean_and_destroy_elements(t_dictionary* me, void(*data_destroyer)(void* val))
+static void internal_dictionary_clean_and_destroy_elements(t_dictionary* self, void(* data_destroyer)(void*))
 {
-    for (unsigned int table_index = 0; table_index < me->table_max_size; ++table_index)
+    int table_index;
+
+    for (table_index = 0; table_index < self->table_max_size; table_index++)
     {
-        t_hash_element* element = *((t_hash_element**) Vector_at(&me->elements, table_index));
+        t_hash_element* element = self->elements[table_index];
+        t_hash_element* next_element = NULL;
+
         while (element != NULL)
         {
-            t_hash_element* next_element = element->next;
+            next_element = element->next;
             dictionary_destroy_element(element, data_destroyer);
             element = next_element;
         }
 
-        *((t_hash_element**) Vector_at(&me->elements, table_index)) = NULL;
+        self->elements[table_index] = NULL;
     }
 
-    me->table_current_size = 0;
-    me->elements_amount = 0;
+    self->table_current_size = 0;
+    self->elements_amount = 0;
 }
 
-static t_hash_element* dictionary_create_element(int key, unsigned int key_hash, void* val)
+static t_hash_element* dictionary_create_element(char* key, unsigned int key_hash, void* data)
 {
     t_hash_element* element = Malloc(sizeof(t_hash_element));
 
     element->key = key;
-    element->value = val;
+    element->data = data;
     element->hashcode = key_hash;
     element->next = NULL;
 
     return element;
 }
 
-static t_hash_element* dictionary_get_element(t_dictionary const* me, int key)
+static t_hash_element* dictionary_get_element(t_dictionary* self, char const* key)
 {
-    unsigned int index = dictionary_hash(key) % me->table_max_size;
-    t_hash_element* element = *((t_hash_element**) Vector_at(&me->elements, index));
-    if (!element)
+    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    int index = key_hash % self->table_max_size;
+
+    t_hash_element* element = self->elements[index];
+
+    if (element == NULL)
         return NULL;
 
     do
     {
-        if (element->key == key)
+        if (element->hashcode == key_hash)
             return element;
     } while ((element = element->next) != NULL);
 
     return NULL;
 }
 
-static void* dictionary_remove_element(t_dictionary* me, int key)
+static void* dictionary_remove_element(t_dictionary* self, char const* key)
 {
-    unsigned int index = dictionary_hash(key) % me->table_max_size;
-    t_hash_element* element = *((t_hash_element**) Vector_at(&me->elements, index));
-    if (!element)
+    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    int index = key_hash % self->table_max_size;
+
+    t_hash_element* element = self->elements[index];
+
+    if (element == NULL)
         return NULL;
 
-    if (element->key == key)
+    if (element->hashcode == key_hash)
     {
-        void* val = element->value;
-        *((t_hash_element**) Vector_at(&me->elements, index)) = element->next;
-        if (!*((t_hash_element**) Vector_at(&me->elements, index)))
-            --me->table_current_size;
+        void* data = element->data;
+        self->elements[index] = element->next;
+        if (self->elements[index] == NULL)
+            --self->table_current_size;
 
+        Free(element->key);
         Free(element);
-        return val;
+        return data;
     }
 
     while (element->next != NULL)
     {
-        if (element->next->key == key)
+        if (element->next->hashcode == key_hash)
         {
-            void* val = element->next->value;
+            void* data = element->next->data;
             t_hash_element* aux = element->next;
             element->next = element->next->next;
-
+            Free(aux->key);
             Free(aux);
-            return val;
+            return data;
         }
 
         element = element->next;
@@ -306,10 +330,11 @@ static void* dictionary_remove_element(t_dictionary* me, int key)
     return NULL;
 }
 
-static void dictionary_destroy_element(t_hash_element* element, void(*data_destroyer)(void* val))
+static void dictionary_destroy_element(t_hash_element* element, void(* data_destroyer)(void*))
 {
-    if (data_destroyer)
-        data_destroyer(element->value);
+    if (data_destroyer != NULL)
+        data_destroyer(element->data);
 
+    Free(element->key);
     Free(element);
 }

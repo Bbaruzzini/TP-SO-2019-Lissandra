@@ -194,7 +194,7 @@ char** string_get_string_as_array(char* text)
     while (array_values[i] != NULL)
     {
         string_trim(&(array_values[i]));
-        i++;
+        ++i;
     }
 
     Free(value_without_brackets);
@@ -218,11 +218,20 @@ char* string_substring_until(char const* text, int length)
     return string_substring(text, 0, length);
 }
 
-void string_iterate_lines(char** strings, void (* closure)(char*))
+void string_iterate_lines(char** strings, void (*closure)(char*))
 {
     while (*strings != NULL)
     {
         closure(*strings);
+        strings++;
+    }
+}
+
+void string_iterate_lines_with_data(char** strings, void (*closure)(char*, void*), void* extra)
+{
+    while (*strings != NULL)
+    {
+        closure(*strings, extra);
         strings++;
     }
 }
@@ -240,8 +249,8 @@ char* string_reverse(char const* palabra)
     while (i >= 0)
     {
         resultado[j] = palabra[i];
-        i--;
-        j++;
+        --i;
+        ++j;
     }
 
     return resultado;
@@ -311,23 +320,22 @@ static char** _string_split(char* text, char* separator, bool(* condition)(char*
     {
         char* token = strtok_r(str, separator, &next);
         if (token == NULL)
-        {
             break;
-        }
+
         str = NULL;
-        size++;
+        ++size;
         substrings = Realloc(substrings, sizeof(char*) * size);
         substrings[size - 1] = string_duplicate(token);
     };
 
     if (next[0] != '\0')
     {
-        size++;
+        ++size;
         substrings = Realloc(substrings, sizeof(char*) * size);
         substrings[size - 1] = string_duplicate(next);
     }
 
-    size++;
+    ++size;
     substrings = Realloc(substrings, sizeof(char*) * size);
     substrings[size - 1] = NULL;
 

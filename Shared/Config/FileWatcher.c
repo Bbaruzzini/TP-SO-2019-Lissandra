@@ -33,7 +33,7 @@ FileWatcher* FileWatcher_Create(void)
     fw->WriteCallback = NULL;
     fw->_destroy = FileWatcher_Destroy;
 
-    fw->WatchCallbacks = dictionary_create();
+    fw->WatchCallbacks = hashmap_create();
     return fw;
 }
 
@@ -50,14 +50,14 @@ bool FileWatcher_AddWatch(FileWatcher* fw, char const* pathName, FWCallback noti
     watch->fileName = pathName;
     watch->callback = notifyFn;
 
-    dictionary_put(fw->WatchCallbacks, wd, watch);
+    hashmap_put(fw->WatchCallbacks, wd, watch);
     return true;
 }
 
 void FileWatcher_Destroy(void* elem)
 {
     FileWatcher* fw = (FileWatcher*) elem;
-    dictionary_destroy_and_destroy_elements(fw->WatchCallbacks, Free);
+    hashmap_destroy_and_destroy_elements(fw->WatchCallbacks, Free);
     close(fw->Handle);
     Free(fw);
 }
@@ -107,7 +107,7 @@ static bool _readCb(void* fileWatcher)
                 src += event.len;
             }
 
-            Watch* watch = (Watch*) dictionary_get(fw->WatchCallbacks, event.wd);
+            Watch* watch = (Watch*) hashmap_get(fw->WatchCallbacks, event.wd);
             if (!watch)
             {
                 LISSANDRA_LOG_ERROR("FileWatcher callback: wd %u no registrado!", event.wd);

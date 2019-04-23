@@ -221,6 +221,14 @@ char* string_substring_until(char const* text, int length);
 void string_iterate_lines(char** strings, void (* closure)(char*));
 
 /**
+* @NAME: string_iterate_lines_with_data
+* @DESC: Itera un array de strings aplicando
+* el closure a cada string, hasta que encuentre un NULL
+* el closure puede recibir el parametro extra
+*/
+void string_iterate_lines_with_data(char** strings, void (*closure)(char*, void*), void* extra);
+
+/**
 * @NAME: string_get_string_as_array
 * @DESC: Retorna una array separando los elementos
 * de un string con formato de array
