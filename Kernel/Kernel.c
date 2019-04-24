@@ -2,17 +2,18 @@
 #include "Appender.h"
 #include "AppenderConsole.h"
 #include "AppenderFile.h"
-#include "Console.h"
 #include "CLIHandlers.h"
+#include "Config.h"
+#include "Console.h"
 #include "EventDispatcher.h"
 #include "FileWatcher.h"
 #include "Logger.h"
 #include <libcommons/config.h>
 #include <libcommons/string.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <signal.h>
 
 CLICommand CLICommands[] =
 {
@@ -33,8 +34,6 @@ char const* CLIPrompt = "KERNEL> ";
 LockedQueue* CLICommandQueue = NULL;
 
 atomic_bool ProcessRunning = true;
-
-static t_config* sConfig = NULL;
 
 static Appender* consoleLog;
 static Appender* fileLog;
@@ -80,7 +79,8 @@ static void Trap(int signal)
 static void LoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
-    config_destroy(sConfig);
+    if (sConfig)
+        config_destroy(sConfig);
 
     sConfig = config_create(fileName);
 }

@@ -116,9 +116,6 @@ int config_keys_amount(t_config const* self)
 
 void config_destroy(t_config* config)
 {
-    if (!config)
-        return;
-
     dictionary_destroy_and_destroy_elements(config->properties, Free);
     Free(config->path);
     Free(config);
