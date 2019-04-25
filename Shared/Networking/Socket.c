@@ -160,7 +160,7 @@ bool Socket_RecvPacket(Socket* s)
     header->size = EndianConvert(header->size);
     header->cmd = EndianConvert(header->cmd);
 
-    if (header->size >= 10240 || header->cmd >= MAX_OPCODE)
+    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
     {
         LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
                             s->Address.HostIP, header->size, header->cmd);
@@ -215,7 +215,7 @@ static bool _readHeaderHandler(Socket* s)
     header->size = EndianConvert(header->size);
     header->cmd = EndianConvert(header->cmd);
 
-    if (header->size >= 10240 || header->cmd >= MAX_OPCODE)
+    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
     {
         LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
                             s->Address.HostIP, header->size, header->cmd);
