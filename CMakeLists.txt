@@ -3,6 +3,7 @@ project(Lissandra C)
 
 set(CMAKE_C_STANDARD 11)
 
+include_directories(.)
 include_directories(Shared)
 include_directories(Shared/Config)
 include_directories(Shared/Console)

@@ -7,7 +7,4 @@ typedef struct Packet Packet;
 
 typedef void HandlerFn (Socket* s, Packet* p);
 
-HandlerFn HandleTestSend;
-HandlerFn HandleTestAnswer;
-
 #endif //Handlers_h__
