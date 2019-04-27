@@ -14,27 +14,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
 #include "bitarray.h"
+#include "Malloc.h"
+#include <stddef.h>
 
 /* array index for character containing bit */
-char _bit_in_char(int bit, bit_numbering_t mode){
-    switch(mode){
-        case LSB_FIRST:
-            return (0x80 >> (CHAR_BIT - 1 - (bit  % CHAR_BIT)));
+static inline uint8_t _bit_in_char(size_t bit, bit_numbering_t mode)
+{
+    switch (mode)
+    {
         case MSB_FIRST:
-            return (0x80 >> (bit  % CHAR_BIT));
+            // 0x80: 1000 0000 binario
+            return (((uint8_t) 0x80) >> (bit % BYTE_BITS));
+        case LSB_FIRST:
         default:
-            return _bit_in_char(bit, LSB_FIRST);
+            // 0x01: 0000 0001 binario
+            return (((uint8_t) 0x01) << (bit % BYTE_BITS));
     }
 }
 
-t_bitarray *bitarray_create(char *bitarray, size_t size) {
+t_bitarray* bitarray_create(uint8_t* bitarray, size_t size)
+{
     return bitarray_create_with_mode(bitarray, size, LSB_FIRST);
 }
 
-t_bitarray *bitarray_create_with_mode(char *bitarray, size_t size, bit_numbering_t mode){
-    t_bitarray *self = malloc(sizeof(t_bitarray));
+t_bitarray* bitarray_create_with_mode(uint8_t* bitarray, size_t size, bit_numbering_t mode)
+{
+    t_bitarray* self = Malloc(sizeof(t_bitarray));
 
     self->bitarray = bitarray;
     self->size = size;
@@ -43,29 +49,29 @@ t_bitarray *bitarray_create_with_mode(char *bitarray, size_t size, bit_numbering
     return self;
 }
 
-bool bitarray_test_bit(t_bitarray *self, off_t bit_index) {
-    return((self->bitarray[BIT_CHAR(bit_index)] & _bit_in_char(bit_index, self->mode)) != 0);
+bool bitarray_test_bit(t_bitarray* self, size_t bit_index)
+{
+    return ((self->bitarray[BIT_CHAR(bit_index)] & _bit_in_char(bit_index, self->mode)) != 0);
 }
 
-void bitarray_set_bit(t_bitarray *self, off_t bit_index) {
+void bitarray_set_bit(t_bitarray* self, size_t bit_index)
+{
     self->bitarray[BIT_CHAR(bit_index)] |= _bit_in_char(bit_index, self->mode);
 }
 
-void bitarray_clean_bit(t_bitarray *self, off_t bit_index){
-    unsigned char mask;
-
+void bitarray_clean_bit(t_bitarray* self, size_t bit_index)
+{
     /* create a mask to zero out desired bit */
-    mask =  _bit_in_char(bit_index, self->mode);
-    mask = ~mask;
-
+    uint8_t const mask = ~_bit_in_char(bit_index, self->mode);
     self->bitarray[BIT_CHAR(bit_index)] &= mask;
 }
 
-size_t bitarray_get_max_bit(t_bitarray *self) {
-    return self->size * CHAR_BIT;
+size_t bitarray_get_max_bit(t_bitarray* self)
+{
+    return self->size * BYTE_BITS;
 }
 
-void bitarray_destroy(t_bitarray *self) {
-    free(self);
+void bitarray_destroy(t_bitarray* self)
+{
+    Free(self);
 }
-

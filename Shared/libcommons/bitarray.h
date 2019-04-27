@@ -18,30 +18,39 @@
 #define BITARRAY_H_
 
 #include <stdbool.h>
-#include <limits.h>
-#include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 
-/* position of bit within character */
-#define BIT_CHAR(bit)         ((bit) / CHAR_BIT)
+// Cambios por ariel-: 20190427
+// uso fixed size type uint8_t
+// cambio off_t por size_t ya que es unsigned y las posiciones son naturales
+// hago mas legible el bit cambiado en modo LSB_FIRST
+
+// number of bits on a byte
+#define BYTE_BITS 8
+
+/* position of byte containing bit */
+#define BIT_CHAR(bit)         ((bit) / BYTE_BITS)
 
 /**
  * Define el orden bajo el cual se guardarán los bits a la hora de llenar los bytes.
  * La mayoría de las implementaciones de bitmap usan LSB_FIRST. Si no estás seguro
  * de cuál usar, probablemente quieras usar esta.
  */
-typedef enum {
+typedef enum
+{
     /* Completa los bits en un byte priorizando el bit menos significativo:
      * 00000001 00000000
      */
-            LSB_FIRST,
-    /* Completa los bits en un byte priorizando el bit más significativo:
+    LSB_FIRST, /* Completa los bits en un byte priorizando el bit más significativo:
      * 10000000 00000000
      */
-            MSB_FIRST
+    MSB_FIRST
 } bit_numbering_t;
 
-typedef struct {
-    char *bitarray;
+typedef struct
+{
+    uint8_t* bitarray;
     size_t size;
     bit_numbering_t mode;
 } t_bitarray;
@@ -56,7 +65,7 @@ typedef struct {
 * 		bitarray
 *		size - Tamaño en bytes del bit array
 */
-t_bitarray 	*bitarray_create(char *bitarray, size_t size);
+t_bitarray* bitarray_create(uint8_t* bitarray, size_t size);
 
 /**
 * @NAME: bitarray_create
@@ -65,36 +74,36 @@ t_bitarray 	*bitarray_create(char *bitarray, size_t size);
 * 		bitarray
 *		size - Tamaño en bytes del bit array
 */
-t_bitarray	*bitarray_create_with_mode(char *bitarray, size_t size, bit_numbering_t mode);
+t_bitarray* bitarray_create_with_mode(uint8_t* bitarray, size_t size, bit_numbering_t mode);
 
 /**
 * @NAME: bitarray_test_bit
 * @DESC: Devuelve el valor del bit de la posicion indicada
 */
-bool 		 bitarray_test_bit(t_bitarray*, off_t bit_index);
+bool bitarray_test_bit(t_bitarray*, size_t bit_index);
 
 /**
 * @NAME: bitarray_set_bit
 * @DESC: Setea el valor del bit de la posicion indicada
 */
-void		 bitarray_set_bit(t_bitarray*, off_t bit_index);
+void bitarray_set_bit(t_bitarray*, size_t bit_index);
 
 /**
 * @NAME: bitarray_clean_bit
 * @DESC: Limpia el valor del bit de la posicion indicada
 */
-void		 bitarray_clean_bit(t_bitarray*, off_t bit_index);
+void bitarray_clean_bit(t_bitarray*, size_t bit_index);
 
 /**
 * @NAME: bitarray_get_max_bit
 * @DESC: Devuelve la cantidad de bits en el bitarray
 */
-size_t		 bitarray_get_max_bit(t_bitarray*);
+size_t bitarray_get_max_bit(t_bitarray*);
 
 /**
 * @NAME: bitarray_destroy
 * @DESC: Destruye el bit array
 */
-void 		 bitarray_destroy(t_bitarray*);
+void bitarray_destroy(t_bitarray*);
 
 #endif /* BITARRAY_H_ */

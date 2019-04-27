@@ -13,7 +13,7 @@ include_directories(Shared/Protocol)
 include_directories(Shared/Utility)
 
 file(GLOB_RECURSE SHARED_SRCS Shared/*.c Shared/*.h)
-add_library(shared STATIC ${SHARED_SRCS} Shared/libcommons/bitarray.c Shared/libcommons/bitarray.h)
+add_library(shared STATIC ${SHARED_SRCS})
 
 file(GLOB KERNEL_SRCS Kernel/*.c Kernel/*.h)
 add_executable(Kernel ${KERNEL_SRCS})
