@@ -1,6 +1,6 @@
 
-#ifndef CLIHandlers_h__
-#define CLIHandlers_h__
+#ifndef Kernel_CLIHandlers_h__
+#define Kernel_CLIHandlers_h__
 
 void HandleSelect(char const* args);
 void HandleInsert(char const* args);
@@ -12,4 +12,4 @@ void HandleAdd(char const* args);
 void HandleRun(char const* args);
 void HandleMetrics(char const* args);
 
-#endif //CLIHandlers_h__
+#endif //Kernel_CLIHandlers_h__
