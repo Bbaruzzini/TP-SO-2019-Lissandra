@@ -46,3 +46,7 @@ add_custom_command(TARGET Kernel
 add_custom_command(TARGET LFS
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/LFS/lissandra.conf ${CMAKE_BINARY_DIR}/)
+
+add_custom_command(TARGET Memoria
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Memoria/memoria.conf ${CMAKE_BINARY_DIR}/)
