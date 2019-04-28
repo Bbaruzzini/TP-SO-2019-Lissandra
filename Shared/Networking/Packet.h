@@ -145,7 +145,7 @@ char const*: Packet_Append_str,           \
 ) (p, X)
 
 /*
- * Packet_Destroy: libera la memoria utilizada por las estructuras, pero no la ocupada por el propio paquete
+ * Packet_Destroy: destruye el paquete
  */
 static inline void Packet_Destroy(Packet* p)
 {
@@ -153,38 +153,38 @@ static inline void Packet_Destroy(Packet* p)
     Free(p);
 }
 
-#define append_to_packet(src, cnt)                  \
-do                                                  \
-{                                                   \
-    assert(Vector_size(&p->data) < 10000000);       \
-                                                    \
-    size_t const newSize = p->wpos + cnt;           \
-    if (Vector_capacity(&p->data) < newSize)        \
-    {                                               \
-        if (newSize < 100)                          \
-            Vector_reserve(&p->data, 300);          \
-        else if (newSize < 750)                     \
-            Vector_reserve(&p->data, 2500);         \
-        else if (newSize < 6000)                    \
-            Vector_reserve(&p->data, 10000);        \
-        else                                        \
-            Vector_reserve(&p->data, 400000);       \
-    }                                               \
-                                                    \
-    /* just in case */                              \
-    if (Vector_size(&p->data) < newSize)            \
-        Vector_resize_zero(&p->data, newSize);      \
-                                                    \
-    memcpy(Vector_at(&p->data, p->wpos), src, cnt); \
-    p->wpos = newSize;                              \
+#define append_to_packet(src, cnt)                      \
+do                                                      \
+{                                                       \
+    assert(Vector_size(&p->data) < 10000000);           \
+                                                        \
+    size_t const newSize = p->wpos + (cnt);             \
+    if (Vector_capacity(&p->data) < newSize)            \
+    {                                                   \
+        if (newSize < 100)                              \
+            Vector_reserve(&p->data, 300);              \
+        else if (newSize < 750)                         \
+            Vector_reserve(&p->data, 2500);             \
+        else if (newSize < 6000)                        \
+            Vector_reserve(&p->data, 10000);            \
+        else                                            \
+            Vector_reserve(&p->data, 400000);           \
+    }                                                   \
+                                                        \
+    /* just in case */                                  \
+    if (Vector_size(&p->data) < newSize)                \
+        Vector_resize_zero(&p->data, newSize);          \
+                                                        \
+    memcpy(Vector_at(&p->data, p->wpos), (src), (cnt)); \
+    p->wpos = newSize;                                  \
 } while (false)
 
-#define read_from_packet(dst, cnt)                  \
-do                                                  \
-{                                                   \
-    assert(p->rpos + cnt <= Vector_size(&p->data)); \
-    memcpy(dst, Vector_at(&p->data, p->rpos), cnt); \
-    p->rpos += cnt;                                 \
+#define read_from_packet(dst, cnt)                      \
+do                                                      \
+{                                                       \
+    assert(p->rpos + (cnt) <= Vector_size(&p->data));   \
+    memcpy((dst), Vector_at(&p->data, p->rpos), (cnt)); \
+    p->rpos += (cnt);                                   \
 } while (false)
 
 #define define_append_numeric_value(type)                    \
