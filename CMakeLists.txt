@@ -21,6 +21,9 @@ add_executable(Kernel ${KERNEL_SRCS})
 file(GLOB LFS_SRCS LFS/*.c LFS/*.h)
 add_executable(LFS ${LFS_SRCS})
 
+file(GLOB MEM_SRCS Memoria/*.c Memoria/*.h)
+add_executable(Memoria ${MEM_SRCS})
+
 # dame warnings baby
 add_library(warnings-interface INTERFACE)
 target_compile_options(warnings-interface
@@ -34,6 +37,7 @@ target_compile_options(warnings-interface
 target_link_libraries(shared pthread readline warnings-interface)
 target_link_libraries(Kernel shared warnings-interface)
 target_link_libraries(LFS shared warnings-interface)
+target_link_libraries(Memoria shared warnings-interface)
 
 add_custom_command(TARGET Kernel
         POST_BUILD
