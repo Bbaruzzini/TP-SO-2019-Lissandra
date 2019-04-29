@@ -247,58 +247,78 @@ static void _ec_destroy(void* criteria)
     Free(ec);
 }
 
+static Packet* _build_select(DBRequest const* dbr)
+{
+    Packet* p = Packet_Create(LQL_SELECT, 20);
+    Packet_Append(p, dbr->TableName);
+    Packet_Append(p, dbr->Data.Select.Key);
+    return p;
+}
+
+static Packet* _build_insert(DBRequest const* dbr)
+{
+    Packet* p = Packet_Create(LQL_INSERT, 40);
+    Packet_Append(p, dbr->TableName);
+    Packet_Append(p, dbr->Data.Insert.Key);
+    Packet_Append(p, dbr->Data.Insert.Value);
+    {
+        uint32_t* ts = dbr->Data.Insert.Timestamp;
+        if (ts)
+            Packet_Append(p, *ts);
+    }
+    return p;
+}
+
+static Packet* _build_create(DBRequest const* dbr)
+{
+    Packet* p = Packet_Create(LQL_CREATE, 23);
+    Packet_Append(p, dbr->TableName);
+    Packet_Append(p, (uint8_t) dbr->Data.Create.Consistency);
+    Packet_Append(p, dbr->Data.Create.Partitions);
+    Packet_Append(p, dbr->Data.Create.CompactTime);
+    return p;
+}
+
+static Packet* _build_describe(DBRequest const* dbr)
+{
+    Packet* p = Packet_Create(LQL_DESCRIBE, 16);
+    {
+        char const* tableName = dbr->TableName;
+        if (tableName)
+            Packet_Append(p, tableName);
+    }
+    return p;
+}
+
+static Packet* _build_drop(DBRequest const* dbr)
+{
+    Packet* p = Packet_Create(LQL_DROP, 16);
+    Packet_Append(p, dbr->TableName);
+    return p;
+}
+
+static Packet* _build_journal(DBRequest const* dbr)
+{
+    (void) dbr;
+    return Packet_Create(LQL_JOURNAL, 0);
+}
+
 static void _dispatch_one(uint32_t memIndex, MemoryOps op, DBRequest const* dbr)
 {
-    // TODO: stub
     Socket* s = hashmap_get(Memories, memIndex);
-    Packet* p = NULL;
 
-    switch (op)
+    typedef Packet* PacketBuildFn(DBRequest const*);
+    static PacketBuildFn* const PacketBuilders[NUM_OPS] =
     {
-        case OP_SELECT:
-            p = Packet_Create(LQL_SELECT, 20);
-            Packet_Append(p, dbr->TableName);
-            Packet_Append(p, dbr->Data.Select.Key);
-            break;
-        case OP_INSERT:
-            p = Packet_Create(LQL_INSERT, 40);
-            Packet_Append(p, dbr->TableName);
-            Packet_Append(p, dbr->Data.Insert.Key);
-            Packet_Append(p, dbr->Data.Insert.Value);
-            {
-                uint32_t* ts = dbr->Data.Insert.Timestamp;
-                if (ts)
-                    Packet_Append(p, *ts);
-            }
-            break;
-        case OP_CREATE:
-            p = Packet_Create(LQL_CREATE, 23);
-            Packet_Append(p, dbr->TableName);
-            Packet_Append(p, (uint8_t) dbr->Data.Create.Consistency);
-            Packet_Append(p, dbr->Data.Create.Partitions);
-            Packet_Append(p, dbr->Data.Create.CompactTime);
-            break;
-        case OP_DESCRIBE:
-            p = Packet_Create(LQL_DESCRIBE, 16);
-            {
-                char const* tableName = dbr->TableName;
-                if (tableName)
-                    Packet_Append(p, tableName);
-            }
-            break;
-        case OP_DROP:
-            p = Packet_Create(LQL_DROP, 16);
-            Packet_Append(p, dbr->TableName);
-            break;
-        case OP_JOURNAL:
-            p = Packet_Create(LQL_JOURNAL, 0);
-            break;
-        default:
-            break;
-    }
+        _build_select,
+        _build_insert,
+        _build_create,
+        _build_describe,
+        _build_drop,
+        _build_journal
+    };
 
-    if (!p)
-        return;
+    Packet* p = PacketBuilders[op](dbr);
 
     Socket_SendPacket(s, p);
     Packet_Destroy(p);

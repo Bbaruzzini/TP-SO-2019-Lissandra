@@ -45,7 +45,9 @@ typedef enum
     OP_CREATE,
     OP_DESCRIBE,
     OP_DROP,
-    OP_JOURNAL
+    OP_JOURNAL,
+
+    NUM_OPS
 } MemoryOps;
 
 typedef struct
