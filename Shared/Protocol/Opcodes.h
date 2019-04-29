@@ -54,6 +54,9 @@ typedef enum
                           * cada una se deserializa igual que MSG_DESCRIBE
                           */
 
+    // Mensajes a memoria
+    LQL_JOURNAL,        /* nada */
+
     NUM_OPCODES
 } Opcodes;
 

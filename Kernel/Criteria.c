@@ -3,10 +3,13 @@
 #include "Malloc.h"
 #include "Opcodes.h"
 #include "Packet.h"
+#include "Timer.h"
 #include "Socket.h"
 #include <libcommons/hashmap.h>
 #include <libcommons/list.h>
+#include <stdlib.h>
 #include <time.h>
+#include <vector.h>
 
 typedef struct
 {
@@ -18,7 +21,7 @@ typedef struct
 } Metric;
 
 typedef void AddMemoryFnType(void* criteria, uint32_t memIdx);
-typedef void DispatchFnType(void* criteria, MemoryOps op);
+typedef void DispatchFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
 typedef void DestroyFnType(void* criteria);
 
 typedef struct
@@ -42,9 +45,7 @@ typedef struct
 {
     Criteria _impl;
 
-    // SHC: buckets (index_tbl -> memoryIdx map)
-    // TODO: convertir a un array porque es eso. el hash se aplica al elegir memoria, no al agregarla
-    t_hashmap* MemoryMap;
+    Vector MemoryArr;
 } Criteria_SHC;
 
 typedef struct
@@ -54,6 +55,12 @@ typedef struct
     // EC: lista enlazada simple de memorias
     t_list* MemoryList;
 } Criteria_EC;
+
+static inline uint32_t keyHash(uint16_t key)
+{
+    // todo: trivial hash
+    return key;
+}
 
 // map memIndex->Socket
 static t_hashmap* Memories = NULL;
@@ -74,12 +81,12 @@ static DestroyFnType _sc_destroy;
 static DestroyFnType _shc_destroy;
 static DestroyFnType _ec_destroy;
 
-static void _dispatch_one_map(int key, void* elem, void* op);
-static void _dispatch_one_itr(void* elem, void* op);
-static void _dispatch_one(uint32_t memIndex, MemoryOps op);
+static void _dispatch_one(uint32_t memIndex, MemoryOps op, DBRequest const* dbr);
 
 void Criterias_Init(void)
 {
+    srandom(GetMSTime());
+
     Memories = hashmap_create();
 
     // ugly pero bue
@@ -89,7 +96,7 @@ void Criterias_Init(void)
 
     Criteria_SHC* shc = Malloc(sizeof(Criteria_SHC));
     _initBase(shc, _shc_add, _shc_dispatch, _shc_destroy);
-    shc->MemoryMap = hashmap_create();
+    Vector_Construct(&shc->MemoryArr, sizeof(uint32_t), NULL, 0);
 
     Criteria_EC* ec = Malloc(sizeof(Criteria_EC));
     _initBase(ec, _ec_add, _ec_dispatch, _ec_destroy);
@@ -123,10 +130,10 @@ void Criterias_Report(void)
     // TODO
 }
 
-void Criteria_Dispatch(CriteriaType type, MemoryOps op)
+void Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
 {
     Criteria* itr = Criterias[type];
-    itr->DispatchFn(itr, op);
+    itr->DispatchFn(itr, op, dbr);
 }
 
 void Criterias_Destroy(void)
@@ -167,8 +174,7 @@ static void _shc_add(void* criteria, uint32_t memIdx)
     // agregar al hashmap
     // PRECONDICION: el usuario debe hacer un journal luego de agregar memorias a este criterio
     Criteria_SHC* shc = criteria;
-    hashmap_put(shc->MemoryMap, 0, (void*) memIdx);
-    // TODO: en realidad no tendria que ser hashmap
+    Vector_push_back(&shc->MemoryArr, &memIdx);
 }
 
 static void _ec_add(void* criteria, uint32_t memIdx)
@@ -177,22 +183,32 @@ static void _ec_add(void* criteria, uint32_t memIdx)
     list_add(ec->MemoryList, (void*) memIdx);
 }
 
-static void _sc_dispatch(void* criteria, MemoryOps op)
+static void _sc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SC* sc = criteria;
-    _dispatch_one(sc->MemoryIndex, op);
+    _dispatch_one(sc->MemoryIndex, op, dbr);
 }
 
-static void _shc_dispatch(void* criteria, MemoryOps op)
+static void _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SHC* shc = criteria;
-    hashmap_iterate_with_data(shc->MemoryMap, _dispatch_one_map, (void*) op);
+
+    // todo ver issue 1326 (no hay key en todas las operaciones)
+    uint32_t const memIdx = *((uint32_t*) Vector_at(&shc->MemoryArr, keyHash(0 /*todo: key*/) % Vector_size(&shc->MemoryArr)));
+    _dispatch_one(memIdx, op, dbr);
 }
 
-static void _ec_dispatch(void* criteria, MemoryOps op)
+static void _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
+    // TODO: dejar random?
+    // otras opciones:
+    // LRU
+    // RR
+    // MR (min requests)
+
     Criteria_EC* ec = criteria;
-    list_iterate_with_data(ec->MemoryList, _dispatch_one_itr, (void*) op);
+    uint32_t const memIdx = (uint32_t) list_get(ec->MemoryList, random() % list_size(ec->MemoryList));
+    _dispatch_one(memIdx, op, dbr);
 }
 
 static void _sc_destroy(void* criteria)
@@ -205,7 +221,7 @@ static void _sc_destroy(void* criteria)
 static void _shc_destroy(void* criteria)
 {
     Criteria_SHC* shc = criteria;
-    hashmap_destroy(shc->MemoryMap);
+    Vector_Destruct(&shc->MemoryArr);
     Free(shc);
 }
 
@@ -216,29 +232,58 @@ static void _ec_destroy(void* criteria)
     Free(ec);
 }
 
-static void _dispatch_one_map(int key, void* elem, void* op)
-{
-    (void) key;
-    _dispatch_one((uint32_t) elem, (MemoryOps) op);
-}
-
-static void _dispatch_one_itr(void* elem, void* op)
-{
-    _dispatch_one((uint32_t) elem, (MemoryOps) op);
-}
-
-static void _dispatch_one(uint32_t memIndex, MemoryOps op)
+static void _dispatch_one(uint32_t memIndex, MemoryOps op, DBRequest const* dbr)
 {
     // TODO: stub
     Socket* s = hashmap_get(Memories, memIndex);
-    Packet* p = Packet_Create(LQL_DESCRIBE, 0);
+    Packet* p = NULL;
 
     switch (op)
     {
+        case OP_SELECT:
+            p = Packet_Create(LQL_SELECT, 20);
+            Packet_Append(p, dbr->TableName);
+            Packet_Append(p, dbr->Data.Select.Key);
+            break;
+        case OP_INSERT:
+            p = Packet_Create(LQL_INSERT, 40);
+            Packet_Append(p, dbr->TableName);
+            Packet_Append(p, dbr->Data.Insert.Key);
+            Packet_Append(p, dbr->Data.Insert.Value);
+            {
+                uint32_t* ts = dbr->Data.Insert.Timestamp;
+                if (ts)
+                    Packet_Append(p, *ts);
+            }
+            break;
         case OP_CREATE:
+            p = Packet_Create(LQL_CREATE, 23);
+            Packet_Append(p, dbr->TableName);
+            Packet_Append(p, (uint8_t) dbr->Data.Create.Consistency);
+            Packet_Append(p, dbr->Data.Create.Partitions);
+            Packet_Append(p, dbr->Data.Create.CompactTime);
+            break;
+        case OP_DESCRIBE:
+            p = Packet_Create(LQL_DESCRIBE, 16);
+            {
+                char const* tableName = dbr->TableName;
+                if (tableName)
+                    Packet_Append(p, tableName);
+            }
+            break;
+        case OP_DROP:
+            p = Packet_Create(LQL_DROP, 16);
+            Packet_Append(p, dbr->TableName);
+            break;
+        case OP_JOURNAL:
+            p = Packet_Create(LQL_JOURNAL, 0);
+            break;
         default:
             break;
     }
+
+    if (!p)
+        return;
 
     Socket_SendPacket(s, p);
     Packet_Destroy(p);

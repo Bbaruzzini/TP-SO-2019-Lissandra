@@ -48,6 +48,32 @@ typedef enum
     OP_JOURNAL
 } MemoryOps;
 
+typedef struct
+{
+    char const* TableName;
+    union
+    {
+        struct
+        {
+            uint16_t Key;
+        } Select;
+
+        struct
+        {
+            uint16_t Key;
+            char const* Value;
+            uint32_t* Timestamp;
+        } Insert;
+
+        struct
+        {
+            CriteriaType Consistency;
+            uint16_t Partitions;
+            uint32_t CompactTime;
+        } Create;
+    } Data;
+} DBRequest;
+
 void Criterias_Init(void);
 
 void Criteria_AddMemory(CriteriaType type, uint32_t memIndex, Socket* s);
@@ -56,7 +82,7 @@ void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
 
 void Criterias_Report(void);
 
-void Criteria_Dispatch(CriteriaType type, MemoryOps op);
+void Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr);
 
 void Criterias_Destroy(void);
 
