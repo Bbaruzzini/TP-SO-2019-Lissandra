@@ -193,8 +193,23 @@ static void _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SHC* shc = criteria;
 
-    // todo ver issue 1326 (no hay key en todas las operaciones)
-    uint32_t const memIdx = *((uint32_t*) Vector_at(&shc->MemoryArr, keyHash(0 /*todo: key*/) % Vector_size(&shc->MemoryArr)));
+    // por defecto primer memoria (no hay nada en el tp que diga lo contrario) ver issue 1326
+    size_t memPos = 0;
+    switch (op)
+    {
+        case OP_SELECT:
+            memPos = keyHash(dbr->Data.Select.Key);
+            break;
+        case OP_INSERT:
+            memPos = keyHash(dbr->Data.Insert.Key);
+            break;
+        default:
+            break;
+    }
+
+    memPos %= Vector_size(&shc->MemoryArr);
+
+    uint32_t const memIdx = *((uint32_t*) Vector_at(&shc->MemoryArr, memPos));
     _dispatch_one(memIdx, op, dbr);
 }
 
