@@ -1,15 +1,17 @@
 
-#include "Appender.h"
-#include "AppenderConsole.h"
-#include "AppenderFile.h"
+
 #include "CLIHandlers.h"
-#include "Config.h"
-#include "Console.h"
-#include "EventDispatcher.h"
-#include "FileWatcher.h"
-#include "Logger.h"
+#include "Criteria.h"
+#include <Appender.h>
+#include <AppenderConsole.h>
+#include <AppenderFile.h>
+#include <Config.h>
+#include <Console.h>
+#include <EventDispatcher.h>
+#include <FileWatcher.h>
 #include <libcommons/config.h>
 #include <libcommons/string.h>
+#include <Logger.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -93,6 +95,11 @@ static void InitConsole(void)
     Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
 }
 
+static void InitMemorySubsystem(void)
+{
+    Criterias_Init();
+}
+
 static void MainLoop(void)
 {
     // el kokoro
@@ -106,6 +113,7 @@ static void MainLoop(void)
 
 static void Cleanup(void)
 {
+    Criterias_Destroy();
     LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();
@@ -126,6 +134,8 @@ int main(void)
     EventDispatcher_AddFDI(fw);
 
     InitConsole();
+
+    InitMemorySubsystem();
 
     MainLoop();
 

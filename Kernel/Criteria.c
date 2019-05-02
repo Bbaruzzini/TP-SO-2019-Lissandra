@@ -67,7 +67,7 @@ static t_hashmap* Memories = NULL;
 static Criteria* Criterias[NUM_CRITERIA] = { 0 };
 
 static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* dispatcher, DestroyFnType* destroyer);
-static void _destroy(void* criteria);
+static void _destroy(Criteria* criteria);
 
 static AddMemoryFnType _sc_add;
 static AddMemoryFnType _shc_add;
@@ -104,7 +104,7 @@ void Criterias_Init(void)
 
     Criterias[CRITERIA_SC] = (Criteria*) sc;
     Criterias[CRITERIA_SHC] = (Criteria*) shc;
-    Criterias[CRITERIA_SC] = (Criteria*) ec;
+    Criterias[CRITERIA_EC] = (Criteria*) ec;
 }
 
 void Criteria_AddMemory(CriteriaType type, uint32_t memIndex, Socket* s)
@@ -153,10 +153,8 @@ static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* di
     c->DestroyFn = destroyer;
 }
 
-static void _destroy(void* criteria)
+static void _destroy(Criteria* c)
 {
-    Criteria* c = criteria;
-
     list_destroy_and_destroy_elements(c->Metrics, Free);
     c->DestroyFn(c);
 }
