@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(Lissandra C)
 
-set(CMAKE_C_STANDARD 11)
+# necesario ya que CMAKE_C_STANDARD pone el flag de gnu11 en lugar de c11
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+
+# para algunas funciones POSIX
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE")
 
 include_directories(.)
 include_directories(Shared)

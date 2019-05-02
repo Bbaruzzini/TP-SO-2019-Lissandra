@@ -3,10 +3,10 @@
 #define Logger_h__
 
 #include "LogCommon.h"
-#include "vector.h"
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>
+#include <vector.h>
 
 typedef struct Appender Appender;
 typedef struct LogMessage LogMessage;

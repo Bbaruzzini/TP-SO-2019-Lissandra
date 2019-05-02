@@ -178,7 +178,7 @@ bool string_equals_ignore_case(char* actual, char* expected);
 * Ejemplo:
 * string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
 */
-char** string_split(char* text, char* separator);
+char** string_split(char const* text, char* separator);
 
 
 /**
@@ -191,7 +191,7 @@ char** string_split(char* text, char* separator);
  * string_n_split("hola, mundo, bueno", 10, ",") => ["hola", " mundo", " bueno", NULL]
  *
  */
-char** string_n_split(char* text, int n, char* separator);
+char** string_n_split(char const* text, int n, char* separator);
 
 /**
 * @NAME: string_substring

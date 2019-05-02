@@ -16,16 +16,17 @@
 
 #include "string.h"
 #include "Malloc.h"
-#include <string.h>
 #include <ctype.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
 static void _string_do(char* text, void (* closure)(char*));
 static void _string_lower_element(char* ch);
 static void _string_upper_element(char* ch);
 static void _string_append_with_format_list(const char* format, char** original, va_list arguments);
-static char** _string_split(char* text, char* separator, bool(* condition)(char*, int));
+static char** _string_split(char const* text, char* separator, bool(*condition)(char const*, int));
 
 char* string_repeat(char character, int count)
 {
@@ -165,9 +166,9 @@ bool string_equals_ignore_case(char* actual, char* expected)
     return strcasecmp(actual, expected) == 0;
 }
 
-char** string_split(char* text, char* separator)
+char** string_split(char const* text, char* separator)
 {
-    bool _is_last_token(char* next, int _)
+    bool _is_last_token(char const* next, int _)
     {
         (void) _;
         return next[0] != '\0';
@@ -175,9 +176,9 @@ char** string_split(char* text, char* separator)
     return _string_split(text, separator, _is_last_token);
 }
 
-char** string_n_split(char* text, int n, char* separator)
+char** string_n_split(char const* text, int n, char* separator)
 {
-    bool _is_last_token(char* next, int index)
+    bool _is_last_token(char const* next, int index)
     {
         return next[0] != '\0' && index < (n - 1);
     }
@@ -306,7 +307,7 @@ static void _string_append_with_format_list(const char* format, char** original,
     Free(temporal);
 }
 
-static char** _string_split(char* text, char* separator, bool(* condition)(char*, int))
+static char** _string_split(char const* text, char* separator, bool(*condition)(char const*, int))
 {
     char** substrings = NULL;
     int size = 0;
