@@ -17,11 +17,11 @@
 #include "Logger.h"
 #include <libcommons/config.h>
 #include <libcommons/string.h>
-#include <string.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 
 
 typedef struct{
