@@ -11,7 +11,6 @@ include_directories(.)
 include_directories(Shared)
 include_directories(Shared/Config)
 include_directories(Shared/Console)
-include_directories(Shared/libcommons)
 include_directories(Shared/Logging)
 include_directories(Shared/Networking)
 include_directories(Shared/Protocol)
@@ -28,8 +27,6 @@ add_executable(LFS ${LFS_SRCS})
 
 file(GLOB MEM_SRCS Memoria/*.c Memoria/*.h)
 add_executable(Memoria ${MEM_SRCS})
-
-
 
 # dame warnings baby
 add_library(warnings-interface INTERFACE)
