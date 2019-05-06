@@ -25,7 +25,33 @@ CLICommand CLICommands[] =
     { NULL,       NULL           }
 };
 
+static void IniciarLogger(void)
+{
+    Logger_Init(LOG_LEVEL_TRACE);
+
+    AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
+    //Se establece el mismo color que el kernel "EA899A""
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "EA899A");
+    Logger_AddAppender(consoleLog);
+
+    AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;
+    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "memoria.log", "w", 0);
+    Logger_AddAppender(fileLog);
+}
+
+static void LoadConfig(char const* fileName)
+{
+    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+    if (sConfig)
+        config_destroy(sConfig);
+
+    sConfig = config_create(fileName);
+}
+
 int main(void)
 {
+    static char const* const configFileName = "memoria.conf";
 
+    IniciarLogger();
+    LoadConfig(configFileName);
 }
