@@ -13,7 +13,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <semaphore.h>
 #include "Lissandra.h"
+#include <libcommons/list.h>
 
 
 #define MEMORIA 2
@@ -25,6 +27,12 @@ typedef struct t_header{
 
 //Variables
 int sock_LFS;
+
+t_list* lista_pedidos;
+
+
+sem_t sem_pedido; //Cuando hagamos copy paste, cambiar el semaforo "pedido" por "sem_pedido"
+pthread_mutex_t mutex_lista_pedidos;
 
 pthread_t hilo_atender_memoria;
 pthread_t hilo_atender_pedidos;
@@ -53,5 +61,6 @@ void* iniciar_servidor();
 
 int recibir_handshake(int fd);
 t_header* deserializar_header(void* buffer);
+t_pedido* obtener_pedido();
 
 #endif //LISSANDRA_LISSANDRALIBRARY_H

@@ -126,6 +126,67 @@ int recibir_handshake(int fd){
     return handshake_id;
 }
 
+t_pedido* obtener_pedido(){
+
+    t_pedido* pedido = NULL;
+
+    pedido = list_remove(lista_pedidos, 0);
+
+    return pedido;
+
+}
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+void* atender_pedidos(){
+
+    while(1){
+
+        //----Utilizo un semáforo (originalmente iniciado en 0) para saber cuándo hay pedidos en la lista de pedidos y atenderlos.
+        sem_wait(&sem_pedido);
+        //----Bloqueo este semaforo para que ningun otro hilo toque la lista de pedidos (que sería sólo para añadir pedidos)
+        pthread_mutex_lock(&mutex_lista_pedidos);
+        //----Busco el pedido que hizo esta memoria
+        t_pedido* pedido = obtener_pedido();
+        //----Desbloqueo este semaforo para que otros hilos ya puedan usar la lista de pedidos (sólo para añadir pedidos)
+        pthread_mutex_unlock(&mutex_lista_pedidos);
+        //----Segun el id del pedido, ejecuto el procedimiento correspondiente
+        switch(pedido->id){
+
+            case SELECT:
+
+                funcion_select(pedido);
+                break;
+
+            case INSERT:
+
+                funcion_insert(pedido);
+                break;
+
+            case CREATE:
+
+                funcion_create(pedido);
+                break;
+
+            case DESCRIBE:
+
+                funcion_describe(pedido);
+                break;
+
+            case DROP:
+
+                funcion_drop(pedido);
+                break;
+        }
+
+        free(pedido->path);
+        free(pedido);
+
+    }
+
+}
+
 void* iniciar_servidor(){
 
 //----Creo socket de LFS, hago el bind y comienzo a escuchar
