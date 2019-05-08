@@ -63,6 +63,6 @@ int main(void)
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
 
-   iniciar_servidor();
+    iniciar_servidor();
 
 }
