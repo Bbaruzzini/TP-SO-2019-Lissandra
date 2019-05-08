@@ -1,8 +1,0 @@
-//
-// Created by Denise on 17/04/2019.
-//
-
-#ifndef TP_2019_1C_LOS_MAGIOS_CONSOLA_H
-#define TP_2019_1C_LOS_MAGIOS_CONSOLA_H
-
-#endif //TP_2019_1C_LOS_MAGIOS_CONSOLA_H

@@ -1,6 +1,7 @@
 
 
 #include "Lissandra.h"
+#include "LissandraLibrary.h"
 
 static Appender* consoleLog;
 static Appender* fileLog;
@@ -29,27 +30,26 @@ static void LoadConfig(char const* fileName)
         config_destroy(sConfig);
 
     //Esto agregamos nosotras
-    t_config_FS * conf = malloc(sizeof(t_config_FS));
+    confLFS = malloc(sizeof(t_config_FS));
 
     //Esto estaba
     sConfig = config_create(fileName);
 
     //Esto agregamos nosotras
-    conf->PUERTO_ESCUCHA = config_get_int_value(sConfig,"PUERTO_ESCUCHA");
+    confLFS->PUERTO_ESCUCHA = config_get_int_value(sConfig,"PUERTO_ESCUCHA");
 
-    conf->PUNTO_MONTAJE = malloc(strlen(config_get_string_value(sConfig,"PUNTO_MONTAJE"))+1);
-    strcpy(conf->PUNTO_MONTAJE, config_get_string_value(sConfig,"PUNTO_MONTAJE"));
-    if(!string_ends_with(conf->PUNTO_MONTAJE, "/")) string_append(&conf->PUNTO_MONTAJE, "/");
+    confLFS->PUNTO_MONTAJE = malloc(strlen(config_get_string_value(sConfig,"PUNTO_MONTAJE"))+1);
+    strcpy(confLFS->PUNTO_MONTAJE, config_get_string_value(sConfig,"PUNTO_MONTAJE"));
+    if(!string_ends_with(confLFS->PUNTO_MONTAJE, "/")) string_append(&confLFS->PUNTO_MONTAJE, "/");
 
-    conf->RETARDO = config_get_int_value(sConfig,"RETARDO");
-    conf->TAMANIO_VALUE = config_get_int_value(sConfig,"TAMANIO_VALUE");
-    conf->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
+    confLFS->RETARDO = config_get_int_value(sConfig,"RETARDO");
+    confLFS->TAMANIO_VALUE = config_get_int_value(sConfig,"TAMANIO_VALUE");
+    confLFS->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
 
     config_destroy(sConfig);
 
-    return conf;
-
 }
+
 
 int main(void)
 {
@@ -63,6 +63,6 @@ int main(void)
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
 
-
+   iniciar_servidor();
 
 }

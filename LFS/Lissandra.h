@@ -33,7 +33,6 @@ typedef struct{
 
 }t_config_FS;
 
-
-
+t_config_FS * confLFS;
 
 #endif //LISSANDRA_LISSANDRA_H
