@@ -25,6 +25,15 @@ CLICommand CLICommands[] =
     { NULL,       NULL           }
 };
 
+char const* CLIPrompt = "MEM_LISSANDRA> ";
+
+LockedQueue* CLICommandQueue = NULL;
+
+atomic_bool ProcessRunning = true;
+
+static Appender* consoleLog;
+static Appender* fileLog;
+
 static void IniciarLogger(void)
 {
     Logger_Init(LOG_LEVEL_TRACE);
