@@ -31,7 +31,7 @@ CLICommand CLICommands[] =
     { NULL,       NULL           }
 };
 
-char const* CLIPrompt = "KERNEL> ";
+char const* CLIPrompt = "KRNL_LISSANDRA> ";
 
 LockedQueue* CLICommandQueue = NULL;
 

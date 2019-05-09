@@ -4,6 +4,7 @@
 
 #include <OpcodeHandler.h>
 
+OpcodeHandlerFnType HandleSelectOpcode;
 OpcodeHandlerFnType HandleDescribeOpcode;
 
 #endif //Kernel_Handlers_h__

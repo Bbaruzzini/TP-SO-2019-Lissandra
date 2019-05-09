@@ -7,11 +7,33 @@
 
 OpcodeHandler const opcodeTable[NUM_OPCODES] =
 {
-    { "LQL_SELECT",   0 },
-    { "LQL_INSERT",   0 },
-    { "LQL_CREATE",   0 },
-    { "LQL_DESCRIBE", HandleDescribeOpcode }
+    // se conecta un cliente, no deberiamos recibirlo ya que somos clientes nosotros
+    { "MSG_HANDSHAKE", NULL },
+
+    // 5 comandos basicos comunes, el kernel los va a enviar al modulo memoria
+    // por lo tanto no necesitamos manejarlos.
+    { "LQL_SELECT",   NULL },
+    { "LQL_INSERT",   NULL },
+    { "LQL_CREATE",   NULL },
+    { "LQL_DESCRIBE", NULL },
+    { "LQL_DROP",     NULL },
+
+    // respuesta de un SELECT
+    { "MSG_SELECT", HandleSelectOpcode },
+
+    // respuesta del DESCRIBE, almacenar en metadata
+    { "MSG_DESCRIBE",        HandleDescribeOpcode },
+    { "MSG_DESCRIBE_GLOBAL", HandleDescribeOpcode },
+
+    // mensajes a memoria (enviado, no recibido)
+    { "LQL_JOURNAL", NULL }
 };
+
+void HandleSelectOpcode(Socket* s, Packet* p)
+{
+    (void) s;
+    (void) p;
+}
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
