@@ -25,7 +25,7 @@
 
 
 typedef struct{
-    int PUERTO_ESCUCHA;
+    char* PUERTO_ESCUCHA;
     char* PUNTO_MONTAJE;
     int RETARDO;
     int TAMANIO_VALUE;

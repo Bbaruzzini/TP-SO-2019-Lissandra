@@ -2,238 +2,149 @@
 // Created by Denise on 26/04/2019.
 //
 
+//Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
+#include "Lissandra.h"
+#include <libcommons/list.h>
+#include <LockedQueue.h>
+#include <semaphore.h>
+#include <Socket.h>
 
-int server_socket(uint16_t port)
+//Variables
+//static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
+//si lo desean cambiar, quitenlo
+static Socket* sock_LFS = NULL;
+
+static LockedQueue* lista_pedidos = NULL;
+
+static sem_t sem_pedido = { 0 }; //Cuando hagamos copy paste, cambiar el semaforo "pedido" por "sem_pedido"
+
+static pthread_t hilo_atender_memoria;
+
+t_pedido* obtener_pedido(void)
 {
-    int sock_fd, optval = 1;
-    struct sockaddr_in servername;
-
-    /* Create the socket. */
-    sock_fd = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock_fd < 0) {
-        perror("socket");
-        return -1;
-    }
-
-    /* Set socket options. */
-    if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval) == -1) {
-        perror("setsockopt");
-        return -2;
-    }
-
-    /* Fill ip / port info. */
-    servername.sin_family = AF_INET;
-    servername.sin_addr.s_addr = htonl(INADDR_ANY);
-    servername.sin_port = htons(port);
-
-    /* Give the socket a name. */
-    if (bind(sock_fd, (struct sockaddr *) &servername, sizeof servername) < 0) {
-        perror("bind");
-        return -3;
-    }
-
-    /* Listen to incoming connections. */
-    if (listen(sock_fd, 1) < 0) {
-        perror("listen");
-        return -4;
-    }
-
-    return sock_fd;
+    return LockedQueue_Next(lista_pedidos);
 }
 
-
-int client_socket(char *ip, uint16_t port)
+void* atender_pedidos(void* arg)
 {
-    printf("Entre a client_socket\n");
+    (void) arg;
 
-    int sock_fd;
-    struct sockaddr_in servername;
-
-    /* Create the socket. */
-    sock_fd = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock_fd < 0) {
-        perror("socket");
-        return -1;
-    }
-
-    printf("Cree el socket\n");
-
-    /* Fill server ip / port info. */
-    servername.sin_family = AF_INET;
-    servername.sin_addr.s_addr = inet_addr(ip);
-    servername.sin_port = htons(port);
-    memset(&(servername.sin_zero), 0, 8);
-
-    printf("Llego a este punto\n");
-
-    /* Connect to the server. */
-    if (connect(sock_fd, (struct sockaddr *) &servername, sizeof servername) < 0) {
-        perror("connect");
-        return -2;
-    }
-
-    printf("Hice el connect, salgo de client_socket\n");
-    return sock_fd;
-}
-
-
-int accept_connection(int sock_fd)
-{
-    struct sockaddr_in clientname;
-    size_t size = sizeof clientname;
-
-    int new_fd = accept(sock_fd, (struct sockaddr *) &clientname, (socklen_t *) &size);
-    if (new_fd < 0) {
-        perror("accept");
-        return -1;
-    }
-
-    return new_fd;
-}
-
-t_header* deserializar_header(void* buffer){
-
-    t_header* header = malloc(sizeof(t_header));
-
-    memcpy(&(header->id), buffer, sizeof(int));
-    memcpy(&(header->size), buffer + sizeof(int), sizeof(int));
-
-    free(buffer);
-
-    return header;
-}
-
-int recibir_handshake(int fd){
-
-    void* buffer = malloc(2 * sizeof(int));
-
-    int resultado = recv(fd, buffer, 2 * sizeof(int), MSG_WAITALL);
-
-    if (resultado <= 0) {
-
-        perror("Error al recibir el handshake");
-        return resultado;
-
-    }
-
-    t_header* header = deserializar_header(buffer);
-
-    int handshake_id = header->id;
-
-    free(header);
-
-    return handshake_id;
-}
-
-t_pedido* obtener_pedido(){
-
-    t_pedido* pedido = NULL;
-
-    pedido = list_remove(lista_pedidos, 0);
-
-    return pedido;
-
-}
-
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-void* atender_pedidos(){
-
-    while(1){
-
+    while (ProcessRunning)
+    {
         //----Utilizo un semáforo (originalmente iniciado en 0) para saber cuándo hay pedidos en la lista de pedidos y atenderlos.
         sem_wait(&sem_pedido);
-        //----Bloqueo este semaforo para que ningun otro hilo toque la lista de pedidos (que sería sólo para añadir pedidos)
-        pthread_mutex_lock(&mutex_lista_pedidos);
+
         //----Busco el pedido que hizo esta memoria
+        //----La lista ya trae un mutex por lo que sencillamente extraigo el pedido
         t_pedido* pedido = obtener_pedido();
-        //----Desbloqueo este semaforo para que otros hilos ya puedan usar la lista de pedidos (sólo para añadir pedidos)
-        pthread_mutex_unlock(&mutex_lista_pedidos);
+
+        // TODO: implementar logica, dejo comentado para que compile
+/*
         //----Segun el id del pedido, ejecuto el procedimiento correspondiente
-        switch(pedido->id){
-
+        switch (pedido->id)
+        {
             case SELECT:
-
                 funcion_select(pedido);
                 break;
-
             case INSERT:
-
                 funcion_insert(pedido);
                 break;
-
             case CREATE:
-
                 funcion_create(pedido);
                 break;
-
             case DESCRIBE:
-
                 funcion_describe(pedido);
                 break;
-
             case DROP:
-
                 funcion_drop(pedido);
                 break;
         }
 
         free(pedido->path);
+*/
         free(pedido);
-
     }
 
+    return NULL;
 }
 
-void* iniciar_servidor(){
+void* atender_memoria(void* socketMemoria)
+{
+    Socket* s = socketMemoria;
+    (void) s;
 
-//----Creo socket de LFS, hago el bind y comienzo a escuchar
-    sock_LFS = server_socket(confLFS->PUERTO_ESCUCHA);
+    while (ProcessRunning)
+    {
+        //hacer cosas con la memoria
+        //para agregar un pedido:
+        //Ariel: ejemplo de uso de cola bloqueada
+        //Ariel de nuevo: Creo que esto habria que hacerlo en Handlers.c (los que se llaman cada vez que recibimos un paquete)
+        /*
+        t_pedido* pedido = malloc(sizeof(t_pedido));
+        pedido->id = SELECT;
+        pedido->nombreTabla = "pepito";
+
+        LockedQueue_Add(lista_pedidos, pedido);
+        */
+    }
+
+    return NULL;
+}
+
+void memoria_conectar(Socket* fs, Socket* memoriaNueva)
+{
+    (void) fs;
+
+    //----Creo un hilo para cada memoria que se me conecta
+    /* TODO: cada vez que una memoria se conecta, hilo_atender_memoria es sobreescrito
+     * Deberiamos acordarnos de todas las memorias para hacer un pthread_join
+     */
+    pthread_create(&hilo_atender_memoria, NULL, atender_memoria, memoriaNueva);
+}
+
+void iniciar_servidor(void)
+{
+    /* -- codigo de inicializacion -- */
+    //----Creo socket de LFS, hago el bind y comienzo a escuchar
+    SocketOpts opts =
+    {
+        .SocketMode = SOCKET_SERVER,
+        .ServiceOrPort = confLFS->PUERTO_ESCUCHA,
+        .HostName = NULL,
+
+        // cuando una memoria conecte, llamar a memoria_conectar
+        .SocketOnAcceptClient = memoria_conectar,
+    };
+    sock_LFS = Socket_Create(&opts);
+
+    // inicializar lista de pedidos
+    lista_pedidos = LockedQueue_Create();
+
+    // inicializar semaforo en 0
+    sem_init(&sem_pedido, 0 /*no utilizamos compartir con proceso*/, 0);
 
     //----Hago un log
     LISSANDRA_LOG_TRACE("Servidor LFS iniciado");
 
-    //----Creo variable para el socket del cliente
-    int sock_memoria;
+    /* -- main loop y threads -- */
 
     //----Creo un hilo para atender los pedidos que me van a hacer las memorias
+    pthread_t hilo_atender_pedidos;
     pthread_create(&hilo_atender_pedidos, NULL, atender_pedidos, NULL);
 
+    //Ariel: Monitorear socket de conexiones entrantes
+    EventDispatcher_AddFDI(sock_LFS);
+
     //----En loop infinito acepto los clientes (memorias)
-    while (1) {
+    EventDispatcher_Loop();
 
-        //----Acepto conexion de un cliente
-        sock_memoria = accept_connection(sock_LFS);
+    /* --codigo de finalizacion-- */
+    pthread_join(hilo_atender_pedidos, NULL);
+    // TODO pthread_join de los hilos de memoria (si hubo)
 
-        if (sock_memoria <= 0){
-
-            printf("Error en el accept");
-
-            continue;
-
-        }
-
-        //----Recibo un handshake del cliente para ver si es una memoria
-        int id = recibir_handshake(sock_memoria);
-
-        if(id != MEMORIA){
-
-            printf("Se conecto un desconocido");
-
-            continue;
-
-        }
-
-        printf("Se conecto una memoria en el socket: %d\n", sock_memoria);
-
-        //----Creo un hilo para cada memoria que se me conecta
-        pthread_create(&hilo_atender_memoria, NULL, atender_memoria, (void *) sock_memoria);
-
-
-    }
-
-    return EXIT_SUCCESS;
-
+    // cuando finaliza el proceso, limpiar las variables utilizadas
+    sem_destroy(&sem_pedido);
+    LockedQueue_Destroy(lista_pedidos, Free);
+    Socket_Destroy(sock_LFS);
 }
