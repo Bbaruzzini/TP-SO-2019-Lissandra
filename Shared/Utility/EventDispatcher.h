@@ -9,12 +9,6 @@
 
 typedef struct EventDispatcher EventDispatcher;
 
-enum
-{
-    EV_READ  = 0x01,
-    EV_WRITE = 0x02
-};
-
 /*
  * Inicializa el EventDispatcher
  */
@@ -25,11 +19,6 @@ bool EventDispatcher_Init(void);
  * Para que sus callback sean llamados
  */
 void EventDispatcher_AddFDI(void* interface);
-
-/*
- * Notifica un cambio en los eventos que nos interesan
- */
-void EventDispatcher_Notify(void* interface);
 
 /*
  * Quita un item de la lista activa, sus eventos serán ignorados

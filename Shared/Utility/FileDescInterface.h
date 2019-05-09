@@ -10,10 +10,8 @@ typedef void FDIDestroyFn(void* fdi);
 typedef struct FileDescriptorInterface
 {
     int Handle;
-    short int Events;
 
     FDICallbackFn* ReadCallback;
-    FDICallbackFn* WriteCallback;
 
     FDIDestroyFn* _destroy;
 } FDI;

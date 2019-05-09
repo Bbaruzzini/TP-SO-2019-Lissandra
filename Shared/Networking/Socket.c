@@ -11,6 +11,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// tamaño inicial del bufer
+static size_t const INIT_ALLOC = 256;
+
 #pragma pack(push, 1)
 typedef struct
 {
@@ -19,15 +22,20 @@ typedef struct
 } PacketHdr;
 #pragma pack(pop)
 
-static bool _readHeaderHandler(Socket* s);
-static bool _readHandler(Socket* s);
-
 static bool _acceptCb(void* socket);
 static bool _recvCb(void* socket);
-static bool _sendCb(void* socket);
 
 static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode mode);
-static Socket* _initSocket(int fd, IPAddress const* ip, enum SocketMode mode);
+
+struct SockInit
+{
+    int fileDescriptor;
+    IPAddress const* ipAddr;
+    enum SocketMode mode;
+
+    SocketAcceptFn* acceptFn;
+};
+static Socket* _initSocket(struct SockInit const* si);
 
 Socket* Socket_Create(SocketOpts const* opts)
 {
@@ -57,35 +65,15 @@ Socket* Socket_Create(SocketOpts const* opts)
         return NULL;
     }
 
-    return _initSocket(fd, &ip, opts->SocketMode);
-}
-
-bool Socket_IsBlocking(Socket const* s)
-{
-    return s->Blocking;
-}
-
-void Socket_SetBlocking(Socket* s, bool block)
-{
-    if (block == s->Blocking)
-        return;
-
-    int flags = fcntl(s->Handle, F_GETFL, 0);
-    if (flags < 0)
+    struct SockInit si =
     {
-        LISSANDRA_LOG_SYSERROR("fcntl");
-        return;
-    }
+        .fileDescriptor = fd,
+        .ipAddr = &ip,
+        .mode = opts->SocketMode,
 
-    if (block)
-        flags &= ~O_NONBLOCK;
-    else
-        flags |= O_NONBLOCK;
-
-    if (fcntl(s->Handle, F_SETFL, flags) < 0)
-        LISSANDRA_LOG_SYSERROR("fcntl");
-
-    s->Blocking = block;
+        .acceptFn = opts->SocketOnAcceptClient
+    };
+    return _initSocket(&si);
 }
 
 void Socket_SendPacket(Socket* s, Packet const* packet)
@@ -93,125 +81,56 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
     uint16_t opcode = Packet_GetOpcode(packet);
     uint16_t packetSize = Packet_Size(packet);
 
-    PacketHdr header;
-    header.cmd = EndianConvert(opcode);
-    header.size = EndianConvert(packetSize);
+    PacketHdr header =
+    {
+        .cmd = EndianConvert(opcode),
+        .size = EndianConvert(packetSize)
+    };
 
     LISSANDRA_LOG_TRACE("Enviando paquete a %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, opcodeTable[opcode].Name,
                         opcode, packetSize);
 
-    // Socket bloqueante, enviar header+paquete en un solo write
-    if (Socket_IsBlocking(s))
+    // Enviar header+paquete en un solo write
+    struct iovec iovecs[2] =
     {
-        struct iovec iovecs[] =
-        {
-            { &header,                 sizeof header },
-            { Packet_Contents(packet), packetSize    }
-        };
+        { .iov_base = &header,                 .iov_len = sizeof header },
+        { .iov_base = Packet_Contents(packet), .iov_len = packetSize    }
+    };
 
-        if (writev(s->Handle, iovecs, 2) < 0)
-            LISSANDRA_LOG_SYSERROR("writev");
-        return;
-    }
-
-    size_t payloadSize = sizeof header + packetSize;
-    if (MessageBuffer_GetRemainingSpace(&s->SendBuffer) < payloadSize)
-    {
-        MessageBuffer_Normalize(&s->SendBuffer);
-        size_t rem = MessageBuffer_GetRemainingSpace(&s->SendBuffer);
-        // still not enough?
-        if (rem < payloadSize)
-        {
-            size_t tot = MessageBuffer_GetBufferSize(&s->SendBuffer);
-            MessageBuffer_Resize(&s->SendBuffer, tot + payloadSize - rem);
-        }
-    }
-
-    MessageBuffer_Write(&s->SendBuffer, &header, sizeof header);
-    MessageBuffer_Write(&s->SendBuffer, Packet_Contents(packet), packetSize);
-
-    // avisar que tenemos contenido para escribir
-    s->Events |= EV_WRITE;
-    EventDispatcher_Notify(s);
-}
-
-bool Socket_RecvPacket(Socket* s)
-{
-    // Pre: solo se debe usar con socket bloqueante
-    assert(Socket_IsBlocking(s));
-
-    MessageBuffer_Reset(&s->HeaderBuffer);
-    ssize_t readLen = recv(s->Handle, MessageBuffer_GetWritePointer(&s->HeaderBuffer), sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
-    if (readLen == 0)
-    {
-        // nos cerraron la conexion
-        Socket_Destroy(s);
-        return false;
-    }
-
-    if (readLen < 0)
-    {
-        LISSANDRA_LOG_SYSERROR("recv");
-        Socket_Destroy(s);
-        return false;
-    }
-
-    PacketHdr* header = (PacketHdr*) MessageBuffer_GetReadPointer(&s->HeaderBuffer);
-    header->size = EndianConvert(header->size);
-    header->cmd = EndianConvert(header->cmd);
-
-    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
-    {
-        LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
-                            s->Address.HostIP, header->size, header->cmd);
-        Socket_Destroy(s);
-        return false;
-    }
-
-    MessageBuffer_Resize(&s->PacketBuffer, header->size);
-    MessageBuffer_Reset(&s->PacketBuffer);
-
-    readLen = recv(s->Handle, MessageBuffer_GetWritePointer(&s->PacketBuffer), header->size, MSG_NOSIGNAL | MSG_WAITALL);
-    if (readLen == 0)
-    {
-        // nos cerraron la conexion
-        Socket_Destroy(s);
-        return false;
-    }
-
-    if (readLen < 0)
-    {
-        LISSANDRA_LOG_SYSERROR("recv");
-        Socket_Destroy(s);
-        return false;
-    }
-
-    Packet* p = Packet_Create(header->cmd, header->size);
-    Packet_Adopt(p, &s->PacketBuffer);
-
-    opcodeTable[header->cmd].HandlerFunction(s, p);
-
-    Packet_Destroy(p);
-    return true;
+    if (writev(s->Handle, iovecs, 2) < 0)
+        LISSANDRA_LOG_SYSERROR("writev");
 }
 
 void Socket_Destroy(void* elem)
 {
     Socket* s = elem;
 
-    MessageBuffer_Destroy(&s->HeaderBuffer);
-    MessageBuffer_Destroy(&s->PacketBuffer);
-    MessageBuffer_Destroy(&s->SendBuffer);
-    MessageBuffer_Destroy(&s->RecvBuffer);
+    Free(s->PacketBuffer);
+    Free(s->HeaderBuffer);
+
     close(s->Handle);
     Free(s);
 }
 
-static bool _readHeaderHandler(Socket* s)
+static bool _recvCb(void* socket)
 {
-    assert(MessageBuffer_GetActiveSize(&s->HeaderBuffer) == sizeof(PacketHdr));
+    Socket* s = socket;
 
-    PacketHdr* header = (PacketHdr*) MessageBuffer_GetReadPointer(&s->HeaderBuffer);
+    ssize_t readLen = recv(s->Handle, s->HeaderBuffer, sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
+    if (readLen == 0)
+    {
+        // nos cerraron la conexion, limpiar socket
+        return false;
+    }
+
+    if (readLen < 0)
+    {
+        // otro error, limpiar socket
+        LISSANDRA_LOG_SYSERROR("recv");
+        return false;
+    }
+
+    PacketHdr* header = (PacketHdr*) s->HeaderBuffer;
     header->size = EndianConvert(header->size);
     header->cmd = EndianConvert(header->cmd);
 
@@ -222,125 +141,37 @@ static bool _readHeaderHandler(Socket* s)
         return false;
     }
 
-    MessageBuffer_Resize(&s->PacketBuffer, header->size);
-    return true;
-}
-
-static bool _readDataHandler(Socket* s)
-{
-    PacketHdr* header = (PacketHdr*) MessageBuffer_GetReadPointer(&s->HeaderBuffer);
-    uint16_t opcode = header->cmd;
-
-    Packet* p = Packet_Create(opcode, header->size);
-    Packet_Adopt(p, &s->PacketBuffer);
-
-    LISSANDRA_LOG_TRACE("Recibido paquete de %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, opcodeTable[opcode].Name,
-                        header->cmd, header->size);
-
-    opcodeTable[opcode].HandlerFunction(s, p);
-
-    Packet_Destroy(p);
-    return true;
-}
-
-static bool _readHandler(Socket* s)
-{
-    // try to extract as many whole packets as possible from buffer
-    MessageBuffer* mb = &s->RecvBuffer;
-    while (MessageBuffer_GetActiveSize(mb) > 0)
+    if (header->size > s->PacketBuffSize)
     {
-        if (MessageBuffer_GetRemainingSpace(&s->HeaderBuffer) > 0)
-        {
-            size_t readSize = MessageBuffer_GetActiveSize(mb);
-            if (MessageBuffer_GetRemainingSpace(&s->HeaderBuffer) < readSize)
-                readSize = MessageBuffer_GetRemainingSpace(&s->HeaderBuffer);
-
-            MessageBuffer_Write(&s->HeaderBuffer, MessageBuffer_GetReadPointer(mb), readSize);
-            MessageBuffer_ReadCompleted(mb, readSize);
-
-            // no se pudo leer un header entero. Mejor suerte la proxima
-            if (MessageBuffer_GetRemainingSpace(&s->HeaderBuffer) > 0)
-                break;
-
-            if (!_readHeaderHandler(s))
-                return false;
-        }
-
-        // We have full read header, now check the data payload
-        if (MessageBuffer_GetRemainingSpace(&s->PacketBuffer) > 0)
-        {
-            // need more data in the payload
-            size_t readDataSize = MessageBuffer_GetActiveSize(mb);
-            if (MessageBuffer_GetRemainingSpace(&s->PacketBuffer) < readDataSize)
-                readDataSize = MessageBuffer_GetRemainingSpace(&s->PacketBuffer);
-
-            MessageBuffer_Write(&s->PacketBuffer, MessageBuffer_GetReadPointer(mb), readDataSize);
-            MessageBuffer_ReadCompleted(mb, readDataSize);
-
-            // no se pudo leer un paquete entero. Mejor suerte la proxima
-            if (MessageBuffer_GetRemainingSpace(&s->PacketBuffer) > 0)
-                break;
-        }
-
-        // just received fresh new payload
-        bool result = _readDataHandler(s);
-        MessageBuffer_Reset(&s->HeaderBuffer);
-        if (!result)
-            return false;
+        s->PacketBuffer = Realloc(s->PacketBuffer, header->size);
+        s->PacketBuffSize = header->size;
     }
-    return true;
-}
 
-static bool _recvCb(void* socket)
-{
-    Socket* s = socket;
-
-    MessageBuffer_Normalize(&s->RecvBuffer);
-    MessageBuffer_EnsureFreeSpace(&s->RecvBuffer);
-    ssize_t bytesReceived = recv(s->Handle, MessageBuffer_GetWritePointer(&s->RecvBuffer),
-                                 MessageBuffer_GetRemainingSpace(&s->RecvBuffer), MSG_NOSIGNAL);
-
-    if (bytesReceived <= 0)
+    readLen = recv(s->Handle, s->PacketBuffer, header->size, MSG_NOSIGNAL | MSG_WAITALL);
+    if (readLen == 0)
     {
-        // remote end closed connection
-        if (!bytesReceived)
-            return false;
+        // nos cerraron la conexion, limpiar socket
+        return false;
+    }
 
-        // estos errores los ignoramos
-        if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
-            LISSANDRA_LOG_SYSERROR("recv");
-        // sigo existiendo
+    if (readLen < 0)
+    {
+        // otro error
+        LISSANDRA_LOG_SYSERROR("recv");
+        return false;
+    }
+
+    OpcodeHandlerFnType* handler = opcodeTable[header->cmd].HandlerFunction;
+    if (!handler)
+    {
+        LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", header->cmd);
         return true;
     }
 
-    MessageBuffer_WriteCompleted(&s->RecvBuffer, bytesReceived);
-    if (!_readHandler(s))
-        return false;
-    return true;
-}
+    Packet* p = Packet_Adopt(header->cmd, &s->PacketBuffer, &s->PacketBuffSize);
+    handler(s, p);
+    Packet_Destroy(p);
 
-static bool _sendCb(void* socket)
-{
-    Socket* s = socket;
-
-    ssize_t bytesSent = send(s->Handle, MessageBuffer_GetReadPointer(&s->SendBuffer),
-                             MessageBuffer_GetActiveSize(&s->SendBuffer), MSG_NOSIGNAL);
-
-    LISSANDRA_LOG_DEBUG("_sendCb sent %d bytes", bytesSent);
-
-    if (bytesSent < 0)
-    {
-        if (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)
-            LISSANDRA_LOG_SYSERROR("send");
-    }
-    else if ((size_t) bytesSent == MessageBuffer_GetActiveSize(&s->SendBuffer))
-    {
-        // escritura terminada, quito el flag de notificación (normalmente los sockets siempre estan listos para escribir)
-        s->Events &= (~EV_WRITE);
-        EventDispatcher_Notify(s);
-    }
-
-    MessageBuffer_ReadCompleted(&s->SendBuffer, bytesSent);
     return true;
 }
 
@@ -354,15 +185,25 @@ static bool _acceptCb(void* socket)
     if (fd < 0)
     {
         LISSANDRA_LOG_SYSERROR("accept");
-        return false;
+        return true;
     }
 
     IPAddress ip;
     IPAddress_Init(&ip, &peerAddress, saddr_len);
     LISSANDRA_LOG_INFO("Conexión desde %s:%u", ip.HostIP, ip.Port);
 
-    Socket* client = _initSocket(fd, &ip, SOCKET_CLIENT);
-    Socket_SetBlocking(client, Socket_IsBlocking(listener));
+    struct SockInit si =
+    {
+        .fileDescriptor = fd,
+        .ipAddr = &ip,
+        .mode = SOCKET_CLIENT,
+
+        .acceptFn = NULL
+    };
+
+    Socket* client = _initSocket(&si);
+    if (listener->SockAcceptFn)
+        listener->SockAcceptFn(listener, client);
 
     EventDispatcher_AddFDI(client);
     return true;
@@ -427,32 +268,29 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
     return -1;
 }
 
-static Socket* _initSocket(int fd, IPAddress const* ip, enum SocketMode mode)
+static Socket* _initSocket(struct SockInit const* si)
 {
     Socket* s = Malloc(sizeof(Socket));
-    s->Handle = fd;
-    s->Events = EV_READ;
+    s->Handle = si->fileDescriptor;
     s->ReadCallback = NULL;
-    s->WriteCallback = NULL;
     s->_destroy = Socket_Destroy;
 
-    s->Address = *ip;
-    s->Blocking = true;
+    s->SockAcceptFn = si->acceptFn;
 
-    MessageBuffer_Init(&s->RecvBuffer, READ_BLOCK_SIZE);
-    MessageBuffer_Init(&s->SendBuffer, READ_BLOCK_SIZE);
+    s->Address = *si->ipAddr;
 
-    MessageBuffer_Init(&s->HeaderBuffer, sizeof(PacketHdr));
-    MessageBuffer_Init(&s->PacketBuffer, READ_BLOCK_SIZE);
+    s->HeaderBuffer = Malloc(sizeof(PacketHdr));
 
-    switch (mode)
+    s->PacketBuffSize = INIT_ALLOC;
+    s->PacketBuffer = Malloc(INIT_ALLOC);
+
+    switch (si->mode)
     {
         case SOCKET_SERVER:
             s->ReadCallback = _acceptCb;
             break;
         case SOCKET_CLIENT:
             s->ReadCallback = _recvCb;
-            s->WriteCallback = _sendCb;
             break;
         default:
             break;

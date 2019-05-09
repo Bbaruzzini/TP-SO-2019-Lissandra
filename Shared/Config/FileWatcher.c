@@ -28,9 +28,7 @@ FileWatcher* FileWatcher_Create(void)
 
     FileWatcher* fw = Malloc(sizeof(FileWatcher));
     fw->Handle = fd;
-    fw->Events = EV_READ;
     fw->ReadCallback = _readCb;
-    fw->WriteCallback = NULL;
     fw->_destroy = FileWatcher_Destroy;
 
     fw->WatchCallbacks = hashmap_create();

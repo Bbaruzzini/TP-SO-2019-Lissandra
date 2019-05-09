@@ -1,7 +1,6 @@
 #ifndef Packet_h__
 #define Packet_h__
 
-#include "MessageBuffer.h"
 #include "ByteConverter.h"
 #include "Malloc.h"
 #include "vector.h"
@@ -69,6 +68,7 @@ static inline Packet* Packet_Create(uint16_t cmd, uint16_t res)
     p->wpos = 0;
     p->cmd = cmd;
     Vector_Construct(&p->data, sizeof(uint8_t), NULL, res);
+
     return p;
 }
 
@@ -76,9 +76,15 @@ static inline Packet* Packet_Create(uint16_t cmd, uint16_t res)
  * Packet_Adopt: uso interno de la API de Socket, sirve para cambiar contenidos con un buffer
  * de forma tal que podemos utilizar los datos ya leídos sin necesidad de copiarlos
  */
-static inline void Packet_Adopt(Packet* p, MessageBuffer* mb)
+static inline Packet* Packet_Adopt(uint16_t cmd, uint8_t** buf, size_t* bufSize)
 {
-    MessageBuffer_SwapStorage(mb, &p->data);
+    Packet* p = Malloc(sizeof(Packet));
+    p->rpos = 0;
+    p->wpos = 0;
+    p->cmd = cmd;
+    Vector_adopt(&p->data, (void**) buf, bufSize);
+
+    return p;
 }
 
 /*

@@ -24,7 +24,6 @@ typedef struct EventDispatcher
 
 static EventDispatcher sDispatcher;
 
-static struct epoll_event _genEvent(void* fdi);
 static void _dispatchEvent(struct epoll_event* evt);
 
 bool EventDispatcher_Init(void)
@@ -45,19 +44,14 @@ void EventDispatcher_AddFDI(void* interface)
 {
     FDI* fdi = interface;
 
-    struct epoll_event evt = _genEvent(fdi);
+    struct epoll_event evt =
+    {
+        .events = EPOLLIN,
+        .data = { .ptr = interface }
+    };
     if (epoll_ctl(sDispatcher.Handle, EPOLL_CTL_ADD, fdi->Handle, &evt) < 0)
         LISSANDRA_LOG_SYSERROR("epoll_ctl ADD");
     hashmap_put(sDispatcher._fdiMap, fdi->Handle, fdi);
-}
-
-void EventDispatcher_Notify(void* interface)
-{
-    FDI* fdi = interface;
-
-    struct epoll_event evt = _genEvent(fdi);
-    if (epoll_ctl(sDispatcher.Handle, EPOLL_CTL_MOD, fdi->Handle, &evt) < 0)
-        LISSANDRA_LOG_SYSERROR("epoll_ctl MOD");
 }
 
 void EventDispatcher_RemoveFDI(void* interface)
@@ -116,19 +110,6 @@ void EventDispatcher_Terminate(void)
     close(sDispatcher.Handle);
 }
 
-static struct epoll_event _genEvent(void* interface)
-{
-    FDI* fdi = interface;
-
-    struct epoll_event evt = { 0 };
-    if (fdi->Events & EV_READ)
-        evt.events |= EPOLLIN;
-    if (fdi->Events & EV_WRITE)
-        evt.events |= EPOLLOUT;
-    evt.data.ptr = fdi;
-    return evt;
-}
-
 #define INTEREST_EVENTS 2
 static void _dispatchEvent(struct epoll_event* evt)
 {
@@ -143,27 +124,12 @@ static void _dispatchEvent(struct epoll_event* evt)
     // chequear el valor de retorno:
     // si el callback devuelve false, tengo que quitarlo de la lista de watch de epoll
     // ya que el file descriptor se ha cerrado
-    struct Event
+    if (evt->events & EPOLLIN)
     {
-        short int CondFlag;
-        FDICallbackFn* Callback;
-    };
-
-    struct Event const es[INTEREST_EVENTS] =
-    {
-        { EPOLLIN,  fdi->ReadCallback  },
-        { EPOLLOUT, fdi->WriteCallback }
-    };
-
-    for (uint8_t i = 0; i < INTEREST_EVENTS; ++i)
-    {
-        if (evt->events & es[i].CondFlag)
+        if (fdi->ReadCallback && !fdi->ReadCallback(fdi))
         {
-            if (es[i].Callback && !es[i].Callback(fdi))
-            {
-                EventDispatcher_RemoveFDI(fdi);
-                return;
-            }
+            EventDispatcher_RemoveFDI(fdi);
+            return;
         }
     }
 }

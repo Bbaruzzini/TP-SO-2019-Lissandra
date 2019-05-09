@@ -7,9 +7,21 @@
 typedef struct Packet Packet;
 typedef struct Socket Socket;
 
+enum
+{
+    KERNEL = 1,
+    MEMORIA = 2,
+    LFS = 3
+};
+
 typedef enum
 {
     // Mensajes que entienden los 3 modulos
+    MSG_HANDSHAKE, /* mensaje enviado al conectar
+                    *
+                    * uint8_t: module id (ver enum)
+                    */
+
     // requests
     LQL_SELECT,  /* char*: nombre tabla
                   * uint16: key

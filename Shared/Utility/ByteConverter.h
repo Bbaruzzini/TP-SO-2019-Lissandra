@@ -6,6 +6,7 @@
 #define EndianConvert(val) val
 #else
 #include <byteswap.h>
+#include <stdint.h>
 
 // _Generic solo acepta nombres de funciones, no macros, asi que tengo que agregar wrappers. Auch
 

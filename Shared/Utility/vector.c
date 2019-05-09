@@ -247,6 +247,23 @@ void Vector_swap(Vector* v, Vector* other)
     *other = me;
 }
 
+void Vector_adopt(Vector* v, void** buf, size_t* bufSize)
+{
+    Vector other =
+    {
+        .Elements = *buf,
+        .ElemSize = 1,
+        .Size = *bufSize,
+        .Capacity = *bufSize,
+        .FreeFn = NULL
+    };
+    Vector_swap(v, &other);
+
+    // luego de intercambiar, el bufer debe ser accedido mediante el vector
+    *buf = NULL;
+    *bufSize = 0;
+}
+
 void Vector_clear(Vector* v)
 {
     if (v->FreeFn)

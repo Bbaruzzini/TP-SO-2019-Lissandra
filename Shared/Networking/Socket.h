@@ -4,7 +4,6 @@
 
 #include "FileDescInterface.h"
 #include "IPAddress.h"
-#include "MessageBuffer.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -12,18 +11,19 @@
 typedef struct Socket Socket;
 typedef struct Packet Packet;
 
+typedef void SocketAcceptFn(Socket* s, Socket* client);
+
 typedef struct Socket
 {
     FDI _impl;
 
+    SocketAcceptFn* SockAcceptFn;
     IPAddress Address;
-    bool Blocking;
 
-    MessageBuffer RecvBuffer;
-    MessageBuffer SendBuffer;
+    uint8_t* HeaderBuffer;
 
-    MessageBuffer HeaderBuffer;
-    MessageBuffer PacketBuffer;
+    size_t PacketBuffSize;
+    uint8_t* PacketBuffer;
 } Socket;
 
 typedef struct
@@ -36,6 +36,8 @@ typedef struct
         SOCKET_CLIENT,
         SOCKET_SERVER
     } SocketMode;
+
+    SocketAcceptFn* SocketOnAcceptClient;
 } SocketOpts;
 
 #define BACKLOG 10
@@ -54,25 +56,9 @@ typedef struct
 Socket* Socket_Create(SocketOpts const* opts);
 
 /*
- * Socket_IsBlocking: devuelve true si el socket es bloqueante (por defecto)
- */
-bool Socket_IsBlocking(Socket const* s);
-
-/*
- * Socket_SetBlocking: cambia el socket a bloqueante o no bloqueante
- */
-void Socket_SetBlocking(Socket* s, bool block);
-
-/*
  * Socket_SendPacket: envía un paquete serializado al host conectado
  */
 void Socket_SendPacket(Socket* s, Packet const* packet);
-
-/*
- * Socket_RecvPacket: recibe y procesa un paquete serializado. Esta operación es solo para socket bloqueantes
- * Devuelve true si fue exitoso, o falso si hubo un error, en caso de devolver falso el socket ya no es válido
- */
-bool Socket_RecvPacket(Socket* s);
 
 /*
  * Socket_Destroy: destructor, llamar luego de terminar de operar con el socket para liberar memoria
