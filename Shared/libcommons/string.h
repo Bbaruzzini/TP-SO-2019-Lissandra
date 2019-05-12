@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdarg.h>
+#include <vector.h>
 
 /**
 * @NAME: string_new
@@ -178,7 +179,7 @@ bool string_equals_ignore_case(char* actual, char* expected);
 * Ejemplo:
 * string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
 */
-char** string_split(char const* text, char* separator);
+Vector string_split(char const* text, char* separator);
 
 
 /**
@@ -191,14 +192,14 @@ char** string_split(char const* text, char* separator);
  * string_n_split("hola, mundo, bueno", 10, ",") => ["hola", " mundo", " bueno", NULL]
  *
  */
-char** string_n_split(char const* text, int n, char* separator);
+Vector string_n_split(char const* text, size_t n, char* separator);
 
 /**
 * @NAME: string_substring
 * @DESC: Retorna los length caracteres de text empezando en start
 * en un nuevo string
 */
-char* string_substring(char const* text, int start, int length);
+char* string_substring(char const* text, size_t start, size_t length);
 
 /**
 * @NAME: string_substring_from
@@ -218,7 +219,7 @@ char* string_substring_until(char const* text, int length);
 * @DESC: Itera un array de strings aplicando
 * el closure a cada string, hasta que encuentre un NULL
 */
-void string_iterate_lines(char** strings, void (* closure)(char*));
+void string_iterate_lines(Vector const* strings, void (* closure)(char*));
 
 /**
 * @NAME: string_iterate_lines_with_data
@@ -226,7 +227,7 @@ void string_iterate_lines(char** strings, void (* closure)(char*));
 * el closure a cada string, hasta que encuentre un NULL
 * el closure puede recibir el parametro extra
 */
-void string_iterate_lines_with_data(char** strings, void (*closure)(char*, void*), void* extra);
+void string_iterate_lines_with_data(Vector const* strings, void (*closure)(char*, void*), void* extra);
 
 /**
 * @NAME: string_get_string_as_array
@@ -237,7 +238,7 @@ void string_iterate_lines_with_data(char** strings, void (*closure)(char*, void*
 * char* array_string = "[1,2,3,4]"
 * string_get_value_as_array(array_string) => ["1","2","3","4"]
 */
-char** string_get_string_as_array(char* text);
+Vector string_get_string_as_array(char* text);
 
 /**
  * @NAME: string_reverse

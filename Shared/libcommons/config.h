@@ -23,8 +23,9 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#include <stdbool.h>
 #include "dictionary.h"
+#include <stdbool.h>
+#include <vector.h>
 
 typedef struct
 {
@@ -79,7 +80,7 @@ double config_get_double_value(t_config const*, char const* key);
 * VALORES=[1,2,3,4,5]
 * El array que devuelve termina en NULL
 */
-char** config_get_array_value(t_config const*, char const* key);
+Vector config_get_array_value(t_config const*, char const* key);
 
 /**
 * @NAME: config_key_amount

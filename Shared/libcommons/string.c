@@ -26,7 +26,10 @@ static void _string_do(char* text, void (* closure)(char*));
 static void _string_lower_element(char* ch);
 static void _string_upper_element(char* ch);
 static void _string_append_with_format_list(const char* format, char** original, va_list arguments);
-static char** _string_split(char const* text, char* separator, bool(*condition)(char const*, int));
+static bool _is_last_token(char const* next, size_t index, size_t _);
+static bool _is_last_n_token(char const* next, size_t index, size_t n);
+static Vector _string_split(char const* text, char* separator, bool(*condition)(char const*, size_t, size_t), size_t);
+static void _string_free_fn(void* pstr);
 
 char* string_repeat(char character, int count)
 {
@@ -153,9 +156,7 @@ bool string_starts_with(char* text, char* begin)
 bool string_ends_with(char* text, char* end)
 {
     if (strlen(text) < strlen(end))
-    {
         return false;
-    }
 
     int index = strlen(text) - strlen(end);
     return strcmp(&text[index], end) == 0;
@@ -166,43 +167,30 @@ bool string_equals_ignore_case(char* actual, char* expected)
     return strcasecmp(actual, expected) == 0;
 }
 
-char** string_split(char const* text, char* separator)
+Vector string_split(char const* text, char* separator)
 {
-    bool _is_last_token(char const* next, int _)
-    {
-        (void) _;
-        return next[0] != '\0';
-    }
-    return _string_split(text, separator, _is_last_token);
+    return _string_split(text, separator, _is_last_token, 0);
 }
 
-char** string_n_split(char const* text, int n, char* separator)
+Vector string_n_split(char const* text, size_t n, char* separator)
 {
-    bool _is_last_token(char const* next, int index)
-    {
-        return next[0] != '\0' && index < (n - 1);
-    }
-    return _string_split(text, separator, _is_last_token);
+    return _string_split(text, separator, _is_last_n_token, n);
 }
 
-char** string_get_string_as_array(char* text)
+Vector string_get_string_as_array(char* text)
 {
-    int length_value = strlen(text) - 2;
+    size_t length_value = strlen(text) - 2;
     char* value_without_brackets = string_substring(text, 1, length_value);
-    char** array_values = string_split(value_without_brackets, ",");
+    Vector array_values = string_split(value_without_brackets, ",");
 
-    int i = 0;
-    while (array_values[i] != NULL)
-    {
-        string_trim(&(array_values[i]));
-        ++i;
-    }
+    for (size_t i = 0; i < Vector_size(&array_values); ++i)
+        string_trim(Vector_at(&array_values, i));
 
     Free(value_without_brackets);
     return array_values;
 }
 
-char* string_substring(char const* text, int start, int length)
+char* string_substring(char const* text, size_t start, size_t length)
 {
     char* new_string = Calloc(1, length + 1);
     strncpy(new_string, text + start, length);
@@ -219,22 +207,18 @@ char* string_substring_until(char const* text, int length)
     return string_substring(text, 0, length);
 }
 
-void string_iterate_lines(char** strings, void (*closure)(char*))
+void string_iterate_lines(Vector const* strings, void (*closure)(char*))
 {
-    while (*strings != NULL)
-    {
-        closure(*strings);
-        strings++;
-    }
+    char** const lines = Vector_data(strings);
+    for (size_t i = 0; i < Vector_size(strings); ++i)
+        closure(lines[i]);
 }
 
-void string_iterate_lines_with_data(char** strings, void (*closure)(char*, void*), void* extra)
+void string_iterate_lines_with_data(Vector const* strings, void (*closure)(char*, void*), void* extra)
 {
-    while (*strings != NULL)
-    {
-        closure(*strings, extra);
-        strings++;
-    }
+    char** const lines = Vector_data(strings);
+    for (size_t i = 0; i < Vector_size(strings); ++i)
+        closure(lines[i], extra);
 }
 
 int string_length(char const* text)
@@ -307,38 +291,51 @@ static void _string_append_with_format_list(const char* format, char** original,
     Free(temporal);
 }
 
-static char** _string_split(char const* text, char* separator, bool(*condition)(char const*, int))
+static bool _is_last_token(char const* next, size_t index, size_t _)
 {
-    char** substrings = NULL;
-    int size = 0;
+    (void) index;
+    (void) _;
+    return !!*next;
+}
+
+static bool _is_last_n_token(char const* next, size_t index, size_t n)
+{
+    return !!*next && index + 1 < n;
+}
+
+static void _string_free_fn(void* pstr)
+{
+    char** string = pstr;
+    Free(*string);
+}
+
+static Vector _string_split(char const* text, char* separator, bool(*condition)(char const*, size_t, size_t), size_t n)
+{
+    Vector substrings;
+    Vector_Construct(&substrings, sizeof(char*), _string_free_fn, 0);
 
     char* text_to_iterate = string_duplicate(text);
 
     char* next = text_to_iterate;
     char* str = text_to_iterate;
 
-    while (condition(next, size))
+    while (condition(next, Vector_size(&substrings), n))
     {
         char* token = strtok_r(str, separator, &next);
         if (token == NULL)
             break;
 
         str = NULL;
-        ++size;
-        substrings = Realloc(substrings, sizeof(char*) * size);
-        substrings[size - 1] = string_duplicate(token);
-    };
+
+        char* const elem = string_duplicate(token);
+        Vector_push_back(&substrings, &elem);
+    }
 
     if (next[0] != '\0')
     {
-        ++size;
-        substrings = Realloc(substrings, sizeof(char*) * size);
-        substrings[size - 1] = string_duplicate(next);
+        char* const elem = string_duplicate(next);
+        Vector_push_back(&substrings, &elem);
     }
-
-    ++size;
-    substrings = Realloc(substrings, sizeof(char*) * size);
-    substrings[size - 1] = NULL;
 
     Free(text_to_iterate);
     return substrings;

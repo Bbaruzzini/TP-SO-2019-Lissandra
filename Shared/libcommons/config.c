@@ -31,44 +31,44 @@ static void add_configuration(char* line, void* cfg)
         // remover newlines de cualquier estilo
         line[strcspn(line, "\r\n")] = '\0';
 
-        char** keyAndValue = string_n_split(line, 2, "=");
-        if (!*keyAndValue)
+        Vector keyAndValue = string_n_split(line, 2, "=");
+        if (Vector_size(&keyAndValue) != 2)
         {
-            // linea vacia
-            Free(keyAndValue);
+            // config con error
+            Vector_Destruct(&keyAndValue);
             return;
         }
 
-        dictionary_put(config->properties, keyAndValue[0], keyAndValue[1]);
-        Free(keyAndValue[0]);
-        Free(keyAndValue);
+        char** const tokens = Vector_data(&keyAndValue);
+
+        char* const key = string_duplicate(tokens[0]);
+        char* const value = string_duplicate(tokens[1]);
+        dictionary_put(config->properties, key, value);
+        Free(key); // el diccionario copia la key
+        Vector_Destruct(&keyAndValue);
     }
 }
 
 t_config* config_create(char const* path)
 {
     FILE* file = fopen(path, "r");
-
-    if (file == NULL)
+    if (!file)
         return NULL;
 
     struct stat stat_file;
     stat(path, &stat_file);
 
     t_config* config = Malloc(sizeof(t_config));
-
     config->path = strdup(path);
     config->properties = dictionary_create();
 
     char* buffer = Calloc(stat_file.st_size + 1, 1);
     fread(buffer, 1, stat_file.st_size, file);
 
-    char** lines = string_split(buffer, "\n");
+    Vector lines = string_split(buffer, "\n");
+    string_iterate_lines_with_data(&lines, add_configuration, config);
+    Vector_Destruct(&lines);
 
-    string_iterate_lines_with_data(lines, add_configuration, config);
-    string_iterate_lines(lines, (void(*)(char*)) Free);
-
-    Free(lines);
     Free(buffer);
     fclose(file);
 
@@ -103,7 +103,7 @@ double config_get_double_value(t_config const* self, char const* key)
     return atof(value);
 }
 
-char** config_get_array_value(t_config const* self, char const* key)
+Vector config_get_array_value(t_config const* self, char const* key)
 {
     char* value_in_dictionary = config_get_string_value(self, key);
     return string_get_string_as_array(value_in_dictionary);

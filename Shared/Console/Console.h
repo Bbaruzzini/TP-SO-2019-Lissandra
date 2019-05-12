@@ -4,8 +4,9 @@
 
 #include "LockedQueue.h"
 #include <stdatomic.h>
+#include <vector.h>
 
-typedef void CLICommandHandlerFn(char const* args);
+typedef void CLICommandHandlerFn(Vector const* args);
 
 typedef struct
 {

@@ -1,5 +1,6 @@
 
 #include "Console.h"
+#include <libcommons/string.h>
 #include <readline/history.h>
 #include <readline/readline.h>
 #include <stdint.h>
@@ -100,14 +101,16 @@ void AtenderComando(char const* command)
     while (*command == ' ')
         ++command;
 
+    Vector args = string_split(command, " ");
     for (uint32_t i = 0; CLICommands[i].CmdName != NULL; ++i)
     {
         if (!strcmp(CLICommands[i].CmdName, cmd))
         {
-            CLICommands[i].Handler(command);
+            CLICommands[i].Handler(&args);
             break;
         }
     }
 
+    Vector_Destruct(&args);
     Free(cmd);
 }
