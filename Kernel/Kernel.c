@@ -6,7 +6,6 @@
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
 #include <Config.h>
-#include <Console.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
 #include <libcommons/config.h>

@@ -1,14 +1,14 @@
-#include "Appender.h"
-#include "AppenderConsole.h"
-#include "AppenderFile.h"
+
 #include "CLIHandlers.h"
-#include "Config.h"
-#include "Console.h"
-#include "EventDispatcher.h"
-#include "FileWatcher.h"
-#include "Logger.h"
+#include <Appender.h>
+#include <AppenderConsole.h>
+#include <AppenderFile.h>
+#include <Config.h>
+#include <EventDispatcher.h>
+#include <FileWatcher.h>
 #include <libcommons/config.h>
 #include <libcommons/string.h>
+#include <Logger.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>

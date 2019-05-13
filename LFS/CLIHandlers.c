@@ -1,27 +1,27 @@
 
 #include "CLIHandlers.h"
 
-void HandleSelect(char const* args)
+void HandleSelect(Vector const* args)
 {
     (void) args;
 }
 
-void HandleInsert(char const* args)
+void HandleInsert(Vector const* args)
 {
     (void) args;
 }
 
-void HandleCreate(char const* args)
+void HandleCreate(Vector const* args)
 {
     (void) args;
 }
 
-void HandleDescribe(char const* args)
+void HandleDescribe(Vector const* args)
 {
     (void) args;
 }
 
-void HandleDrop(char const* args)
+void HandleDrop(Vector const* args)
 {
     (void) args;
 }
