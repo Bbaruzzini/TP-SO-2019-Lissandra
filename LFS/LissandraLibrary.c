@@ -4,11 +4,7 @@
 
 //Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
-#include "Lissandra.h"
-#include <libcommons/list.h>
-#include <LockedQueue.h>
-#include <semaphore.h>
-#include <Socket.h>
+
 
 //Variables
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'

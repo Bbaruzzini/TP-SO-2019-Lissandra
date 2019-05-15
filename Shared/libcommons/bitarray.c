@@ -38,7 +38,7 @@ t_bitarray* bitarray_create(uint8_t* bitarray, size_t size)
     return bitarray_create_with_mode(bitarray, size, LSB_FIRST);
 }
 
-t_bitarray* bitarray_create_with_mode(uint8_t* bitarray, size_t size, bit_numbering_t mode)
+t_bitarray* bitarray_create_with_mode(char* bitarray, size_t size, bit_numbering_t mode) //NO CAMBIAR, NECESITAMOS QUE FIGURE ASI PARA NO GENERAR PROBLEMAS
 {
     t_bitarray* self = Malloc(sizeof(t_bitarray));
 

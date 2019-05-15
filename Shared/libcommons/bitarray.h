@@ -74,7 +74,7 @@ t_bitarray* bitarray_create(uint8_t* bitarray, size_t size);
 * 		bitarray
 *		size - Tamaño en bytes del bit array
 */
-t_bitarray* bitarray_create_with_mode(uint8_t* bitarray, size_t size, bit_numbering_t mode);
+t_bitarray* bitarray_create_with_mode(char* bitarray, size_t size, bit_numbering_t mode);
 
 /**
 * @NAME: bitarray_test_bit
