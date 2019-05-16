@@ -52,7 +52,7 @@ void iniciarMetadata(){
     FILE * metadata = fopen(pathMetadataArchivo, "w");
     fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
     fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
-    fprintf(metadata, "MAGIC_NUMBER=SADICA\n");
+    fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
     fclose(metadata);
 
     int sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
