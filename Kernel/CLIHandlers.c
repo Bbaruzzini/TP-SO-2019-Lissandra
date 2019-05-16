@@ -107,7 +107,7 @@ void HandleAdd(Vector const* args)
     }
 
     //Socket* s = MemoryMgr_GetConnection(memIdx);
-    Criteria_AddMemory(type, memIdx, NULL /*s*/);
+    Criteria_AddMemory(type, NULL /*s*/);
 }
 
 void HandleRun(Vector const* args)
@@ -137,5 +137,13 @@ void HandleRun(Vector const* args)
 
 void HandleMetrics(Vector const* args)
 {
-    (void) args;
+    //           cmd
+    // sintaxis: METRICS
+    if (Vector_size(args) != 0)
+    {
+        LISSANDRA_LOG_ERROR("RUN: Cantidad de parámetros incorrecta.");
+        return;
+    }
+
+    Criterias_Report();
 }

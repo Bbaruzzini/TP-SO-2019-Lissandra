@@ -1,9 +1,10 @@
 
 #include "Handlers.h"
 #include "Criteria.h"
-#include "Packet.h"
-#include "Socket.h"
+#include <Logger.h>
 #include <Opcodes.h>
+#include <Packet.h>
+#include <Socket.h>
 
 OpcodeHandler const opcodeTable[NUM_OPCODES] =
 {
@@ -32,25 +33,49 @@ OpcodeHandler const opcodeTable[NUM_OPCODES] =
 void HandleSelectOpcode(Socket* s, Packet* p)
 {
     (void) s;
-    (void) p;
+
+    char* name;
+    Packet_Read(p, &name);
+
+    uint16_t key;
+    Packet_Read(p, &key);
+
+    char* value;
+    Packet_Read(p, &value);
+
+    uint32_t ts;
+    Packet_Read(p, &ts);
+
+    LISSANDRA_LOG_INFO("SELECT: tabla: %s, key: %" PRIu16 ", valor: %s, timestamp: %u", name, key, value, ts);
+
+    Free(value);
+    Free(name);
 }
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
     (void) s;
 
-    char* name;
-    Packet_Read(p, &name);
+    uint32_t num = 1;
+    if (Packet_GetOpcode(p) == MSG_DESCRIBE_GLOBAL)
+        Packet_Read(p, &num);
 
-    uint8_t type;
-    Packet_Read(p, &type);
+    for (uint32_t i = 0; i < num; ++i)
+    {
+        char* name;
+        Packet_Read(p, &name);
 
-    uint16_t partitions;
-    Packet_Read(p, &partitions);
+        uint8_t type;
+        Packet_Read(p, &type);
 
-    uint32_t compaction_time;
-    Packet_Read(p, &compaction_time);
+        uint16_t partitions;
+        Packet_Read(p, &partitions);
+
+        uint32_t compaction_time;
+        Packet_Read(p, &compaction_time);
+    }
 
     // TODO: STUB
     // Kernel_UpdateMetadata(name, type);
+    // Free(name);
 }

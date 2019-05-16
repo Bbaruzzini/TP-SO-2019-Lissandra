@@ -1,5 +1,4 @@
 
-
 #include "CLIHandlers.h"
 #include "Criteria.h"
 #include <Appender.h>

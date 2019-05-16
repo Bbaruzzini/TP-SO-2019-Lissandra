@@ -2,32 +2,10 @@
 #ifndef Criteria_h__
 #define Criteria_h__
 
+#include "Metric.h"
 #include <stdint.h>
 
 typedef struct Socket Socket;
-
-typedef enum
-{
-    EVT_READ_LATENCY,  // loguea un tiempo de ejecucion SELECT
-    EVT_WRITE_LATENCY, // loguea un tiempo de ejecucion INSERT
-    EVT_MEM_READ,      // loguea un SELECT
-    EVT_MEM_WRITE,     // loguea un INSERT
-    EVT_MEM_OP         // loguea otra operacion
-} MetricEvent;
-
-typedef enum
-{
-    // por criterio
-    MEAN_READ_LATENCY,  // tiempo promedio que tarda un SELECT en los ultimos 30 seg
-    MEAN_WRITE_LATENCY, // tiempo promedio que tarda un INSERT en los ultimos 30 seg
-    TOTAL_READS,        // cantidad de select ejecutados en los ultimos 30 seg
-    TOTAL_WRITES,       // cantidad de insert ejecutados en los ultimos 30 seg
-
-    // por memoria
-    MEMORY_LOAD,        // cantidad de INSERT/SELECT que se ejecutaron respecto de operaciones totales
-
-    NUM_REPORTS
-} MetricReport;
 
 typedef enum
 {
@@ -64,7 +42,7 @@ typedef struct
         {
             uint16_t Key;
             char const* Value;
-            uint32_t* Timestamp;
+            uint32_t const* Timestamp;
         } Insert;
 
         struct
@@ -78,7 +56,7 @@ typedef struct
 
 void Criterias_Init(void);
 
-void Criteria_AddMemory(CriteriaType type, uint32_t memIndex, Socket* s);
+void Criteria_AddMemory(CriteriaType type, Socket* s);
 
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
 
