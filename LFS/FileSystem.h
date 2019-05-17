@@ -22,7 +22,7 @@
  * Variables
  */
 
-char* pathBloques, *pathArchivos, *pathMetadata, *pathMetadataArchivo, *pathMetadataBitarray;
+char* pathBloques, *pathTablas, *pathMetadata, *pathMetadataTabla, *pathMetadataBitarray;
 
 t_bitarray* bitArray;
 

@@ -15,10 +15,10 @@ void iniciarMetadata(){
     string_append(&pathBloques, "Bloques");
     LISSANDRA_LOG_INFO("Path Bloques %s...", pathBloques);
 
-    pathArchivos = string_new();
-    string_append(&pathArchivos, confLFS->PUNTO_MONTAJE);
-    string_append(&pathArchivos, "Archivos");
-    LISSANDRA_LOG_INFO("Path Archivo %s...", pathArchivos);
+    pathTablas = string_new();
+    string_append(&pathTablas, confLFS->PUNTO_MONTAJE);
+    string_append(&pathTablas, "Tabla");
+    LISSANDRA_LOG_INFO("Path Tabla %s...", pathTablas);
 
     mkdirRecursivo(confLFS->PUNTO_MONTAJE);
 
@@ -27,7 +27,7 @@ void iniciarMetadata(){
 
 
     mkdir(pathBloques, 0777);
-    mkdir(pathArchivos, 0777);
+    mkdir(pathTablas, 0777);
 
     char *p = string_new();
     string_append(&p, pathMetadata);
@@ -45,11 +45,11 @@ void iniciarMetadata(){
     }
     free(p);
 
-    pathMetadataArchivo = string_new();
-    string_append(&pathMetadataArchivo, pathMetadata);
-    string_append(&pathMetadataArchivo, "/Metadata.bin");
+    pathMetadataTabla = string_new();
+    string_append(&pathMetadataTabla, pathMetadata);
+    string_append(&pathMetadataTabla, "/Metadata.bin");
 
-    FILE * metadata = fopen(pathMetadataArchivo, "w");
+    FILE * metadata = fopen(pathMetadataTabla, "w");
     fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
     fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
     fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
