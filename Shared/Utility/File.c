@@ -1,9 +1,14 @@
+
 #include "File.h"
+#include <libcommons/string.h>
 #include <Malloc.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define MAX_STRING 255
+
+static void _removeCRLF(char*);
 
 struct File
 {
@@ -54,6 +59,21 @@ char* file_readline(File const* file, uint32_t line)
     return resBuffer;
 }
 
+Vector file_getlines(File const* file)
+{
+    struct stat stat_file;
+    fstat(fileno(file->_imp), &stat_file);
+
+    char* buffer = Calloc(stat_file.st_size + 1, 1);
+    fread(buffer, 1, stat_file.st_size, file->_imp);
+
+    Vector lines = string_split(buffer, "\n");
+    Free(buffer);
+
+    string_iterate_lines(&lines, _removeCRLF);
+    return lines;
+}
+
 void file_for_each_line(File const* file, FilterFn fn)
 {
     char* buf = Malloc(MAX_STRING);
@@ -70,4 +90,9 @@ void file_close(File* file)
     if (file->_imp)
         fclose(file->_imp);
     Free(file);
+}
+
+static void _removeCRLF(char* line)
+{
+    line[strcspn(line, "\r\n")] = '\0';
 }

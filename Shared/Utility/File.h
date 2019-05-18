@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <vector.h>
 
 typedef struct File File;
 
@@ -19,6 +20,7 @@ typedef void(*FilterFn)(char const* line);
 File* file_open(char const* fileName, Mode mode);
 bool file_is_open(File const* file);
 char* file_readline(File const* file, uint32_t line);
+Vector file_getlines(File const* file);
 void file_for_each_line(File const* file, FilterFn fn);
 void file_close(File* file);
 

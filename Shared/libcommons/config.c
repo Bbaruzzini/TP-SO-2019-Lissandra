@@ -16,21 +16,16 @@
 
 #include "dictionary.h"
 #include "config.h"
-#include "Malloc.h"
 #include "string.h"
-#include <stdio.h>
+#include <File.h>
+#include <Malloc.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 
 static void add_configuration(char* line, void* cfg)
 {
     t_config* const config = cfg;
     if (!string_starts_with(line, "#"))
     {
-        // remover newlines de cualquier estilo
-        line[strcspn(line, "\r\n")] = '\0';
-
         Vector keyAndValue = string_n_split(line, 2, "=");
         if (Vector_size(&keyAndValue) != 2)
         {
@@ -51,27 +46,19 @@ static void add_configuration(char* line, void* cfg)
 
 t_config* config_create(char const* path)
 {
-    FILE* file = fopen(path, "r");
-    if (!file)
+    File* file = file_open(path, F_OPEN_READ);
+    if (!file_is_open(file))
         return NULL;
 
-    struct stat stat_file;
-    stat(path, &stat_file);
-
     t_config* config = Malloc(sizeof(t_config));
-    config->path = strdup(path);
+    config->path = string_duplicate(path);
     config->properties = dictionary_create();
 
-    char* buffer = Calloc(stat_file.st_size + 1, 1);
-    fread(buffer, 1, stat_file.st_size, file);
-
-    Vector lines = string_split(buffer, "\n");
+    Vector lines = file_getlines(file);
     string_iterate_lines_with_data(&lines, add_configuration, config);
     Vector_Destruct(&lines);
 
-    Free(buffer);
-    fclose(file);
-
+    file_close(file);
     return config;
 }
 
@@ -88,19 +75,19 @@ char* config_get_string_value(t_config const* self, char const* key)
 int config_get_int_value(t_config const* self, char const* key)
 {
     char* value = config_get_string_value(self, key);
-    return atoi(value);
+    return strtol(value, NULL, 10);
 }
 
 long config_get_long_value(t_config const* self, char const* key)
 {
     char* value = config_get_string_value(self, key);
-    return atol(value);
+    return strtol(value, NULL, 10);
 }
 
 double config_get_double_value(t_config const* self, char const* key)
 {
     char* value = config_get_string_value(self, key);
-    return atof(value);
+    return strtod(value, NULL);
 }
 
 Vector config_get_array_value(t_config const* self, char const* key)
@@ -133,30 +120,4 @@ void config_remove_key(t_config* self, char const* key)
     t_dictionary* dictionary = self->properties;
     if (dictionary_has_key(dictionary, key))
         dictionary_remove_and_destroy(dictionary, key, Free);
-}
-
-int config_save(t_config const* self)
-{
-    return config_save_in_file(self, self->path);
-}
-
-static void add_line(char const* key, void* value, void* ln)
-{
-    char** lines = ln;
-    string_append_with_format(lines, "%s=%s\n", key, value);
-}
-
-int config_save_in_file(t_config const* self, char const* path)
-{
-    FILE* file = fopen(path, "wb+");
-    if (file == NULL)
-        return -1;
-
-    char* lines = string_new();
-
-    dictionary_iterator_with_data(self->properties, add_line, &lines);
-    int result = fwrite(lines, 1, strlen(lines), file);
-    fclose(file);
-    Free(lines);
-    return result;
 }

@@ -106,16 +106,4 @@ void config_set_value(t_config*, char const* key, char const* value);
 */
 void config_remove_key(t_config*, char const* key);
 
-/**
-* @NAME: config_save
-* @DESC: Reescribe el archivo de configuracion con los valores del config.
-*/
-int config_save(t_config const*);
-
-/**
-* @NAME: config_save_in_file
-* @DESC: Escribe un archivo de configuracion en el path indicado con los valores del config.
-*/
-int config_save_in_file(t_config const*, char const* path);
-
 #endif /* CONFIG_H_ */
