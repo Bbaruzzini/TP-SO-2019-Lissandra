@@ -33,7 +33,6 @@ add_library(warnings-interface INTERFACE)
 target_compile_options(warnings-interface
         INTERFACE
         -Wall
-        -Werror
         -Wextra
         -Wstrict-prototypes
         -pedantic)
