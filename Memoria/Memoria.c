@@ -14,7 +14,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-CLICommand CLICommands[] =
+CLICommand const CLICommands[] =
 {
     { "SELECT",   HandleSelect   },
     { "INSERT",   HandleInsert   },

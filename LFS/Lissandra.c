@@ -3,7 +3,7 @@
 #include "Lissandra.h"
 
 
-CLICommand CLICommands[] =
+CLICommand const CLICommands[] =
 {
     { "SELECT",   HandleSelect   },
     { "INSERT",   HandleInsert   },

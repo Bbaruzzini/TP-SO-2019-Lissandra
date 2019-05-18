@@ -110,7 +110,6 @@ void EventDispatcher_Terminate(void)
     close(sDispatcher.Handle);
 }
 
-#define INTEREST_EVENTS 2
 static void _dispatchEvent(struct epoll_event* evt)
 {
     FDI* fdi = evt->data.ptr;

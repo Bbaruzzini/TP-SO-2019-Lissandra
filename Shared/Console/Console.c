@@ -9,7 +9,7 @@ char* command_finder(char const* text, int state)
 {
     static size_t idx, len;
     char const* ret;
-    CLICommand* cmd = CLICommands;
+    CLICommand const* cmd = CLICommands;
 
     if (!state)
     {
@@ -94,12 +94,6 @@ void AtenderComando(char const* command)
     char* cmd = Malloc(spc + 1);
     strncpy(cmd, command, spc + 1);
     cmd[spc] = '\0';
-
-    command = command + spc;
-
-    //skip any extra spaces
-    while (*command == ' ')
-        ++command;
 
     Vector args = string_split(command, " ");
     for (uint32_t i = 0; CLICommands[i].CmdName != NULL; ++i)

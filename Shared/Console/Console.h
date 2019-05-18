@@ -14,7 +14,7 @@ typedef struct
     CLICommandHandlerFn* Handler;
 } CLICommand;
 
-extern CLICommand CLICommands[];
+extern CLICommand const CLICommands[];
 extern char const* CLIPrompt;
 extern LockedQueue* CLICommandQueue;
 extern atomic_bool ProcessRunning;
