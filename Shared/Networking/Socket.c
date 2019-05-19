@@ -102,6 +102,56 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
         LISSANDRA_LOG_SYSERROR("writev");
 }
 
+Packet* Socket_RecvPacket(Socket* s)
+{
+    ssize_t readLen = recv(s->Handle, s->HeaderBuffer, sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
+    if (readLen == 0)
+    {
+        // nos cerraron la conexion, limpiar socket
+        return NULL;
+    }
+
+    if (readLen < 0)
+    {
+        // otro error, limpiar socket
+        LISSANDRA_LOG_SYSERROR("recv");
+        return NULL;
+    }
+
+    PacketHdr* header = (PacketHdr*) s->HeaderBuffer;
+    header->size = EndianConvert(header->size);
+    header->cmd = EndianConvert(header->cmd);
+
+    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
+    {
+        LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
+                            s->Address.HostIP, header->size, header->cmd);
+        return NULL;
+    }
+
+    if (header->size > s->PacketBuffSize)
+    {
+        s->PacketBuffer = Realloc(s->PacketBuffer, header->size);
+        s->PacketBuffSize = header->size;
+    }
+
+    readLen = recv(s->Handle, s->PacketBuffer, header->size, MSG_NOSIGNAL | MSG_WAITALL);
+    if (readLen == 0)
+    {
+        // nos cerraron la conexion, limpiar socket
+        return NULL;
+    }
+
+    if (readLen < 0)
+    {
+        // otro error
+        LISSANDRA_LOG_SYSERROR("recv");
+        return NULL;
+    }
+
+    return Packet_Adopt(header->cmd, &s->PacketBuffer, &s->PacketBuffSize);
+}
+
 void Socket_Destroy(void* elem)
 {
     Socket* s = elem;
@@ -117,62 +167,19 @@ static bool _recvCb(void* socket)
 {
     Socket* s = socket;
 
-    ssize_t readLen = recv(s->Handle, s->HeaderBuffer, sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
-    if (readLen == 0)
-    {
-        // nos cerraron la conexion, limpiar socket
+    Packet* p = Socket_RecvPacket(s);
+    if (!p)
         return false;
-    }
 
-    if (readLen < 0)
-    {
-        // otro error, limpiar socket
-        LISSANDRA_LOG_SYSERROR("recv");
-        return false;
-    }
-
-    PacketHdr* header = (PacketHdr*) s->HeaderBuffer;
-    header->size = EndianConvert(header->size);
-    header->cmd = EndianConvert(header->cmd);
-
-    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
-    {
-        LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
-                            s->Address.HostIP, header->size, header->cmd);
-        return false;
-    }
-
-    if (header->size > s->PacketBuffSize)
-    {
-        s->PacketBuffer = Realloc(s->PacketBuffer, header->size);
-        s->PacketBuffSize = header->size;
-    }
-
-    readLen = recv(s->Handle, s->PacketBuffer, header->size, MSG_NOSIGNAL | MSG_WAITALL);
-    if (readLen == 0)
-    {
-        // nos cerraron la conexion, limpiar socket
-        return false;
-    }
-
-    if (readLen < 0)
-    {
-        // otro error
-        LISSANDRA_LOG_SYSERROR("recv");
-        return false;
-    }
-
-    OpcodeHandlerFnType* handler = opcodeTable[header->cmd].HandlerFunction;
+    OpcodeHandlerFnType* handler = opcodeTable[Packet_GetOpcode(p)].HandlerFunction;
     if (!handler)
     {
-        LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", header->cmd);
-        return true;
+        LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", Packet_GetOpcode(p));
+        return false;
     }
 
-    Packet* p = Packet_Adopt(header->cmd, &s->PacketBuffer, &s->PacketBuffSize);
     handler(s, p);
     Packet_Destroy(p);
-
     return true;
 }
 

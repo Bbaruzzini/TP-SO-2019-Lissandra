@@ -61,6 +61,11 @@ Socket* Socket_Create(SocketOpts const* opts);
 void Socket_SendPacket(Socket* s, Packet const* packet);
 
 /*
+ * Socket_RecvPacket: recibe un paquete serializado
+ */
+Packet* Socket_RecvPacket(Socket* s);
+
+/*
  * Socket_Destroy: destructor, llamar luego de terminar de operar con el socket para liberar memoria
  */
 void Socket_Destroy(void* elem);

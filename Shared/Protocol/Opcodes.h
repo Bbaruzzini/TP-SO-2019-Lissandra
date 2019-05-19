@@ -50,11 +50,10 @@ typedef enum
 
     // Mensajes que entienden los 3 modulos
     // Respuestas a queries
-    MSG_SELECT,  /* char*: nombre tabla
-                  * uint16: key
-                  * char*: value
-                  * uint32: timestamp
+    MSG_SELECT,  /* char*: value
                   */
+
+    MSG_INSERT,  /* nada */
 
     MSG_DESCRIBE, /* char*: nombre tabla
                    * uint8: tipo de consistencia (ver Kernel/Criteria.h)
