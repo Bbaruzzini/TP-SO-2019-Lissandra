@@ -35,7 +35,8 @@ bool Metadata_Get(char const* name, CriteriaType* ct)
     if (!entry)
         return false;
 
-    *ct = entry->ct;
+    if (ct)
+        *ct = entry->ct;
     return true;
 }
 

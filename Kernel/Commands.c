@@ -97,7 +97,7 @@ bool HandleSelect(Vector const* args)
 
     DBRequest dbr;
     dbr.TableName = table;
-    dbr.Data.Select.Key = (uint16_t) k;
+    dbr.Data.Select.Key = k;
 
     Socket* s = Criteria_Dispatch(ct, OP_SELECT, &dbr);
     if (!s) // no hay memorias conectadas? criteria loguea el error
@@ -427,7 +427,7 @@ bool HandleRun(Vector const* args)
 
     char** const tokens = Vector_data(args);
 
-    char* const fileName = tokens[0];
+    char* const fileName = tokens[1];
     File* script = file_open(fileName, F_OPEN_READ);
     if (!file_is_open(script))
     {
