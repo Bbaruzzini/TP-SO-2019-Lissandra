@@ -28,15 +28,15 @@ static bool _recvCb(void* socket);
 
 static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode mode);
 
-struct SockInit
+typedef struct
 {
     int fileDescriptor;
     IPAddress const* ipAddr;
     enum SocketMode mode;
 
     SocketAcceptFn* acceptFn;
-};
-static Socket* _initSocket(struct SockInit const* si);
+} SockInit;
+static Socket* _initSocket(SockInit const* si);
 
 Socket* Socket_Create(SocketOpts const* opts)
 {
@@ -66,7 +66,7 @@ Socket* Socket_Create(SocketOpts const* opts)
         return NULL;
     }
 
-    struct SockInit si =
+    SockInit si =
     {
         .fileDescriptor = fd,
         .ipAddr = &ip,
@@ -193,7 +193,7 @@ static bool _acceptCb(void* socket)
     IPAddress_Init(&ip, &peerAddress, saddr_len);
     LISSANDRA_LOG_INFO("Conexión desde %s:%u", ip.HostIP, ip.Port);
 
-    struct SockInit si =
+    SockInit si =
     {
         .fileDescriptor = fd,
         .ipAddr = &ip,
@@ -269,7 +269,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
     return -1;
 }
 
-static Socket* _initSocket(struct SockInit const* si)
+static Socket* _initSocket(SockInit const* si)
 {
     Socket* s = Malloc(sizeof(Socket));
     s->Handle = si->fileDescriptor;

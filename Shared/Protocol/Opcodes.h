@@ -72,12 +72,6 @@ typedef enum
     NUM_OPCODES
 } Opcodes;
 
-typedef struct
-{
-    char const* Name;
-    OpcodeHandlerFnType* HandlerFunction;
-} OpcodeHandler;
-
 extern OpcodeHandler const opcodeTable[NUM_OPCODES];
 
 #endif //Opcodes_h__
