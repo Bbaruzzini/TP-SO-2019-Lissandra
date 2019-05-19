@@ -62,7 +62,7 @@ void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
 
 void Criterias_Report(void);
 
-void Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr);
+Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr);
 
 void Criterias_Destroy(void);
 

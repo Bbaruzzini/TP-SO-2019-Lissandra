@@ -18,7 +18,7 @@ typedef struct
 } Memory;
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
-typedef void DispatchFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
+typedef Socket* DispatchFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
 typedef void ReportFnType(void const* criteria, ReportType report);
 typedef void DestroyFnType(void* criteria);
 
@@ -84,7 +84,7 @@ static DestroyFnType _sc_destroy;
 static DestroyFnType _shc_destroy;
 static DestroyFnType _ec_destroy;
 
-static void _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
+static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
@@ -154,10 +154,27 @@ void Criterias_Report(void)
     LISSANDRA_LOG_INFO("======FIN REPORTE======");
 }
 
-void Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
+Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
 {
     Criteria* const itr = Criterias[type];
-    itr->DispatchFn(itr, op, dbr);
+
+    MetricEvent evt;
+    switch (op)
+    {
+        case OP_SELECT:
+            evt = EVT_MEM_READ;
+            break;
+        case OP_INSERT:
+            evt = EVT_MEM_WRITE;
+            break;
+        default:
+            evt = EVT_MEM_OP;
+            break;
+    }
+
+    // registrar la operacion para metricas
+    Criteria_AddMetric(type, evt, 0);
+    return itr->DispatchFn(itr, op, dbr);
 }
 
 void Criterias_Destroy(void)
@@ -220,15 +237,26 @@ static void _ec_add(void* criteria, Memory* mem)
     list_add(ec->MemoryList, mem);
 }
 
-static void _sc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Socket* _sc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SC* const sc = criteria;
-    _dispatch_one(sc->SCMem, op, dbr);
+    if (!sc->SCMem)
+    {
+        LISSANDRA_LOG_ERROR("Criterio SC: sin memoria asociada! (op %d)", op);
+        return NULL;
+    }
+
+    return _dispatch_one(sc->SCMem, op, dbr);
 }
 
-static void _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Socket* _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SHC* const shc = criteria;
+    if (Vector_empty(&shc->MemoryArr))
+    {
+        LISSANDRA_LOG_ERROR("Criterio SHC: no hay memorias asociadas! (op %d)", op);
+        return NULL;
+    }
 
     // por defecto primer memoria (no hay nada en el tp que diga lo contrario) ver issue 1326
     size_t memPos = 0;
@@ -248,10 +276,10 @@ static void _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 
     Memory* const* const memArr = Vector_data(&shc->MemoryArr);
     Memory* const mem = memArr[memPos];
-    _dispatch_one(mem, op, dbr);
+    return _dispatch_one(mem, op, dbr);
 }
 
-static void _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Socket* _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     // TODO: dejar random?
     // otras opciones:
@@ -260,8 +288,14 @@ static void _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
     // MR (min requests)
 
     Criteria_EC* const ec = criteria;
+    if (list_is_empty(ec->MemoryList))
+    {
+        LISSANDRA_LOG_ERROR("Criterio EC: no hay memorias asociadas! (op %d)", op);
+        return NULL;
+    }
+
     Memory* const mem = list_get(ec->MemoryList, random() % list_size(ec->MemoryList));
-    _dispatch_one(mem, op, dbr);
+    return _dispatch_one(mem, op, dbr);
 }
 
 static void _sc_report(void const* criteria, ReportType report)
@@ -370,7 +404,7 @@ static Packet* _build_journal(DBRequest const* dbr)
     return Packet_Create(LQL_JOURNAL, 0);
 }
 
-static void _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
+static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
 {
     typedef Packet* PacketBuildFn(DBRequest const*);
     static PacketBuildFn* const PacketBuilders[NUM_OPS] =
@@ -383,10 +417,12 @@ static void _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
         _build_journal
     };
 
+    Socket* const s = mem->MemSocket;
     Packet* p = PacketBuilders[op](dbr);
 
-    Socket_SendPacket(mem->MemSocket, p);
+    Socket_SendPacket(s, p);
     Packet_Destroy(p);
+    return s;
 }
 
 static void _shc_report_one(void* pElem, void* rt)

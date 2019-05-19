@@ -4,14 +4,6 @@
 
 #include <Console.h>
 
-CLICommandHandlerFn HandleSelect;
-CLICommandHandlerFn HandleInsert;
-CLICommandHandlerFn HandleCreate;
-CLICommandHandlerFn HandleDescribe;
-CLICommandHandlerFn HandleDrop;
-CLICommandHandlerFn HandleJournal;
-CLICommandHandlerFn HandleAdd;
-CLICommandHandlerFn HandleRun;
-CLICommandHandlerFn HandleMetrics;
+CLICommandHandlerFn ScheduleCommand;
 
 #endif //Kernel_CLIHandlers_h__

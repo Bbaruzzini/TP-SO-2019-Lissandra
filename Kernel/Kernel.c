@@ -1,10 +1,12 @@
 
-#include "CLIHandlers.h"
 #include "Criteria.h"
+#include "Metadata.h"
+#include "Runner.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
 #include <Config.h>
+#include <Console.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
 #include <libcommons/config.h>
@@ -14,20 +16,6 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
-
-CLICommand const CLICommands[] =
-{
-    { "SELECT",   HandleSelect   },
-    { "INSERT",   HandleInsert   },
-    { "CREATE",   HandleCreate   },
-    { "DESCRIBE", HandleDescribe },
-    { "DROP",     HandleDrop     },
-    { "JOURNAL",  HandleJournal  },
-    { "ADD",      HandleAdd      },
-    { "RUN",      HandleRun      },
-    { "METRICS",  HandleMetrics  },
-    { NULL,       NULL           }
-};
 
 char const* CLIPrompt = "KRNL_LISSANDRA> ";
 
@@ -79,10 +67,22 @@ static void Trap(int signal)
 static void LoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+    pthread_rwlock_wrlock(&sConfigLock);
     if (sConfig)
         config_destroy(sConfig);
 
     sConfig = config_create(fileName);
+    pthread_rwlock_unlock(&sConfigLock);
+}
+
+static void SetupConfigInitial(char const* fileName)
+{
+    LoadConfig(fileName);
+
+    // notificarme si hay cambios en la config
+    FileWatcher* fw = FileWatcher_Create();
+    FileWatcher_AddWatch(fw, fileName, LoadConfig);
+    EventDispatcher_AddFDI(fw);
 }
 
 static void InitConsole(void)
@@ -96,6 +96,7 @@ static void InitConsole(void)
 static void InitMemorySubsystem(void)
 {
     Criterias_Init();
+    Metadata_Init();
 }
 
 static void MainLoop(void)
@@ -103,14 +104,17 @@ static void MainLoop(void)
     // el kokoro
     pthread_t consoleTid;
     pthread_create(&consoleTid, NULL, CliThread, NULL);
+    Runner_Init();
 
     EventDispatcher_Loop();
 
+    Runner_Terminate();
     pthread_join(consoleTid, NULL);
 }
 
 static void Cleanup(void)
 {
+    Metadata_Destroy();
     Criterias_Destroy();
     LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
@@ -124,12 +128,7 @@ int main(void)
     IniciarLogger();
     IniciarDispatch();
     Trap(SIGINT);
-    LoadConfig(configFileName);
-
-    // notificarme si hay cambios en la config
-    FileWatcher* fw = FileWatcher_Create();
-    FileWatcher_AddWatch(fw, configFileName, LoadConfig);
-    EventDispatcher_AddFDI(fw);
+    SetupConfigInitial(configFileName);
 
     InitConsole();
 
