@@ -126,12 +126,13 @@ bool HandleSelect(Vector const* args)
 bool HandleInsert(Vector const* args)
 {
     //           cmd args
-    //           0      1       2     3       4
-    // sintaxis: INSERT <table> <key> <value> [timestamp]
+    //           0      1       2     3
+    // sintaxis: INSERT <table> <key> <value>
 
-    if (Vector_size(args) < 4 || Vector_size(args) > 5)
+    // obs: INSERT desde kernel va sin Timestamp (ver #1355)
+    if (Vector_size(args) != 4)
     {
-        LISSANDRA_LOG_ERROR("INSERT: Uso - INSERT <table> <key> <value> [timestamp]");
+        LISSANDRA_LOG_ERROR("INSERT: Uso - INSERT <table> <key> <value>");
         return false;
     }
 
@@ -140,9 +141,6 @@ bool HandleInsert(Vector const* args)
     char* const table = tokens[1];
     char* const key = tokens[2];
     char* const value = tokens[3];
-    char* timestamp = NULL;
-    if (Vector_size(args) == 5)
-        timestamp = tokens[4];
 
     CriteriaType ct;
     if (!Metadata_Get(table, &ct))
@@ -159,19 +157,6 @@ bool HandleInsert(Vector const* args)
     dbr.TableName = table;
     dbr.Data.Insert.Key = k;
     dbr.Data.Insert.Value = value;
-    dbr.Data.Insert.Timestamp = NULL;
-    uint32_t ts;
-    if (timestamp)
-    {
-        ts = strtoul(timestamp, NULL, 10);
-        if (errno)
-        {
-            LISSANDRA_LOG_ERROR("INSERT: timestamp proporcionado %s invalido", timestamp);
-            return false;
-        }
-
-        dbr.Data.Insert.Timestamp = &ts;
-    }
 
     Socket* s = Criteria_Dispatch(ct, OP_INSERT, &dbr);
     if (!s) // no hay memorias conectadas? criteria loguea el error
@@ -188,10 +173,7 @@ bool HandleInsert(Vector const* args)
         return false;
     }
 
-    if (timestamp)
-        LISSANDRA_LOG_INFO("INSERT: tabla: %s, key: %s, valor: %s, timestamp: %s", table, key, value, timestamp);
-    else
-        LISSANDRA_LOG_INFO("INSERT: tabla: %s, key: %s, valor: %s", table, key, value);
+    LISSANDRA_LOG_INFO("INSERT: tabla: %s, key: %s, valor: %s", table, key, value);
     Packet_Destroy(p);
     return true;
 }

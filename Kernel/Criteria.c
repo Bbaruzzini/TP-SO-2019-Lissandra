@@ -360,12 +360,7 @@ static Packet* _build_insert(DBRequest const* dbr)
     Packet_Append(p, dbr->TableName);
     Packet_Append(p, dbr->Data.Insert.Key);
     Packet_Append(p, dbr->Data.Insert.Value);
-    {
-        uint32_t const* ts = dbr->Data.Insert.Timestamp;
-        Packet_Append(p, (bool) ts);
-        if (ts)
-            Packet_Append(p, *ts);
-    }
+    Packet_Append(p, (bool) false);
     return p;
 }
 

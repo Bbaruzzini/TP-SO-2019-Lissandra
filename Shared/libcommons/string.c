@@ -172,6 +172,56 @@ Vector string_split(char const* text, char const* separator)
     return _string_split(text, separator, _is_last_token, 0);
 }
 
+Vector string_q_split(char const* src, char sep)
+{
+    // hay que parsear manualmente
+    Vector substrings;
+    Vector_Construct(&substrings, sizeof(char*), _string_free_fn, 0);
+
+    bool insideQuotationMarks = false;
+    char const* posold = src;
+    char const* posnew = src;
+
+    for ( ; ; ++posnew)
+    {
+        char const c = *posnew;
+        bool const foundQuotationMark = (c == '\"');
+        if (!insideQuotationMarks && foundQuotationMark)
+        {
+            insideQuotationMarks = true;
+            ++posold; // skip el propio quote
+            continue;
+        }
+
+        // agrego 1 substring si:
+        // encuentro un separador suelto (no dentro de un quote)
+        // encuentro el fin del quote
+        // encuentro el fin del string
+        if ((c == sep && !insideQuotationMarks) || (foundQuotationMark && insideQuotationMarks) || c == '\0')
+        {
+            if (foundQuotationMark)
+                insideQuotationMarks = false;
+
+            if (posold != posnew)
+            {
+                size_t const tokenLen = posnew - posold;
+                char* elem = Malloc(tokenLen + 1);
+                *elem = '\0';
+                strncat(elem, posold, tokenLen);
+
+                Vector_push_back(&substrings, &elem);
+            }
+
+            if (c == '\0')
+                break;
+
+            posold = posnew + 1;
+        }
+    }
+
+    return substrings;
+}
+
 Vector string_n_split(char const* text, size_t n, char const* separator)
 {
     return _string_split(text, separator, _is_last_n_token, n);

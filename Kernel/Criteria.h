@@ -42,7 +42,6 @@ typedef struct
         {
             uint16_t Key;
             char const* Value;
-            uint32_t const* Timestamp;
         } Insert;
 
         struct

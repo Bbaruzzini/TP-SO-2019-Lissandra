@@ -26,7 +26,7 @@ static bool _parseCommand(char const* command);
 
 static void* _workerThread(void*);
 
-// no uso LockedQueeue porque quiero hacer algo de sincronizacion en el medio
+// no uso LockedQueue porque quiero hacer algo de sincronizacion en el medio
 static t_queue* ReadyQueue;
 static pthread_mutex_t QueueLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t QueueCond = PTHREAD_COND_INITIALIZER;
@@ -112,7 +112,7 @@ static bool _parseCommand(char const* command)
 
     // por defecto falso, ejemplo el comando no es uno valido
     bool res = false;
-    Vector args = string_split(command, " ");
+    Vector args = string_q_split(command, ' ');
     for (uint32_t i = 0; ScriptCommands[i].CmdName != NULL; ++i)
     {
         if (!strcmp(ScriptCommands[i].CmdName, cmd))

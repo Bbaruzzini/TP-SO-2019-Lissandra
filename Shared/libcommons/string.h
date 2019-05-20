@@ -174,22 +174,32 @@ bool string_equals_ignore_case(char const* actual, char const* expected);
 * @NAME: string_split
 * @DESC: Separa un string dado un separador
 *
-* @Return: Retorna un array con cada palabra y en la última posición un NULL
+* @Return: Retorna un vector con cada palabra
 *
 * Ejemplo:
-* string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
+* string_split("hola, mundo", ",") => ["hola", " mundo"]
 */
 Vector string_split(char const* text, char const* separator);
 
+/**
+* @NAME: string_split
+* @DESC: Separa un string dado un separador, los string que tengan un quote cuentan como uno
+*
+* @Return: Retorna un vector con cada palabra
+*
+* Ejemplo:
+* string_q_split("hola mundo \"hola mundo\"", ' ') => ["hola", "mundo", "hola mundo"]
+*/
+Vector string_q_split(char const* text, char separator);
 
 /**
  * @NAME: string_n_split
  * @DESC: Separa un string tantas veces por su separador como n lo permita
  *
  * Ejemplo:
- * string_n_split("hola, mundo, bueno", 2, ",") => ["hola", " mundo, bueno", NULL]
- * string_n_split("hola, mundo, bueno", 3, ",") => ["hola", " mundo", " bueno", NULL]
- * string_n_split("hola, mundo, bueno", 10, ",") => ["hola", " mundo", " bueno", NULL]
+ * string_n_split("hola, mundo, bueno", 2, ",") => ["hola", " mundo, bueno"]
+ * string_n_split("hola, mundo, bueno", 3, ",") => ["hola", " mundo", " bueno"]
+ * string_n_split("hola, mundo, bueno", 10, ",") => ["hola", " mundo", " bueno"]
  *
  */
 Vector string_n_split(char const* text, size_t n, char const* separator);
