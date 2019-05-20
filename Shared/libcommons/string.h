@@ -153,7 +153,7 @@ bool string_is_empty(char* text);
 * si un string comienza con el
 * string pasado por parametro
 */
-bool string_starts_with(char* text, char* begin);
+bool string_starts_with(char const* text, char const* begin);
 
 /**
 * @NAME: string_ends_with
@@ -161,14 +161,14 @@ bool string_starts_with(char* text, char* begin);
 * si un string finaliza con el
 * string pasado por parametro
 */
-bool string_ends_with(char* text, char* end);
+bool string_ends_with(char const* text, char const* end);
 
 /**
 * @NAME: string_equals_ignore_case
 * @DESC: Retorna si dos strings son iguales
 * ignorando las mayusculas y minusculas
 */
-bool string_equals_ignore_case(char* actual, char* expected);
+bool string_equals_ignore_case(char const* actual, char const* expected);
 
 /**
 * @NAME: string_split
@@ -179,7 +179,7 @@ bool string_equals_ignore_case(char* actual, char* expected);
 * Ejemplo:
 * string_split("hola, mundo", ",") => ["hola", " mundo", NULL]
 */
-Vector string_split(char const* text, char* separator);
+Vector string_split(char const* text, char const* separator);
 
 
 /**
@@ -192,7 +192,7 @@ Vector string_split(char const* text, char* separator);
  * string_n_split("hola, mundo, bueno", 10, ",") => ["hola", " mundo", " bueno", NULL]
  *
  */
-Vector string_n_split(char const* text, size_t n, char* separator);
+Vector string_n_split(char const* text, size_t n, char const* separator);
 
 /**
 * @NAME: string_substring

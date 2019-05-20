@@ -28,7 +28,7 @@ static void _string_upper_element(char* ch);
 static void _string_append_with_format_list(const char* format, char** original, va_list arguments);
 static bool _is_last_token(char const* next, size_t index, size_t _);
 static bool _is_last_n_token(char const* next, size_t index, size_t n);
-static Vector _string_split(char const* text, char* separator, bool(*condition)(char const*, size_t, size_t), size_t);
+static Vector _string_split(char const* text, char const* separator, bool(*condition)(char const*, size_t, size_t), size_t);
 static void _string_free_fn(void* pstr);
 
 char* string_repeat(char character, int count)
@@ -148,12 +148,12 @@ bool string_is_empty(char* text)
     return strlen(text) == 0;
 }
 
-bool string_starts_with(char* text, char* begin)
+bool string_starts_with(char const* text, char const* begin)
 {
     return strncmp(text, begin, strlen(begin)) == 0;
 }
 
-bool string_ends_with(char* text, char* end)
+bool string_ends_with(char const* text, char const* end)
 {
     if (strlen(text) < strlen(end))
         return false;
@@ -162,17 +162,17 @@ bool string_ends_with(char* text, char* end)
     return strcmp(&text[index], end) == 0;
 }
 
-bool string_equals_ignore_case(char* actual, char* expected)
+bool string_equals_ignore_case(char const* actual, char const* expected)
 {
     return strcasecmp(actual, expected) == 0;
 }
 
-Vector string_split(char const* text, char* separator)
+Vector string_split(char const* text, char const* separator)
 {
     return _string_split(text, separator, _is_last_token, 0);
 }
 
-Vector string_n_split(char const* text, size_t n, char* separator)
+Vector string_n_split(char const* text, size_t n, char const* separator)
 {
     return _string_split(text, separator, _is_last_n_token, n);
 }
@@ -309,7 +309,7 @@ static void _string_free_fn(void* pstr)
     Free(*string);
 }
 
-static Vector _string_split(char const* text, char* separator, bool(*condition)(char const*, size_t, size_t), size_t n)
+static Vector _string_split(char const* text, char const* separator, bool(*condition)(char const*, size_t, size_t), size_t n)
 {
     Vector substrings;
     Vector_Construct(&substrings, sizeof(char*), _string_free_fn, 0);
