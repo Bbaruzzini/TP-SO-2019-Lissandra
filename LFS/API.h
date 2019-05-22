@@ -9,8 +9,8 @@
 void select(char* nombreTabla,int key);
 void insert(char* nombreTabla, int key, char* value, int timeStamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
 void create(char* nombreTabla,char* tipoConsistencia, int numeroParticiones, int compactionTime);
-void describe(char* nombreTabla);
-void drop(char* nombreTabla);*/
+void describe(char* nombreTabla);*/
+void drop(char* nombreTabla);
 
 
 CLICommandHandlerFn HandleSelect;

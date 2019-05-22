@@ -13,7 +13,6 @@ CLICommand const CLICommands[] =
     { NULL,       NULL           }
 };
 
-
 char const* CLIPrompt = "FS_LISSANDRA> ";
 
 LockedQueue* CLICommandQueue = NULL;
@@ -73,6 +72,8 @@ static void LoadConfig(char const* fileName)
 int main(void)
 {
     static char const* const configFileName = "lissandra.conf";
+
+    printf( "FUCKING CLION ACTUALIZATE\n ");
 
     IniciarLogger();
 
