@@ -43,15 +43,11 @@ static void LoadConfig(char const* fileName)
     if (sConfig)
         config_destroy(sConfig);
 
-    printf("PASO POR ACA\n");
-
     //Esto estaba
     sConfig = config_create(fileName);
 
     //Esto agregamos nosotras
     confLFS->PUERTO_ESCUCHA = string_duplicate(config_get_string_value(sConfig, "PUERTO_ESCUCHA"));
-
-    printf("configPuerto %d\n",confLFS->PUERTO_ESCUCHA); //era para probar por consola, NO LO SAQUEN
 
     confLFS->PUNTO_MONTAJE = string_duplicate(config_get_string_value(sConfig,"PUNTO_MONTAJE"));
     if(!string_ends_with(confLFS->PUNTO_MONTAJE, "/"))
@@ -60,21 +56,15 @@ static void LoadConfig(char const* fileName)
     printf("configTamValue %s\n",confLFS->PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
 
     confLFS->RETARDO = config_get_int_value(sConfig,"RETARDO");
-    printf("configRetardo %d\n",confLFS->RETARDO);
 
     confLFS->TAMANIO_VALUE = config_get_int_value(sConfig,"TAMANIO_VALUE");
-    printf("VALUE %d\n",confLFS->TAMANIO_VALUE);
 
     confLFS->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
-    printf("DUMP %d\n",confLFS->TIEMPO_DUMP);
 
     confLFS->TAMANIO_BLOQUES = config_get_int_value(sConfig,"TAMANIO_BLOQUES");
-    printf("BLOQUES %d\n",confLFS->TAMANIO_BLOQUES);
 
     confLFS->CANTIDAD_BLOQUES = config_get_int_value(sConfig,"CANTIDAD_BLOQUES");
-    printf("CANTBLOQUES %d\n",confLFS->CANTIDAD_BLOQUES);
 
-    printf("ESTOY ACAAAAAA\n"); //era para probar por consola, NO LO SAQUEN
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
     //printf("configTamValue %d\n",confLFS->TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
@@ -87,14 +77,10 @@ int main(void)
 {
     static char const* const configFileName = "lissandra.conf";
 
-    printf( "FUCKING CLION ACTUALIZATE\n ");
-
     IniciarLogger();
 
     //Esto agregamos nosotras
     confLFS = Malloc(sizeof(t_config_FS));
-
-    printf("Llego hasta aca1\n");
 
     LoadConfig(configFileName);
 
@@ -107,8 +93,6 @@ int main(void)
     FileWatcher* fw = FileWatcher_Create();
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
-
-    printf("Llego hasta aca");
 
     iniciarMetadata();
 
