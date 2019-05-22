@@ -1,5 +1,6 @@
 
 #include "API.h"
+#include "FileSystem.h"
 
 void HandleSelect(Vector const* args)
 {
@@ -25,3 +26,4 @@ void HandleDrop(Vector const* args)
 {
     (void) args;
 }
+

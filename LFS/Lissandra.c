@@ -87,6 +87,8 @@ int main(void)
 {
     static char const* const configFileName = "lissandra.conf";
 
+    printf( "FUCKING CLION ACTUALIZATE\n ");
+
     IniciarLogger();
 
     //Esto agregamos nosotras
