@@ -13,6 +13,7 @@ CLICommand const CLICommands[] =
     { NULL,       NULL           }
 };
 
+
 char const* CLIPrompt = "FS_LISSANDRA> ";
 
 LockedQueue* CLICommandQueue = NULL;
@@ -43,9 +44,6 @@ static void LoadConfig(char const* fileName)
     if (sConfig)
         config_destroy(sConfig);
 
-    //Esto agregamos nosotras
-    confLFS = Malloc(sizeof(t_config_FS));
-
     //Esto estaba
     sConfig = config_create(fileName);
 
@@ -57,6 +55,9 @@ static void LoadConfig(char const* fileName)
         string_append(&confLFS->PUNTO_MONTAJE, "/");
 
     confLFS->RETARDO = config_get_int_value(sConfig,"RETARDO");
+
+    //printf("configTamValue %d\n",confLFS->TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
+
     confLFS->TAMANIO_VALUE = config_get_int_value(sConfig,"TAMANIO_VALUE");
     confLFS->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
     confLFS->TAMANIO_BLOQUES = config_get_int_value(sConfig,"TAMANIO_BLOQUES");
@@ -74,6 +75,9 @@ int main(void)
     static char const* const configFileName = "lissandra.conf";
 
     IniciarLogger();
+
+    //Esto agregamos nosotras
+    confLFS = Malloc(sizeof(t_config_FS));
 
     LoadConfig(configFileName);
 

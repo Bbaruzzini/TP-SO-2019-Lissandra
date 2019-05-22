@@ -15,11 +15,11 @@
 #include "Console.h"
 #include <Config.h>
 #include <Console.h>
-#include "CLIHandlers.h"
+#include "API.h"
 #include "EventDispatcher.h"
 #include "FileWatcher.h"
 #include "Logger.h"
-#include "CLIHandlers.h"
+#include "API.h"
 #include "LissandraLibrary.h"
 #include "FileSystem.h"
 

@@ -109,7 +109,8 @@ void iniciarMetadata(){
 
 }
 
-char* generarPathArchivo(char* path){
+/*
+char* generarPathTabla(char* path){
 
     LISSANDRA_LOG_INFO("Se genererara el Path Absoluto del archivo");
     char* pathAbs = string_new();
@@ -125,6 +126,7 @@ char* generarPathArchivo(char* path){
 
 
 }
+*/
 
 void mkdirRecursivo(char* path){
 
@@ -157,6 +159,7 @@ bool existeArchivo(char* path){
     }
 }
 
+/*
 void escribirValorBitarray(bool valor, int pos){
     if(valor)
         bitarray_set_bit(bitArray, pos);
@@ -169,7 +172,9 @@ void escribirValorBitarray(bool valor, int pos){
     fclose(bitmap);
     return;
 }
+*/
 
+/*
 char* generarPathBloque(int num_bloque){
     char* path_bloque = string_new();
     string_append(&path_bloque, confLFS->PUNTO_MONTAJE);
@@ -179,7 +184,8 @@ char* generarPathBloque(int num_bloque){
 
     return path_bloque;
 }
-
+*/
+/*
 int cantidadBloques(char** bloques){
     int j = 0;
 
@@ -189,4 +195,4 @@ int cantidadBloques(char** bloques){
     return j;
 }
 
-
+*/

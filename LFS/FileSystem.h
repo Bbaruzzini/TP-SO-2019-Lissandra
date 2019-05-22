@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <commons/config.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
@@ -26,11 +25,11 @@ char* pathBloques, *pathTablas, *pathMetadata, *pathMetadataTabla, *pathMetadata
 
 t_bitarray* bitArray;
 
-typedef uint32_t t_num;
+//typedef uint32_t t_num;
 
 //Semaforo
 
-pthread_mutex_t solicitud_mutex;
+//pthread_mutex_t solicitud_mutex;
 
 //Funciones
 
