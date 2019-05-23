@@ -17,17 +17,17 @@ void iniciarMetadata(){
 
     pathTablas = string_new();
     string_append(&pathTablas, confLFS->PUNTO_MONTAJE);
-    string_append(&pathTablas, "Tabla");
-    LISSANDRA_LOG_INFO("Path Tabla %s...", pathTablas);
+    string_append(&pathTablas, "Tablas");
+    LISSANDRA_LOG_INFO("Path Tablas %s...", pathTablas);
+
 
     mkdirRecursivo(confLFS->PUNTO_MONTAJE);
 
+    mkdir(pathMetadata, 0700);
 
-    mkdir(pathMetadata, 0777);
 
-
-    mkdir(pathBloques, 0777);
-    mkdir(pathTablas, 0777);
+    mkdir(pathBloques, 0700);
+    mkdir(pathTablas, 0700);
 
     char *p = string_new();
     string_append(&p, pathMetadata);
@@ -45,11 +45,11 @@ void iniciarMetadata(){
     }
     free(p);
 
-    pathMetadataTabla = string_new();
-    string_append(&pathMetadataTabla, pathMetadata);
-    string_append(&pathMetadataTabla, "/Metadata.bin");
+    pathMetadataFS = string_new();
+    string_append(&pathMetadataFS, pathMetadata);
+    string_append(&pathMetadataFS, "/Metadata.bin");
 
-    FILE * metadata = fopen(pathMetadataTabla, "w");
+    FILE * metadata = fopen(pathMetadataFS, "w");
     fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
     fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
     fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
@@ -141,10 +141,10 @@ void mkdirRecursivo(char* path){
     for(p = tmp + 1; *p; p++)
         if(*p == '/') {
             *p = 0;
-            mkdir(tmp, 0777);
+            mkdir(tmp, 0700);
             *p = '/';
         }
-    mkdir(tmp, 0777);
+    mkdir(tmp, 0700);
 }
 
 bool existeArchivo(char* path){
