@@ -3,13 +3,16 @@
 #define LFS_CLIHandlers_h__
 
 #include <Console.h>
-#include "FileSystem.h"
+#include <string.h>
+#include <libcommons/string.h>
+#include "API.h"
+#include "LissandraLibrary.h"
 
-/*
-void select(char* nombreTabla,int key);
-void insert(char* nombreTabla, int key, char* value, int timeStamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
+
+//void select(char* nombreTabla,int key);
+//void insert(char* nombreTabla, int key, char* value, int timeStamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
 void create(char* nombreTabla,char* tipoConsistencia, int numeroParticiones, int compactionTime);
-void describe(char* nombreTabla);*/
+//void describe(char* nombreTabla);
 void drop(char* nombreTabla);
 
 
