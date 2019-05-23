@@ -144,3 +144,105 @@ void iniciar_servidor(void)
     LockedQueue_Destroy(lista_pedidos, Free);
     Socket_Destroy(sock_LFS);
 }
+
+void mkdirRecursivo(char* path)
+{
+
+    char tmp[256];
+    char* p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for (p = tmp + 1; *p; p++)
+        if (*p == '/')
+        {
+            *p = 0;
+            mkdir(tmp, 0700);
+            *p = '/';
+        }
+    mkdir(tmp, 0700);
+}
+
+bool existeArchivo(char* path)
+{
+
+    FILE* archi = fopen(path, "r");
+    if (archi != NULL)
+    {
+        fclose(archi);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool existeDir(char* pathDir)
+{
+
+    struct stat st = { 0 };
+    if (stat(pathDir, &st) == -1)
+    { //Si existe devuelve 0
+
+        return false;
+
+    }
+    else
+    {
+
+        return true;
+
+    }
+
+}
+
+char* generarPathTabla(char* nombreTabla)
+{
+
+    LISSANDRA_LOG_INFO("Generando el path de la tabla");
+    char* pathAbsTabla = string_new();
+    string_append(&pathAbsTabla, confLFS->PUNTO_MONTAJE);
+    string_append(&pathAbsTabla, "Tablas");
+    if (!string_starts_with(nombreTabla, "/")) string_append(&pathAbsTabla, "/");
+    string_append(&pathAbsTabla, nombreTabla);
+
+    return pathAbsTabla;
+
+}
+
+int buscarBloqueLibre()
+{
+
+    int bloqueLibre;
+
+    for (bloqueLibre = 0;
+         bitarray_test_bit(bitArray, bloqueLibre) && bloqueLibre < confLFS->CANTIDAD_BLOQUES; bloqueLibre++)
+    {
+
+    }
+    if (bloqueLibre >= confLFS->CANTIDAD_BLOQUES)
+    {
+        return -1;
+    }
+
+    return bloqueLibre;
+
+}
+
+void escribirValorBitarray(bool valor, int pos)
+{
+
+    if (valor)
+        bitarray_set_bit(bitArray, pos);
+    else
+        bitarray_clean_bit(bitArray, pos);
+
+    FILE* bitmap = fopen(pathMetadataBitarray, "w");
+    fwrite(bitArray->bitarray, bitArray->size, 1, bitmap);
+    fclose(bitmap);
+
+}

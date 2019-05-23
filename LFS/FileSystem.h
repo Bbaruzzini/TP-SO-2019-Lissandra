@@ -13,6 +13,7 @@
 #include <libcommons/config.h>
 #include <libcommons/string.h>
 #include "Lissandra.h"
+#include "LissandraLibrary.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <Logger.h>
@@ -34,11 +35,6 @@ t_bitarray* bitArray;
 //Funciones
 
 void iniciarMetadata();
-void mkdirRecursivo(char* path);
-
-//Archivos
-
-bool existeArchivo(char* path);
 
 
 #endif //LISSANDRA_FILESYSTEM_H

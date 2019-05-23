@@ -128,37 +128,6 @@ char* generarPathTabla(char* path){
 }
 */
 
-void mkdirRecursivo(char* path){
-
-    char tmp[256];
-    char *p = NULL;
-    size_t len;
-
-    snprintf(tmp, sizeof(tmp),"%s",path);
-    len = strlen(tmp);
-    if(tmp[len - 1] == '/')
-        tmp[len - 1] = 0;
-    for(p = tmp + 1; *p; p++)
-        if(*p == '/') {
-            *p = 0;
-            mkdir(tmp, 0700);
-            *p = '/';
-        }
-    mkdir(tmp, 0700);
-}
-
-bool existeArchivo(char* path){
-
-    FILE * archi = fopen(path, "r");
-    if(archi != NULL){
-        fclose(archi);
-        return true;
-    }
-    else{
-        return false;
-    }
-}
-
 /*
 void escribirValorBitarray(bool valor, int pos){
     if(valor)

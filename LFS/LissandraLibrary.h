@@ -13,6 +13,20 @@
 
 void iniciar_servidor(void);
 
+void mkdirRecursivo(char* path);
+
+bool existeArchivo(char* path);
+
+bool existeDir(char* pathDir);
+
+char* generarPathTabla(char* nombreTabla);
+
+int buscarBloqueLibre();
+
+void escribirValorBitarray(bool valor, int pos);
+
+
+
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
