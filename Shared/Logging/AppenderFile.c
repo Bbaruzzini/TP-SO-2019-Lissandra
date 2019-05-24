@@ -85,7 +85,7 @@ static FILE* _openFile(AppenderFile* appender, char const* name, char const* mod
         struct timespec time;
         timespec_get(&time, TIME_UTC);
         GetTimeStr(&time, &timeStr);
-        string_append_with_format(&fullName, ".%s", timeStr);
+        string_append_with_format(&newName, ".%s", timeStr);
         Free(timeStr);
         string_replace(newName, ':', '-');
         rename(fullName, newName);
