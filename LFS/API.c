@@ -6,7 +6,7 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
 {
 
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
-    string_capitalized(nombreTabla);
+    string_to_upper(nombreTabla);
     char* path = generarPathTabla(nombreTabla);
 
     //Evalua si existe la tabla
