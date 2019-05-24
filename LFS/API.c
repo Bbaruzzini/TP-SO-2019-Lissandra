@@ -85,6 +85,49 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
 
 }
 
+/*
+//Verificar que la tabla exista en el file system.
+//Eliminar directorio y todos los archivos de dicha tabla.
+
+void drop(char* nombreTabla){
+    LOG_LEVEL_INFO("Se esta borrando la tabla...%s\n ", nombreTabla);
+
+    char* pathAbsoluto = generarPathTabla(nombreTabla);
+
+    if(!existeDir(pathAbsoluto)){
+        LOG_LEVEL_ERROR("La tabla no existe...");
+        printf ("La tabla no existe");
+
+    }
+   // En conclusión, debes:
+   // 1. Eliminar la memtable de esa tabla
+   // 2. Eliminar los archivos de esa tabla (.bin/.tmp/metadata) (También borrado de los bloques)
+   // 3. Eliminar el directorio de la tabla
+   //  4. Eliminar toda la información administrativa de la tabla
+    else{
+        t_config * data = config_create(pathAbsoluto);
+        char** bloques = config_get_array_value(data, "BLOQUES");
+
+        int j = 0;
+
+        while(bloques[j] != NULL){
+            log_info(logger, "Bloque a liberar: %d", atoi(bloques[j]));
+            escribirValorBitarray(0, atoi(bloques[j]));
+            j++;
+        }
+
+        unlink(pathAbsoluto);
+        log_debug(logger, "ARCHIVO BORRADO CON EXITO");
+
+        enviar(socketKernel, BORRAR_ARCHIVO_OK, sizeof(int), &j);
+
+        config_destroy(data);
+        free(pathAbsoluto);
+
+    }
+    return;
+}
+*/
 
 void HandleSelect(Vector const* args)
 {

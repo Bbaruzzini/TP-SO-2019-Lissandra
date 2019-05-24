@@ -109,24 +109,6 @@ void iniciarMetadata(){
 
 }
 
-/*
-char* generarPathTabla(char* path){
-
-    LISSANDRA_LOG_INFO("Se genererara el Path Absoluto del archivo");
-    char* pathAbs = string_new();
-    string_append(&pathAbs, confLFS->PUNTO_MONTAJE);
-    string_append(&pathAbs, "Archivos");
-
-    if(!string_starts_with(path, "/")) string_append(&pathAbs, "/");
-
-    string_append(&pathAbs, path);
-
-
-    return pathAbs;
-
-
-}
-*/
 
 /*
 void escribirValorBitarray(bool valor, int pos){

@@ -31,9 +31,10 @@ static void IniciarLogger(void)
     consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "EA899A");
     Logger_AddAppender(consoleLog);
 
-    AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;
-    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "lfs.log", "w", 0);
+    AppenderFlags const fileFlags = consoleFlags;
+    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "lfs.log", NULL, 0);
     Logger_AddAppender(fileLog);
+
 }
 
 //Era "static void" y lo cambiamos por "void*"
@@ -53,7 +54,7 @@ static void LoadConfig(char const* fileName)
     if(!string_ends_with(confLFS->PUNTO_MONTAJE, "/"))
         string_append(&confLFS->PUNTO_MONTAJE, "/");
 
-    printf("configTamValue %s\n",confLFS->PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
+    //printf("configTamValue %s\n",confLFS->PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
 
     confLFS->RETARDO = config_get_int_value(sConfig,"RETARDO");
 
@@ -79,7 +80,7 @@ int main(void)
 
     IniciarLogger();
 
-    //Esto agregamos nosotras
+    //Esto agregamos nosotras, esta aca xq sino en su lugar original genera un memory leak
     confLFS = Malloc(sizeof(t_config_FS));
 
     LoadConfig(configFileName);
