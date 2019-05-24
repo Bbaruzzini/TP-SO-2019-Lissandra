@@ -1,5 +1,4 @@
 
-
 #include "Lissandra.h"
 
 
@@ -32,7 +31,7 @@ static void IniciarLogger(void)
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags;
-    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "lfs.log", NULL, 0);
+    fileLog = AppenderFile_Create(LOG_LEVEL_TRACE, fileFlags, "lfs.log", NULL, 0);
     Logger_AddAppender(fileLog);
 
 }
