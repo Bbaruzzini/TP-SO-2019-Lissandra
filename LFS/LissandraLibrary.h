@@ -10,6 +10,18 @@
 #include <LockedQueue.h>
 #include <semaphore.h>
 #include <Socket.h>
+#include <dirent.h>
+
+
+typedef struct
+{
+
+    char* table;
+    char* consistency;
+    int partitions;
+    int compaction_time;
+
+} t_describe;
 
 void iniciar_servidor(void);
 
@@ -25,6 +37,9 @@ int buscarBloqueLibre();
 
 void escribirValorBitarray(bool valor, int pos);
 
+t_describe* get_table_metadata(char* path, char* tabla);
+
+int traverse(char* fn, t_list* lista, char* tabla);
 
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -246,3 +246,100 @@ void escribirValorBitarray(bool valor, int pos)
     fclose(bitmap);
 
 }
+
+t_describe* get_table_metadata(char* path, char* tabla)
+{
+
+    t_config* contenido = config_create(path);
+    char* consistency = config_get_string_value(contenido, "CONSISTENCY");
+    int partitions = config_get_int_value(contenido, "PARTITIONS");
+    int compaction_time = config_get_int_value(contenido, "COMPACTION_TIME");
+    config_destroy(contenido);
+
+    t_describe* infoMetadata = malloc(sizeof(t_describe));
+    infoMetadata->table = tabla;
+    infoMetadata->consistency = consistency;
+    infoMetadata->partitions = partitions;
+    infoMetadata->compaction_time = compaction_time;
+
+    return infoMetadata;
+
+}
+
+int traverse(char* fn, t_list* lista, char* tabla)
+{
+    DIR* dir;
+    struct dirent* entry;
+    char path[1025];
+    struct stat info;
+
+    if ((dir = opendir(fn)) == NULL)
+    {
+
+        printf("ERROR: La ruta especificada es invalida\n");
+        return -1;
+
+    }
+    else
+    {
+
+        while ((entry = readdir(dir)) != NULL)
+        {
+
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+            {
+
+                strcpy(path, fn);
+                strcat(path, "/");
+                strcat(path, entry->d_name);
+                if (stat(path, &info) != 0)
+                {
+
+                    LISSANDRA_LOG_ERROR("Error stat() en %s", path);
+                    return -1;
+
+                }
+                else
+                {
+
+                    if (S_ISDIR(info.st_mode))
+                    {
+
+                        int resultado = traverse(path, lista, entry->d_name);
+                        if (resultado == -1)
+                        {
+                            return -1;
+                        }
+
+                    }
+                    else
+                    {
+
+                        if (S_ISREG(info.st_mode))
+                        {
+
+                            if (strcmp(entry->d_name, "Metadata.bin") == 0)
+                            {
+
+                                t_describe* info = get_table_metadata(path, tabla);
+                                list_add(lista, info);
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        closedir(dir);
+        return 0;
+
+    }
+
+}

@@ -129,6 +129,75 @@ void drop(char* nombreTabla){
 }
 */
 
+void* describe(char* tabla)
+{
+
+    char* dirTablas;
+    char* realpath;
+
+    dirTablas = string_new();
+    string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
+    string_append(&dirTablas, "Tablas");
+
+    if (strcmp(tabla, "") == 0)
+    {
+
+        realpath = dirTablas;
+        t_list* listTableMetadata;
+        listTableMetadata = list_create();
+
+        int resultado = traverse(realpath, listTableMetadata,
+                                 ""); //No se si aca se le puede pasar "", pero quiero pasar vacio
+
+        if (resultado == 0)
+        {
+
+            free(dirTablas);
+            free(realpath);
+            return listTableMetadata;
+
+        }
+        else
+        {
+
+            printf("ERROR: Se produjo un error al recorrer el directorio /Tablas");
+            free(dirTablas);
+            free(realpath);
+            return -1;
+
+        }
+
+    }
+    else
+    {
+
+        string_append(&dirTablas, "/");
+        string_append(&dirTablas, tabla);
+        realpath = dirTablas;
+
+        if (!existeDir(realpath))
+        {
+
+            printf("ERROR: La ruta especificada es invalida\n");
+            free(dirTablas);
+            free(realpath);
+            return -1;
+
+        }
+
+        string_append(&dirTablas, "/Metadata.bin");
+        realpath = dirTablas;
+
+        t_describe* tableMetadata = get_table_metadata(realpath, tabla);
+
+        free(dirTablas);
+        free(realpath);
+        return tableMetadata;
+
+    }
+
+}
+
 void HandleSelect(Vector const* args)
 {
     (void) args;
