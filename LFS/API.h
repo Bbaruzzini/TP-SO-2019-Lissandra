@@ -5,26 +5,15 @@
 #include <Console.h>
 #include <string.h>
 #include <libcommons/string.h>
-#include "API.h"
 #include "LissandraLibrary.h"
 #include "FileSystem.h"
 
 
-typedef struct
-{
-
-    char* table;
-    char* consistency;
-    int partitions;
-    int compaction_time;
-
-} t_describe;
-
 //void select(char* nombreTabla,int key);
 //void insert(char* nombreTabla, int key, char* value, int timeStamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
-void create(char* nombreTabla,char* tipoConsistencia, int numeroParticiones, int compactionTime);
+void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime);
 void* describe(char* tabla);
-void drop(char* nombreTabla);
+//void drop(char* nombreTabla);
 
 
 CLICommandHandlerFn HandleSelect;

@@ -96,6 +96,20 @@ int main(void)
 
     iniciarMetadata();
 
+    //Pruebas Brenda/Denise desde ACA
+
+    //create("Tabla3", "SC", 5, 2000);
+
+    t_list* prueba = malloc(sizeof(t_list));
+
+    prueba = describe("");
+
+    size_t tamanio = list_size(prueba);
+
+    printf("tamanio: %d\n", tamanio);
+
+    //HASTA ACA
+
     iniciar_servidor();
 
     //armar una funcion para que esto quede por fuera y el main mas limpio

@@ -19,7 +19,6 @@
 #include "EventDispatcher.h"
 #include "FileWatcher.h"
 #include "Logger.h"
-#include "API.h"
 #include "LissandraLibrary.h"
 #include "FileSystem.h"
 

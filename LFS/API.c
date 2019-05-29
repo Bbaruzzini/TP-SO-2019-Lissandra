@@ -4,9 +4,8 @@
 
 void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime)
 {
-
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
-    string_to_upper(nombreTabla);
+    //string_to_upper(nombreTabla);
     char* path = generarPathTabla(nombreTabla);
 
     //Evalua si existe la tabla
@@ -152,7 +151,7 @@ void* describe(char* tabla)
         if (resultado == 0)
         {
 
-            free(dirTablas);
+            //free(dirTablas);
             free(realpath);
             return listTableMetadata;
 
@@ -161,9 +160,9 @@ void* describe(char* tabla)
         {
 
             printf("ERROR: Se produjo un error al recorrer el directorio /Tablas");
-            free(dirTablas);
+            //free(dirTablas);
             free(realpath);
-            return -1;
+            return NULL;
 
         }
 
@@ -179,18 +178,27 @@ void* describe(char* tabla)
         {
 
             printf("ERROR: La ruta especificada es invalida\n");
-            free(dirTablas);
+            //free(dirTablas);
             free(realpath);
-            return -1;
+            return NULL;
 
         }
 
         string_append(&dirTablas, "/Metadata.bin");
         realpath = dirTablas;
 
-        t_describe* tableMetadata = get_table_metadata(realpath, tabla);
+        t_describe* tableMetadata = Malloc(sizeof(t_describe));
+        tableMetadata = get_table_metadata(realpath, tabla);
 
-        free(dirTablas);
+        //Pruebas Brenda/Denise desde ACA
+        printf("Por aca tambien paso\n");
+        printf("Tabla: %s\n", tableMetadata->table);
+        printf("Consistencia: %s\n", tableMetadata->consistency);
+        printf("Particiones: %d\n", tableMetadata->partitions);
+        printf("Tiempo: %d\n", tableMetadata->compaction_time);
+        //HASTA ACA
+
+        //free(dirTablas);
         free(realpath);
         return tableMetadata;
 

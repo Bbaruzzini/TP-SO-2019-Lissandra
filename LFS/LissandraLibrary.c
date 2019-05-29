@@ -251,7 +251,7 @@ t_describe* get_table_metadata(char* path, char* tabla)
 {
 
     t_config* contenido = config_create(path);
-    char* consistency = config_get_string_value(contenido, "CONSISTENCY");
+    char* consistency = string_duplicate(config_get_string_value(contenido, "CONSISTENCY"));
     int partitions = config_get_int_value(contenido, "PARTITIONS");
     int compaction_time = config_get_int_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
@@ -261,6 +261,14 @@ t_describe* get_table_metadata(char* path, char* tabla)
     infoMetadata->consistency = consistency;
     infoMetadata->partitions = partitions;
     infoMetadata->compaction_time = compaction_time;
+
+    //Pruebas Brenda/Denise desde ACA
+    printf("Estoy en get_table_metadata\n");
+    printf("Tabla: %s\n", infoMetadata->table);
+    printf("Consistencia: %s\n", infoMetadata->consistency);
+    printf("Particiones: %d\n", infoMetadata->partitions);
+    printf("Tiempo: %d\n", infoMetadata->compaction_time);
+    //HASTA ACA
 
     return infoMetadata;
 
