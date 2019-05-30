@@ -1,11 +1,14 @@
 
 #include "Console.h"
+#include "Logger.h"
 #include <libcommons/string.h>
 #include <readline/history.h>
 #include <readline/readline.h>
+#include <signal.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-char* command_finder(char const* text, int state)
+static char* command_finder(char const* text, int state)
 {
     static size_t idx, len;
     char const* ret;
@@ -30,7 +33,7 @@ char* command_finder(char const* text, int state)
     return NULL;
 }
 
-char** cli_completion(char const* text, int start, int end)
+static char** cli_completion(char const* text, int start, int end)
 {
     (void) end;
     char** matches = NULL;
@@ -42,11 +45,30 @@ char** cli_completion(char const* text, int start, int end)
     return matches;
 }
 
-int cli_hook_func(void)
+static int cli_hook_func(void)
 {
     if (!ProcessRunning)
         rl_done = 1;
     return 0;
+}
+
+static void SigintTrap(int signal)
+{
+    (void) signal;
+    ProcessRunning = false;
+}
+
+void SigintSetup(void)
+{
+    struct sigaction sa = { 0 };
+    sa.sa_handler = SigintTrap;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGINT, &sa, NULL) < 0)
+    {
+        LISSANDRA_LOG_FATAL("No pude registrar el handler de señales! Saliendo...");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void* CliThread(void* param)

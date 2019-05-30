@@ -19,6 +19,7 @@ extern char const* CLIPrompt;
 extern LockedQueue* CLICommandQueue;
 extern atomic_bool ProcessRunning;
 
+void SigintSetup(void);
 void* CliThread(void*);
 void AtenderComando(char const*);
 

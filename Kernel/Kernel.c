@@ -13,7 +13,6 @@
 #include <libcommons/string.h>
 #include <Logger.h>
 #include <pthread.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -25,12 +24,6 @@ atomic_bool ProcessRunning = true;
 
 static Appender* consoleLog;
 static Appender* fileLog;
-
-static void SignalTrap(int signal)
-{
-    (void) signal;
-    ProcessRunning = false;
-}
 
 static void IniciarLogger(void)
 {
@@ -49,19 +42,6 @@ static void IniciarDispatch(void)
 {
     if (!EventDispatcher_Init())
         exit(EXIT_FAILURE);
-}
-
-static void Trap(int signal)
-{
-    struct sigaction sa = { 0 };
-    sa.sa_handler = SignalTrap;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(signal, &sa, NULL) < 0)
-    {
-        LISSANDRA_LOG_FATAL("No pude registrar el handler de señales! Saliendo...");
-        exit(EXIT_FAILURE);
-    }
 }
 
 static void LoadConfig(char const* fileName)
@@ -123,11 +103,11 @@ static void Cleanup(void)
 
 int main(void)
 {
-    static char const* const configFileName = "kernel.conf";
+    static char const configFileName[] = "kernel.conf";
 
     IniciarLogger();
     IniciarDispatch();
-    Trap(SIGINT);
+    SigintSetup();
     SetupConfigInitial(configFileName);
 
     InitConsole();
