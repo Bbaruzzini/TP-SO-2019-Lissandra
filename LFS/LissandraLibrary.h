@@ -11,6 +11,9 @@
 #include <semaphore.h>
 #include <Socket.h>
 #include <dirent.h>
+#include <Packet.h>
+#include <Opcodes.h>
+#include "Handlers.h"
 
 
 typedef struct

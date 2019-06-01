@@ -75,7 +75,9 @@ static void LoadConfig(char const* fileName)
 
 int main(void)
 {
-    static char const* const configFileName = "lissandra.conf";
+    static char const configFileName[] = "lissandra.conf";
+
+    pthread_t hiloIniciarServidor;
 
     IniciarLogger();
 
@@ -94,6 +96,8 @@ int main(void)
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
 
+    //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
+
     iniciarMetadata();
 
     //Pruebas Brenda/Denise desde ACA
@@ -111,6 +115,8 @@ int main(void)
     //HASTA ACA
 
     iniciar_servidor();
+
+    //Aca va consola
 
     //armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza

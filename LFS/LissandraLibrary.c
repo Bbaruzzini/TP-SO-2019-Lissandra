@@ -70,6 +70,8 @@ void* atender_memoria(void* socketMemoria)
     Socket* s = socketMemoria;
     (void) s;
 
+    printf("Y tambien paso por atender_memoria\n");
+
     while (ProcessRunning)
     {
         //hacer cosas con la memoria
@@ -91,6 +93,42 @@ void* atender_memoria(void* socketMemoria)
 void memoria_conectar(Socket* fs, Socket* memoriaNueva)
 {
     (void) fs;
+
+    printf("Paso por memoria_conectar\n");
+    //Recibe el handshake
+    Packet* p = Socket_RecvPacket(memoriaNueva);
+
+    if (Packet_GetOpcode(p) != MSG_HANDSHAKE)
+    {
+
+        LISSANDRA_LOG_ERROR("HANDSHAKE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+        return;
+
+    }
+    else
+    {
+
+        //TODO: deberia ser que si esta funcion me retorna "success", sigue, y sino hace un return
+        //Ariel, si lees este mensaje, como no entiendo como manejas esto del handshake, no se si deberia
+        //estar usando esta funcion aca directamente o en realidad esta funcion se invoca de otra manera.
+        //Si se usa de otra manera, por favor mostrame como. Gracias!!! :D
+        HandleHandshake(memoriaNueva, p);
+
+    }
+
+    Packet_Destroy(p);
+
+    //Le envia a la memoria el TAMANIO_VALUE
+    int tamanioValue = confLFS->TAMANIO_VALUE;
+    //A este Packet_Create en vez de un 2 habría que pasarle un opcode, pero como no se cual ponerle
+    //le pase cualquiera para ver como funcionaba. Creo que hay que agregar uno nuevo en Opcodes.h
+    //que se podría llamar "MSG_TAM_VALUE"
+    //Pero como no se si lo que estoy haciendo esta bien porque no entiendo nada, voy a esperar a que
+    //Ariel lea esto y lo corrija :D Con mucho amor, Denise
+    p = Packet_Create(2, 1);
+    Packet_Append(p, tamanioValue);
+    Socket_SendPacket(memoriaNueva, p);
+    Packet_Destroy(p);
 
     //----Creo un hilo para cada memoria que se me conecta
     /* TODO: cada vez que una memoria se conecta, hilo_atender_memoria es sobreescrito
@@ -114,20 +152,10 @@ void iniciar_servidor(void)
     };
     sock_LFS = Socket_Create(&opts);
 
-    // inicializar lista de pedidos
-    lista_pedidos = LockedQueue_Create();
-
-    // inicializar semaforo en 0
-    sem_init(&sem_pedido, 0 /*no utilizamos compartir con proceso*/, 0);
-
     //----Hago un log
     LISSANDRA_LOG_TRACE("Servidor LFS iniciado");
 
     /* -- main loop y threads -- */
-
-    //----Creo un hilo para atender los pedidos que me van a hacer las memorias
-    pthread_t hilo_atender_pedidos;
-    pthread_create(&hilo_atender_pedidos, NULL, atender_pedidos, NULL);
 
     //Ariel: Monitorear socket de conexiones entrantes
     EventDispatcher_AddFDI(sock_LFS);
@@ -135,13 +163,7 @@ void iniciar_servidor(void)
     //----En loop infinito acepto los clientes (memorias)
     EventDispatcher_Loop();
 
-    /* --codigo de finalizacion-- */
-    pthread_join(hilo_atender_pedidos, NULL);
-    // TODO pthread_join de los hilos de memoria (si hubo)
-
     // cuando finaliza el proceso, limpiar las variables utilizadas
-    sem_destroy(&sem_pedido);
-    LockedQueue_Destroy(lista_pedidos, Free);
     Socket_Destroy(sock_LFS);
 }
 
