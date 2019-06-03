@@ -4,6 +4,10 @@
 
 #include <OpcodeHandler.h>
 
-OpcodeHandlerFnType HandleHandshake;
+OpcodeHandlerFnType HandleSelectOpcode;
+OpcodeHandlerFnType HandleInsertOpcode;
+OpcodeHandlerFnType HandleCreateOpcode;
+OpcodeHandlerFnType HandleDescribeOpcode;
+OpcodeHandlerFnType HandleDropOpcode;
 
 #endif //LFS_Handlers_h__

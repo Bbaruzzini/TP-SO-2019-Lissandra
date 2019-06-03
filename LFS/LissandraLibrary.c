@@ -67,27 +67,35 @@ void* atender_pedidos(void* arg)
 
 void* atender_memoria(void* socketMemoria)
 {
-    Socket* s = socketMemoria;
-    (void) s;
-
     printf("Y tambien paso por atender_memoria\n");
 
+    Socket* s = socketMemoria;
     while (ProcessRunning)
     {
-        //hacer cosas con la memoria
-        //para agregar un pedido:
-        //Ariel: ejemplo de uso de cola bloqueada
-        //Ariel de nuevo: Creo que esto habria que hacerlo en Handlers.c (los que se llaman cada vez que recibimos un paquete)
-        /*
-        t_pedido* pedido = malloc(sizeof(t_pedido));
-        pedido->id = SELECT;
-        pedido->nombreTabla = "pepito";
+        /// copio esto de una funcion de socket, aca lo que va a pasar es que este hilo recibe paquetes serializados
+        /// y llama al Handler correspondiente, ver un ejemplo en Handlers.c
 
-        LockedQueue_Add(lista_pedidos, pedido);
-        */
+        Packet* p = Socket_RecvPacket(s);
+        if (!p)
+        {
+            /// RecvPacket ya hace logs si hubo errores, cerrar conexion
+            Socket_Destroy(s);
+            return (void*) false;
+        }
+
+        OpcodeHandlerFnType* handler = opcodeTable[Packet_GetOpcode(p)].HandlerFunction;
+        if (!handler)
+        {
+            LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", Packet_GetOpcode(p));
+            Socket_Destroy(s);
+            return (void*) false;
+        }
+
+        handler(s, p);
+        Packet_Destroy(p);
     }
 
-    return NULL;
+    return (void*) true;
 }
 
 void memoria_conectar(Socket* fs, Socket* memoriaNueva)
@@ -97,35 +105,55 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     printf("Paso por memoria_conectar\n");
     //Recibe el handshake
     Packet* p = Socket_RecvPacket(memoriaNueva);
-
     if (Packet_GetOpcode(p) != MSG_HANDSHAKE)
     {
-
         LISSANDRA_LOG_ERROR("HANDSHAKE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+        Packet_Destroy(p); /// agregado, libero memoria
         return;
 
     }
-    else
+
+    /// Ariel: aca copie lo que habia en el manejador anterior de Handshake ya que no lo van a usar como un handler
+    uint8_t id;
+    Packet_Read(p, &id);
+
+    //----Recibo un handshake del cliente para ver si es una memoria
+    if (id != MEMORIA)
     {
-
-        //TODO: deberia ser que si esta funcion me retorna "success", sigue, y sino hace un return
-        //Ariel, si lees este mensaje, como no entiendo como manejas esto del handshake, no se si deberia
-        //estar usando esta funcion aca directamente o en realidad esta funcion se invoca de otra manera.
-        //Si se usa de otra manera, por favor mostrame como. Gracias!!! :D
-        HandleHandshake(memoriaNueva, p);
-
+        LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
+        /// agregado, libero memoria
+        Packet_Destroy(p);
+        /// agregado, desconecto al desconocido
+        Socket_Destroy(memoriaNueva);
+        return;
     }
+
+    LISSANDRA_LOG_INFO("Se conecto una memoria en el socket: %d\n", memoriaNueva->_impl.Handle);
+
+    //TODO: deberia ser que si esta funcion me retorna "success", sigue, y sino hace un return
+    //Ariel, si lees este mensaje, como no entiendo como manejas esto del handshake, no se si deberia
+    //estar usando esta funcion aca directamente o en realidad esta funcion se invoca de otra manera.
+    //Si se usa de otra manera, por favor mostrame como. Gracias!!! :D
+
+    ///Esto es para cuando usan el EventDispatcher_Loop, el solito llama a los handler al recibir un paquete
+    ///Pero como van a atender las memorias mediante hilos necesitan hacer algo de codigo custom. Les dejo un esqueleto
+    ///más abajo (ver atender_memoria)
+    ///HandleHandshake(memoriaNueva, p);
 
     Packet_Destroy(p);
 
     //Le envia a la memoria el TAMANIO_VALUE
-    int tamanioValue = confLFS->TAMANIO_VALUE;
+    //Ariel: para paquetes conviene que usen los tipos de tamaño fijo (stdint.h)
+    // en este caso al ser un tamaño yo uso un entero no signado de 32 bits
+    /*int*/ uint32_t tamanioValue = confLFS->TAMANIO_VALUE;
     //A este Packet_Create en vez de un 2 habría que pasarle un opcode, pero como no se cual ponerle
     //le pase cualquiera para ver como funcionaba. Creo que hay que agregar uno nuevo en Opcodes.h
     //que se podría llamar "MSG_TAM_VALUE"
+    /// Ariel: Esto está perfecto
+
     //Pero como no se si lo que estoy haciendo esta bien porque no entiendo nada, voy a esperar a que
     //Ariel lea esto y lo corrija :D Con mucho amor, Denise
-    p = Packet_Create(2, 1);
+    p = Packet_Create(2 /*MSG_TAM_VALUE*/, 4 /*ya que el tamaño es conocido (4 bytes) lo inicializo*/);
     Packet_Append(p, tamanioValue);
     Socket_SendPacket(memoriaNueva, p);
     Packet_Destroy(p);

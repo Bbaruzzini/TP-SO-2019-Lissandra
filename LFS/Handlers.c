@@ -1,5 +1,6 @@
 
 #include "Handlers.h"
+#include "Lissandra.h"
 #include "Packet.h"
 #include "Socket.h"
 #include <Logger.h>
@@ -7,36 +8,73 @@
 
 OpcodeHandler const opcodeTable[NUM_OPCODES] =
 {
-    { "MSG_HANDSHAKE",       HandleHandshake },
+    { "MSG_HANDSHAKE",       NULL },
 
-    // TODO: Implementar logica funciones
-    { "LQL_SELECT",          NULL            },
-    { "LQL_INSERT",          NULL            },
-    { "LQL_CREATE",          NULL            },
-    { "LQL_DESCRIBE",        NULL            },
-    { "LQL_DROP",            NULL            },
+    { "LQL_SELECT",          HandleSelectOpcode },
+    { "LQL_INSERT",          HandleInsertOpcode },
+    { "LQL_CREATE",          HandleCreateOpcode },
+    { "LQL_DESCRIBE",        HandleDescribeOpcode },
+    { "LQL_DROP",            HandleDropOpcode },
 
     // mensajes que nosotros enviamos, ignoramos
-    { "MSG_SELECT",          NULL            },
-    { "MSG_DESCRIBE",        NULL            },
-    { "MSG_DESCRIBE_GLOBAL", NULL            },
+    { "MSG_SELECT",          NULL },
+    { "MSG_DESCRIBE",        NULL },
+    { "MSG_DESCRIBE_GLOBAL", NULL },
 
     // mensaje a memoria, ignoramos
-    { "LQL_JOURNAL",         NULL            }
+    { "LQL_JOURNAL",         NULL }
 };
 
-void HandleHandshake(Socket* s, Packet* p)
+/// TODO: Implementar logica funciones
+void HandleSelectOpcode(Socket* s, Packet* p)
 {
-    uint8_t id;
-    Packet_Read(p, &id);
+    /* char*: nombre tabla
+    * uint16: key
+    *
+    * Responde: MSG_SELECT
+    */
 
-    //----Recibo un handshake del cliente para ver si es una memoria
-    if (id != MEMORIA)
-    {
-        // TODO: desconectar?
-        LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
-        return;
-    }
+    char* nombreTabla;
+    uint16_t key;
+    Packet_Read(p, &nombreTabla);
+    Packet_Read(p, &key);
 
-    LISSANDRA_LOG_INFO("Se conecto una memoria en el socket: %d\n", s->_impl.Handle);
+    ///una respuesta al paquete bien podria ser de este estilo
+    char* valor;
+    ///if (!lfs_select(nombreTabla, key, &valor))
+    ///{
+    ///    LISSANDRA_LOG_ERROR("Recibi tabla/key (%s/%d) invalida!", nombreTabla, key);
+    ///    ///todo: mandar error? o que se hacia?
+    ///    return;
+    ///}
+
+    Packet* respuesta = Packet_Create(MSG_SELECT, confLFS->TAMANIO_VALUE);
+    Packet_Append(respuesta, valor);
+    Socket_SendPacket(s, respuesta);
+    Packet_Destroy(respuesta);
+
+    Free(valor);
+
+    Free(nombreTabla);
+    ///Packet_Destroy no es necesario aca porque lo hace la funcion atender_memoria!
+}
+
+void HandleInsertOpcode(Socket* s, Packet* p)
+{
+
+}
+
+void HandleCreateOpcode(Socket* s, Packet* p)
+{
+
+}
+
+void HandleDescribeOpcode(Socket* s, Packet* p)
+{
+
+}
+
+void HandleDropOpcode(Socket* s, Packet* p)
+{
+
 }
