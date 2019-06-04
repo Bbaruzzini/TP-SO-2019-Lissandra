@@ -161,7 +161,7 @@ int main(void)
 
     InitConsole();
 
-    Memory_Init(DoHandshake());
+    Memory_Initialize(DoHandshake());
     StartGossip();
 
     MainLoop();

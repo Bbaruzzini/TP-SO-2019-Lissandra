@@ -9,8 +9,8 @@
 // todo: empaquetar esta estructura?
 typedef struct
 {
-    uint16_t Key;
     time_t Timestamp;
+    uint16_t Key;
     char Value[]; // tamaño maximo seteado en tiempo de ejecucion!
 } Page;
 
