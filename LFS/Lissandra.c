@@ -1,5 +1,7 @@
 
 #include "Lissandra.h"
+#include "API.h"
+
 
 
 CLICommand const CLICommands[] =
@@ -73,6 +75,28 @@ static void LoadConfig(char const* fileName)
 }
 
 
+static void InitConsole(void)
+{
+    CLICommandQueue = LockedQueue_Create();
+
+    // subimos el nivel a errores para no entorpecer la consola
+    //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
+}
+
+static void pruebaConsola(void)
+{
+    // el kokoro
+    printf("Llego a esta prueba\n");
+    pthread_t consoleTid;
+    pthread_create(&consoleTid, NULL, CliThread, NULL);
+
+    EventDispatcher_Loop();
+
+    pthread_join(consoleTid, NULL);
+}
+
+
+
 int main(void)
 {
     static char const configFileName[] = "lissandra.conf";
@@ -86,6 +110,8 @@ int main(void)
 
     LoadConfig(configFileName);
 
+    InitConsole();
+
     EventDispatcher_Init();
 
     // esta cola guarda los comandos que se nos envian por consola
@@ -96,6 +122,9 @@ int main(void)
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
 
+    //Aca va consola ->Update: La consola subio para aca
+    pruebaConsola();
+
     //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
 
     iniciarMetadata();
@@ -104,19 +133,18 @@ int main(void)
 
     //create("Tabla3", "SC", 5, 2000);
 
-    t_list* prueba = malloc(sizeof(t_list));
+   // t_list* prueba = malloc(sizeof(t_list));
 
-    prueba = describe("");
+   // prueba = describe("");
 
-    size_t tamanio = list_size(prueba);
+    //size_t tamanio = list_size(prueba);
 
-    printf("tamanio: %d\n", tamanio);
+   // printf("tamanio: %d\n", tamanio);
 
     //HASTA ACA
 
     iniciar_servidor();
 
-    //Aca va consola
 
     //armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
