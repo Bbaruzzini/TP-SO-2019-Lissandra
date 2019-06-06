@@ -24,8 +24,6 @@ typedef struct
 #pragma pack(pop)
 
 static bool _acceptCb(void* socket);
-static bool _recvCb(void* socket);
-
 static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode mode);
 
 typedef struct
@@ -152,20 +150,9 @@ Packet* Socket_RecvPacket(Socket* s)
     return Packet_Adopt(header->cmd, &s->PacketBuffer, &s->PacketBuffSize);
 }
 
-void Socket_Destroy(void* elem)
+bool Socket_HandlePacket(void* socket)
 {
-    Socket* s = elem;
-
-    Free(s->PacketBuffer);
-    Free(s->HeaderBuffer);
-
-    close(s->Handle);
-    Free(s);
-}
-
-static bool _recvCb(void* socket)
-{
-    Socket* s = socket;
+    Socket* const s = socket;
 
     Packet* p = Socket_RecvPacket(s);
     if (!p)
@@ -181,6 +168,17 @@ static bool _recvCb(void* socket)
     handler(s, p);
     Packet_Destroy(p);
     return true;
+}
+
+void Socket_Destroy(void* elem)
+{
+    Socket* s = elem;
+
+    Free(s->PacketBuffer);
+    Free(s->HeaderBuffer);
+
+    close(s->Handle);
+    Free(s);
 }
 
 static bool _acceptCb(void* socket)
@@ -298,7 +296,7 @@ static Socket* _initSocket(SockInit const* si)
             s->ReadCallback = _acceptCb;
             break;
         case SOCKET_CLIENT:
-            s->ReadCallback = _recvCb;
+            s->ReadCallback = Socket_HandlePacket;
             break;
         default:
             break;

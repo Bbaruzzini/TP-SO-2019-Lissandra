@@ -69,30 +69,14 @@ void* atender_memoria(void* socketMemoria)
 {
     printf("Y tambien paso por atender_memoria\n");
 
-    Socket* s = socketMemoria;
     while (ProcessRunning)
     {
-        /// copio esto de una funcion de socket, aca lo que va a pasar es que este hilo recibe paquetes serializados
-        /// y llama al Handler correspondiente, ver un ejemplo en Handlers.c
-
-        Packet* p = Socket_RecvPacket(s);
-        if (!p)
+        if (!Socket_HandlePacket(socketMemoria))
         {
-            /// RecvPacket ya hace logs si hubo errores, cerrar conexion
-            Socket_Destroy(s);
+            /// ya hace logs si hubo errores, cerrar conexión
+            Socket_Destroy(socketMemoria);
             return (void*) false;
         }
-
-        OpcodeHandlerFnType* handler = opcodeTable[Packet_GetOpcode(p)].HandlerFunction;
-        if (!handler)
-        {
-            LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", Packet_GetOpcode(p));
-            Socket_Destroy(s);
-            return (void*) false;
-        }
-
-        handler(s, p);
-        Packet_Destroy(p);
     }
 
     return (void*) true;

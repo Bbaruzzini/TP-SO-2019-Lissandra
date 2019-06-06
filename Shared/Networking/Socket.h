@@ -66,6 +66,14 @@ void Socket_SendPacket(Socket* s, Packet const* packet);
 Packet* Socket_RecvPacket(Socket* s);
 
 /*
+ * Socket_HandlePacket: recibe un paquete serializado y además llama al manejador correspondiente,
+ * registrado en opcodeTable
+ *
+ * Devuelve false si hubo algun error
+ */
+bool Socket_HandlePacket(void* s);
+
+/*
  * Socket_Destroy: destructor, llamar luego de terminar de operar con el socket para liberar memoria
  */
 void Socket_Destroy(void* elem);
