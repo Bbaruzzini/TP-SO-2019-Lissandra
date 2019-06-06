@@ -146,6 +146,7 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     //Ariel: para paquetes conviene que usen los tipos de tamaño fijo (stdint.h)
     // en este caso al ser un tamaño yo uso un entero no signado de 32 bits
     /*int*/ uint32_t tamanioValue = confLFS->TAMANIO_VALUE;
+    char* puntoMontaje = confLFS->PUNTO_MONTAJE;
     //A este Packet_Create en vez de un 2 habría que pasarle un opcode, pero como no se cual ponerle
     //le pase cualquiera para ver como funcionaba. Creo que hay que agregar uno nuevo en Opcodes.h
     //que se podría llamar "MSG_TAM_VALUE"
@@ -153,8 +154,9 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
 
     //Pero como no se si lo que estoy haciendo esta bien porque no entiendo nada, voy a esperar a que
     //Ariel lea esto y lo corrija :D Con mucho amor, Denise
-    p = Packet_Create(2 /*MSG_TAM_VALUE*/, 4 /*ya que el tamaño es conocido (4 bytes) lo inicializo*/);
+    p = Packet_Create(MSG_HANDSHAKE_RESPUESTA, 20 /*ya que el tamaño es conocido (4 bytes) lo inicializo*/);
     Packet_Append(p, tamanioValue);
+    Packet_Append(p, puntoMontaje);
     Socket_SendPacket(memoriaNueva, p);
     Packet_Destroy(p);
 
@@ -400,4 +402,24 @@ int traverse(char* fn, t_list* lista, char* tabla)
 
     }
 
+}
+
+bool dirIsEmpty(char* path)
+{
+
+    int n = 0;
+    DIR* dir;
+    struct dirent* entry;
+
+    dir = opendir(path);
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (++n > 2)
+            break;
+    }
+    closedir(dir);
+    if (n <= 2) //Directorio vacio
+        return true;
+    else
+        return false;
 }

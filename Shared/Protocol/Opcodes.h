@@ -68,6 +68,10 @@ typedef enum
     // Mensajes a memoria
     LQL_JOURNAL,        /* nada */
 
+    MSG_HANDSHAKE_RESPUESTA, /* uint32_t: tamanioValue
+                              * char*: puntoMontaje
+                              */
+
     NUM_OPCODES
 } Opcodes;
 

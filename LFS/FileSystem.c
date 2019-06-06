@@ -4,7 +4,8 @@
 #include "LissandraLibrary.h"
 #include "Logger.h"
 
-void iniciarMetadata(){
+void iniciarFileSystem()
+{
     pathMetadata = string_new();
     string_append(&pathMetadata, confLFS->PUNTO_MONTAJE);
     string_append(&pathMetadata, "Metadata");
@@ -20,12 +21,9 @@ void iniciarMetadata(){
     string_append(&pathTablas, "Tablas");
     LISSANDRA_LOG_INFO("Path Tablas %s...", pathTablas);
 
-
     mkdirRecursivo(confLFS->PUNTO_MONTAJE);
 
     mkdir(pathMetadata, 0700);
-
-
     mkdir(pathBloques, 0700);
     mkdir(pathTablas, 0700);
 
@@ -37,23 +35,28 @@ void iniciarMetadata(){
         t_config* configAux = config_create(p);
         int bloques = config_get_int_value(configAux, "CANTIDAD_BLOQUES");
         int size = config_get_int_value(configAux, "TAMANIO_BLOQUES");
+        LISSANDRA_LOG_INFO("Ya Existe un FS en ese punto de montaje con %d bloques de %d bytes de tamanio", bloques,
+                           size);
         if(bloques != confLFS->CANTIDAD_BLOQUES || size != confLFS->TAMANIO_BLOQUES){
-            LISSANDRA_LOG_ERROR("Ya Existe un FS en ese punto de montaje con valores distintos");
-            exit(1);
+            confLFS->CANTIDAD_BLOQUES = bloques;
+            confLFS->TAMANIO_BLOQUES = size;
         }
         config_destroy(configAux);
     }
+    else
+    {
+        pathMetadataFS = string_new();
+        string_append(&pathMetadataFS, pathMetadata);
+        string_append(&pathMetadataFS, "/Metadata.bin");
+
+        FILE* metadata = fopen(pathMetadataFS, "w");
+        fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
+        fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
+        fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
+        fclose(metadata);
+    }
+
     free(p);
-
-    pathMetadataFS = string_new();
-    string_append(&pathMetadataFS, pathMetadata);
-    string_append(&pathMetadataFS, "/Metadata.bin");
-
-    FILE * metadata = fopen(pathMetadataFS, "w");
-    fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
-    fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
-    fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
-    fclose(metadata);
 
     int sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
     if((sizeBitArray %8) !=0)
@@ -77,7 +80,8 @@ void iniciarMetadata(){
         bitArray = bitarray_create_with_mode(data, stats.st_size, LSB_FIRST);
 
     }
-    else{
+    else
+    {
         bitArray = bitarray_create_with_mode(string_repeat('\0', sizeBitArray), sizeBitArray, LSB_FIRST);
 
         FILE * bitmap = fopen(pathMetadataBitarray, "w");
@@ -88,24 +92,36 @@ void iniciarMetadata(){
     int j;
     FILE* bloque;
 
-    for(j=0; j<confLFS->CANTIDAD_BLOQUES; j++){
-        char* pathBloque = string_new();
-        string_append(&pathBloque, pathBloques);
-        string_append(&pathBloque, "/");
-        string_append(&pathBloque, string_itoa(j));
-        string_append(&pathBloque, ".bin");
+    if (dirIsEmpty(pathBloques))
+    {
 
-        if(!existeArchivo(pathBloque)){
-            bloque = fopen(pathBloque, "w");
-            fwrite(string_repeat('\0', confLFS->TAMANIO_BLOQUES), confLFS->TAMANIO_BLOQUES, 1, bloque);
-            fclose(bloque);
+        for (j = 0; j < confLFS->CANTIDAD_BLOQUES; j++)
+        {
+            char* pathBloque = string_new();
+            string_append(&pathBloque, pathBloques);
+            string_append(&pathBloque, "/");
+            string_append(&pathBloque, string_itoa(j));
+            string_append(&pathBloque, ".bin");
+
+            if (!existeArchivo(pathBloque))
+            {
+                bloque = fopen(pathBloque, "w");
+                fwrite(string_repeat('\0', confLFS->TAMANIO_BLOQUES), confLFS->TAMANIO_BLOQUES, 1, bloque);
+                fclose(bloque);
+            }
+            free(pathBloque);
         }
-        free(pathBloque);
+    }
+    else
+    {
+        //TODO: Deberia fijarse si la cantidad de archivos dentro es la misma que confLFS->CANTIDAD_BLOQUES????
     }
 
-    LISSANDRA_LOG_DEBUG("Se finalizo la creacion de Metadata");
+    LISSANDRA_LOG_DEBUG("Se finalizo la creacion del File System");
 
-
+    free(pathMetadata);
+    free(pathBloques);
+    free(pathTablas);
 
 }
 

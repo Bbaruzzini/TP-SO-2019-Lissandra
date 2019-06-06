@@ -123,11 +123,11 @@ int main(void)
     EventDispatcher_AddFDI(fw);
 
     //Aca va consola ->Update: La consola subio para aca
-    pruebaConsola();
+    //pruebaConsola();
 
     //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
 
-    iniciarMetadata();
+    iniciarFileSystem();
 
     //Pruebas Brenda/Denise desde ACA
 
@@ -146,7 +146,7 @@ int main(void)
     iniciar_servidor();
 
 
-    //armar una funcion para que esto quede por fuera y el main mas limpio
+    //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
     LockedQueue_Destroy(CLICommandQueue, Free);
     Free(confLFS->PUNTO_MONTAJE);

@@ -2,7 +2,7 @@
 
 #include "API.h"
 
-void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime)
+int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime)
 {
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     //string_to_upper(nombreTabla);
@@ -29,6 +29,8 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
         fprintf(metadata, "COMPACTION_TIME=%d\n", compactionTime);
         fclose(metadata);
 
+        free(pathMetadataTabla);
+
         //Crea cada particion, le carga los datos y le asigna un bloque
         int j;
         FILE* particion;
@@ -52,7 +54,16 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
 
                     LISSANDRA_LOG_ERROR("No hay espacio en el File System");
                     printf("ERROR: No hay espacio en el File System");
-                    return;
+                    free(pathParticion);
+                    free(path);
+                    //Aca haría un drop(nombreTabla), porque si no puede crear todas las particiones
+                    //para una tabla nueva, no tiene sentido que la tabla exista en si.
+                    //La otra opción es modificar el codigo de create() para que primero analice si hay
+                    //suficientes bloques libres para crear la tabla, pero como el proceso FS en si va a atender
+                    //peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
+                    //reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
+                    //la otra peticion...
+                    return EXIT_FAILURE;
 
                 }
 
@@ -70,6 +81,8 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
         }
 
         LISSANDRA_LOG_DEBUG("Se finalizo la creacion de la tabla");
+        free(path);
+        return EXIT_SUCCESS;
 
     }
     else
@@ -77,10 +90,10 @@ void create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, in
 
         LISSANDRA_LOG_ERROR("La tabla ya existe en el File System");
         printf("ERROR: La tabla ya existe en el File System");
+        free(path);
+        return EXIT_FAILURE;
 
     }
-
-    free(path);
 
 }
 

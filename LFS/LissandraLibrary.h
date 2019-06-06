@@ -44,6 +44,7 @@ t_describe* get_table_metadata(char* path, char* tabla);
 
 int traverse(char* fn, t_list* lista, char* tabla);
 
+bool dirIsEmpty(char* path);
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
