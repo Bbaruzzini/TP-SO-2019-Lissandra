@@ -5,7 +5,12 @@
 int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime)
 {
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
-    //string_to_upper(nombreTabla);
+    char nomTabla[100];
+    strcpy(nomTabla, nombreTabla);
+    string_to_upper(nomTabla);
+    nombreTabla = nomTabla; //Se que esto probablemente no es necesario, pero como no estaba segura donde mas
+    //aparece "nombreTabla, lo puse asi xD"
+
     char* path = generarPathTabla(nombreTabla);
 
     //Evalua si existe la tabla
@@ -53,16 +58,16 @@ int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int
                 {
 
                     LISSANDRA_LOG_ERROR("No hay espacio en el File System");
-                    printf("ERROR: No hay espacio en el File System");
+                    printf("ERROR: No hay espacio en el File System\n");
                     free(pathParticion);
                     free(path);
-                    //Aca haría un drop(nombreTabla), porque si no puede crear todas las particiones
-                    //para una tabla nueva, no tiene sentido que la tabla exista en si.
-                    //La otra opción es modificar el codigo de create() para que primero analice si hay
-                    //suficientes bloques libres para crear la tabla, pero como el proceso FS en si va a atender
-                    //peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
-                    //reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
-                    //la otra peticion...
+                    //TODO: Aca haría un drop(nombreTabla), porque si no puede crear todas las particiones
+                    // para una tabla nueva, no tiene sentido que la tabla exista en si.
+                    // La otra opción es modificar el codigo de create() para que primero analice si hay
+                    // suficientes bloques libres para crear la tabla, pero como el proceso FS en si va a atender
+                    // peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
+                    // reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
+                    // la otra peticion...
                     return EXIT_FAILURE;
 
                 }
@@ -89,7 +94,7 @@ int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int
     {
 
         LISSANDRA_LOG_ERROR("La tabla ya existe en el File System");
-        printf("ERROR: La tabla ya existe en el File System");
+        printf("ERROR: La tabla ya existe en el File System\n");
         free(path);
         return EXIT_FAILURE;
 
