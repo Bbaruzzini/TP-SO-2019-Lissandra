@@ -98,7 +98,7 @@ void Metrics_Report(Metrics const* m, ReportType report)
         { "Latencia promedio INSERT/30s: %.0fms", _meanWriteLatency },
         { "Cantidad SELECT/30s: %.0f", _totalReads },
         { "Cantidad INSERT/30s: %.0f", _totalWrites },
-        { "Carga de memoria: %4.2f", _memoryLoad }
+        { "Carga de memoria: %4.2f%%", _memoryLoad }
     };
 
     struct ListIterator const* const itr = ListIterators + report;
@@ -211,5 +211,5 @@ static double _memoryLoad(t_list const* l)
 
     if (!total)
         return 0.0;
-    return rwOp / total;
+    return rwOp / total * 100.0; // en porcentaje
 }

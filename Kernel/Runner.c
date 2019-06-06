@@ -173,12 +173,11 @@ static void* _workerThread(void* arg)
         {
             // borrar los datos
             _delete_task(tcb);
+            continue;
         }
-        else
-        {
-            // solo termino el quantum pero quedan lineas por ejecutar, replanificarlas
-            _addToReadyQueue(tcb);
-        }
+
+        // solo termino el quantum pero quedan lineas por ejecutar, replanificarlas
+        _addToReadyQueue(tcb);
     }
 
     return NULL;
