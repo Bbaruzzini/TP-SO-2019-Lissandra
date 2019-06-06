@@ -6,8 +6,6 @@
 
 void Runner_Init(void);
 
-void Runner_AddSingle(char const* line);
-
 void Runner_AddScript(File* sc);
 
 void Runner_Terminate(void);

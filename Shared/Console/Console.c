@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+static CommandParserFn AtenderComando;
+CommandParserFn* CommandParser = AtenderComando;
+
 static char* command_finder(char const* text, int state)
 {
     static size_t idx, len;
@@ -110,7 +113,7 @@ void* CliThread(void* param)
     return 0;
 }
 
-void AtenderComando(char const* command)
+static void AtenderComando(char const* command)
 {
     size_t spc = strcspn(command, " ");
     char* cmd = Malloc(spc + 1);

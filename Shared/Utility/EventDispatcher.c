@@ -90,7 +90,7 @@ void EventDispatcher_Loop(void)
         char* command;
         while ((command = LockedQueue_Next(CLICommandQueue)))
         {
-            AtenderComando(command);
+            CommandParser(command);
             Free(command);
         }
 

@@ -14,13 +14,15 @@ typedef struct
     CLICommandHandlerFn* Handler;
 } CLICommand;
 
+typedef void CommandParserFn(char const*);
+
 extern CLICommand const CLICommands[];
 extern char const* CLIPrompt;
 extern LockedQueue* CLICommandQueue;
 extern atomic_bool ProcessRunning;
+extern CommandParserFn* CommandParser;
 
 void SigintSetup(void);
 void* CliThread(void*);
-void AtenderComando(char const*);
 
 #endif //Console_h__

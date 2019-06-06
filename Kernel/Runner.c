@@ -20,6 +20,8 @@ typedef struct
 static TCB* _create_task(Vector const* data);
 static void _delete_task(TCB* tcb);
 
+static void _addSingleLine(char const* line);
+
 static void _terminateWorker(void* pWorkId);
 static void _addToReadyQueue(TCB* tcb);
 static bool _parseCommand(char const* command);
@@ -35,6 +37,8 @@ static Vector WorkerIds;
 
 void Runner_Init(void)
 {
+    CommandParser = _addSingleLine;
+
     ReadyQueue = queue_create();
 
     pthread_rwlock_rdlock(&sConfigLock);
@@ -48,13 +52,6 @@ void Runner_Init(void)
         pthread_create(&tid, NULL, _workerThread, NULL);
         Vector_push_back(&WorkerIds, &tid);
     }
-}
-
-void Runner_AddSingle(char const* line)
-{
-    Vector const script = string_n_split(line, 1, NULL);
-
-    _addToReadyQueue(_create_task(&script));
 }
 
 void Runner_AddScript(File* sc)
@@ -85,6 +82,12 @@ static void _delete_task(TCB* tcb)
 {
     Vector_Destruct(&tcb->Data);
     Free(tcb);
+}
+
+static void _addSingleLine(char const* line)
+{
+    Vector script = string_n_split(line, 1, NULL);
+    _addToReadyQueue(_create_task(&script));
 }
 
 static void _terminateWorker(void* pWorkId)
@@ -159,7 +162,6 @@ static void* _workerThread(void* arg)
             if (!res)
             {
                 LISSANDRA_LOG_ERROR("ScriptRunner: error al ejecutar linea %u (\"%s\")", tcb->IP, IR);
-
                 abnormalTermination = true;
                 break;
             }
