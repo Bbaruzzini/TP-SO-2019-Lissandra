@@ -117,7 +117,7 @@ void AtenderComando(char const* command)
     strncpy(cmd, command, spc + 1);
     cmd[spc] = '\0';
 
-    Vector args = string_split(command, " ");
+    Vector args = string_q_split(command, ' ');
     for (uint32_t i = 0; CLICommands[i].CmdName != NULL; ++i)
     {
         if (!strcmp(CLICommands[i].CmdName, cmd))

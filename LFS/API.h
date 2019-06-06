@@ -1,6 +1,6 @@
 
-#ifndef LFS_CLIHandlers_h__
-#define LFS_CLIHandlers_h__
+#ifndef LFS_API_h__
+#define LFS_API_h__
 
 #include <Console.h>
 #include <string.h>
@@ -23,4 +23,4 @@ CLICommandHandlerFn HandleDescribe;
 CLICommandHandlerFn HandleDrop;
 
 
-#endif //LFS_CLIHandlers_h__
+#endif //LFS_API_h__
