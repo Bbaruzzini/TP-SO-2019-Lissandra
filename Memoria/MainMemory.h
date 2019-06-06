@@ -5,7 +5,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-void Memory_Initialize(uint32_t maxValueLength);
+void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint);
+
+uint32_t Memory_GetMaxValueLength(void);
 
 bool Memory_IsFull(void);
 

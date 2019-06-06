@@ -1,5 +1,6 @@
 
 #include "CLIHandlers.h"
+#include "FileSystemSocket.h"
 #include "MainMemory.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
@@ -13,7 +14,6 @@
 #include <Opcodes.h>
 #include <Packet.h>
 #include <pthread.h>
-#include <Socket.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -37,7 +37,7 @@ atomic_bool ProcessRunning = true;
 static Appender* consoleLog;
 static Appender* fileLog;
 
-static Socket* FileSystem = NULL;
+Socket* FileSystemSocket = NULL;
 
 static void IniciarLogger(void)
 {
@@ -99,7 +99,7 @@ static void MainLoop(void)
     pthread_join(consoleTid, NULL);
 }
 
-static uint32_t DoHandshake(void)
+static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
 {
     pthread_rwlock_rdlock(&sConfigLock);
     char* fs_ip = config_get_string_value(sConfig, "IP_FS");
@@ -112,10 +112,10 @@ static uint32_t DoHandshake(void)
         .SocketMode = SOCKET_CLIENT,
         .SocketOnAcceptClient = NULL
     };
-    FileSystem = Socket_Create(&so);
+    FileSystemSocket = Socket_Create(&so);
     pthread_rwlock_unlock(&sConfigLock);
 
-    if (!FileSystem)
+    if (!FileSystemSocket)
     {
         LISSANDRA_LOG_FATAL("No pude conectarme al FileSystem!!");
         exit(1);
@@ -124,17 +124,28 @@ static uint32_t DoHandshake(void)
     static uint8_t const id = MEMORIA;
     Packet* p = Packet_Create(MSG_HANDSHAKE, 1);
     Packet_Append(p, id);
-    Socket_SendPacket(FileSystem, p);
+    Socket_SendPacket(FileSystemSocket, p);
     Packet_Destroy(p);
 
-    // todo el fs deberia enviarme el tamaño maximo del value
-    //p = Socket_RecvPacket(FileSystem);
-    //uint32_t maxValueLength;
-    //Packet_Read(p, &maxValueLength);
-    //Packet_Destroy(p);
+    p = Socket_RecvPacket(FileSystemSocket);
+    if (Packet_GetOpcode(p) != MSG_HANDSHAKE_RESPUESTA)
+    {
+        LISSANDRA_LOG_FATAL("FileSystem envió respuesta inválida.");
+        exit(1);
+    }
 
-    //return maxValueLength;
-    return 4;
+    Packet_Read(p, maxValueLength);
+    Packet_Read(p, mountPoint);
+    Packet_Destroy(p);
+}
+
+static void StartMemory(void)
+{
+    uint32_t maxValueLength;
+    char* mountPoint;
+    DoHandshake(&maxValueLength, &mountPoint);
+    Memory_Initialize(maxValueLength, mountPoint);
+    Free(mountPoint);
 }
 
 static void StartGossip(void)
@@ -161,7 +172,7 @@ int main(void)
 
     InitConsole();
 
-    Memory_Initialize(DoHandshake());
+    StartMemory();
     StartGossip();
 
     MainLoop();
