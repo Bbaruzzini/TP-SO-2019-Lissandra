@@ -154,8 +154,8 @@ void* describe(char* tabla)
 
     dirTablas = string_new();
     string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
-    string_append(&dirTablas, "Tablas");
-
+    string_append(&dirTablas, "Tables");
+//SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (strcmp(tabla, "") == 0)
     {
 
@@ -177,7 +177,7 @@ void* describe(char* tabla)
         else
         {
 
-            printf("ERROR: Se produjo un error al recorrer el directorio /Tablas");
+            printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
             //free(dirTablas);
             free(realpath);
             return NULL;
@@ -239,9 +239,29 @@ void HandleCreate(Vector const* args)
     (void) args;
 }
 
-void HandleDescribe(Vector const* args)
-{
-    (void) args;
+bool HandleDescribe(Vector const* args)
+{/*
+    //           cmd args
+    //           0        1
+    // sintaxis: DESCRIBE [name]
+
+    if (Vector_size(args) > 2)
+    {
+        LISSANDRA_LOG_ERROR("DESCRIBE: Uso - DESCRIBE [tabla]");
+        return false;
+    }
+
+    char** const tokens = Vector_data(args);
+
+    char* table = NULL;
+    if (Vector_size(args) == 2)
+        table = tokens[1];
+
+    DBRequest dbr;
+    dbr.TableName = table;
+
+    //ACA VA LA FUNCION DE DESCRIBE
+  Metadata_Clear();  */ //ESTO LO PONEMOS POR LAS DUDAS PARA IR VIENDO SI ES NECESARIO O NO.
 }
 
 void HandleDrop(Vector const* args)

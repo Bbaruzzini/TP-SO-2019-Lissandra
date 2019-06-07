@@ -122,9 +122,6 @@ int main(void)
     FileWatcher_AddWatch(fw, configFileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
 
-    //Aca va consola ->Update: La consola subio para aca
-    //pruebaConsola();
-
     //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
 
     iniciarFileSystem();
@@ -143,8 +140,10 @@ int main(void)
 
     //HASTA ACA
 
-    iniciar_servidor();
+    //Aca va consola ->Update: La consola subio para aca
+    pruebaConsola();
 
+    iniciar_servidor();
 
     //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza

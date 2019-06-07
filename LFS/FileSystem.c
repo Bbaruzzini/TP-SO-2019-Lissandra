@@ -18,8 +18,8 @@ void iniciarFileSystem()
 
     pathTablas = string_new();
     string_append(&pathTablas, confLFS->PUNTO_MONTAJE);
-    string_append(&pathTablas, "Tablas");
-    LISSANDRA_LOG_INFO("Path Tablas %s...", pathTablas);
+    string_append(&pathTablas, "Tables");
+    LISSANDRA_LOG_INFO("Path Tables %s...", pathTablas);
 
     mkdirRecursivo(confLFS->PUNTO_MONTAJE);
 

@@ -242,7 +242,7 @@ char* generarPathTabla(char* nombreTabla)
     LISSANDRA_LOG_INFO("Generando el path de la tabla");
     char* pathAbsTabla = string_new();
     string_append(&pathAbsTabla, confLFS->PUNTO_MONTAJE);
-    string_append(&pathAbsTabla, "Tablas");
+    string_append(&pathAbsTabla, "Tables");
     if (!string_starts_with(nombreTabla, "/")) string_append(&pathAbsTabla, "/");
     string_append(&pathAbsTabla, nombreTabla);
 
