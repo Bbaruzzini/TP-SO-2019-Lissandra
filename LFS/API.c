@@ -239,7 +239,7 @@ void HandleCreate(Vector const* args)
     (void) args;
 }
 
-bool HandleDescribe(Vector const* args)
+void HandleDescribe(Vector const* args)
 {/*
     //           cmd args
     //           0        1
