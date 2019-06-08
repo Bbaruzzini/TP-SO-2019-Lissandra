@@ -126,6 +126,8 @@ int main(void)
 
     iniciarFileSystem();
 
+    //crearMemtable();
+
     //Pruebas Brenda/Denise desde ACA
 
     //create("Tabla3", "SC", 5, 2000);

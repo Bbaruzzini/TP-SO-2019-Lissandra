@@ -21,6 +21,7 @@
 #include "Logger.h"
 #include "LissandraLibrary.h"
 #include "FileSystem.h"
+#include "Memtable.h"
 
 #include <signal.h>
 
@@ -37,5 +38,7 @@ typedef struct{
 }t_config_FS;
 
 t_config_FS * confLFS;
+
+Vector memTable;
 
 #endif //LISSANDRA_LISSANDRA_H
