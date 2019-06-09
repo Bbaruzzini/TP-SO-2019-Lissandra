@@ -1,17 +1,17 @@
 
-#ifndef Page_h__
-#define Page_h__
+#ifndef Frame_h__
+#define Frame_h__
 
 #include <stdint.h>
 #include <time.h>
 
-// Una pagina es un registro
+// Una frame es la página en memoria (registro)
 // todo: empaquetar esta estructura?
 typedef struct
 {
-    time_t Timestamp;
+    uint32_t Timestamp;
     uint16_t Key;
     char Value[]; // tamaño maximo seteado en tiempo de ejecucion!
-} Page;
+} Frame;
 
-#endif //Page_h__
+#endif //Frame_h__

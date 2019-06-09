@@ -39,6 +39,8 @@ static Appender* fileLog;
 
 Socket* FileSystemSocket = NULL;
 
+static Socket* ListeningSocket = NULL;
+
 static void IniciarLogger(void)
 {
     Logger_Init(LOG_LEVEL_TRACE);
@@ -102,8 +104,8 @@ static void MainLoop(void)
 static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
 {
     pthread_rwlock_rdlock(&sConfigLock);
-    char* fs_ip = config_get_string_value(sConfig, "IP_FS");
-    char* fs_port = config_get_string_value(sConfig, "PUERTO_FS");
+    char* const fs_ip = config_get_string_value(sConfig, "IP_FS");
+    char* const fs_port = config_get_string_value(sConfig, "PUERTO_FS");
 
     SocketOpts const so =
     {
@@ -146,6 +148,27 @@ static void StartMemory(void)
     DoHandshake(&maxValueLength, &mountPoint);
     Memory_Initialize(maxValueLength, mountPoint);
     Free(mountPoint);
+
+    pthread_rwlock_rdlock(&sConfigLock);
+    char* const listen_port = config_get_string_value(sConfig, "PUERTO");
+
+    SocketOpts const so =
+    {
+        .HostName = NULL,
+        .ServiceOrPort = listen_port,
+        .SocketMode = SOCKET_SERVER,
+        .SocketOnAcceptClient = NULL
+    };
+    ListeningSocket = Socket_Create(&so);
+    pthread_rwlock_unlock(&sConfigLock);
+
+    if (!ListeningSocket)
+    {
+        LISSANDRA_LOG_FATAL("No pudo iniciarse el socket de escucha!!");
+        exit(1);
+    }
+
+    EventDispatcher_AddFDI(ListeningSocket);
 }
 
 static void StartGossip(void)
@@ -157,6 +180,7 @@ static void StartGossip(void)
 
 static void Cleanup(void)
 {
+    Memory_Destroy();
     LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();

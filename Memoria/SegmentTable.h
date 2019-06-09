@@ -2,16 +2,15 @@
 #ifndef SegmentTable_h__
 #define SegmentTable_h__
 
-#include <libcommons/list.h>
-
-typedef struct
-{
-    t_list* Pages;
-} Segment;
+#include "PageTable.h"
 
 void SegmentTable_Initialize(char const* tablePath);
 
-Segment* SegmentTable_GetSegment(char const* tableName);
+PageTable* SegmentTable_CreateSegment(char const* tableName);
+
+PageTable* SegmentTable_GetPageTable(char const* tableName);
+
+bool SegmentTable_GetLRUFrame(size_t* frame);
 
 void SegmentTable_Destroy(void);
 
