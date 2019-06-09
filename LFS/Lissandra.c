@@ -126,8 +126,42 @@ int main(void)
 
     iniciarFileSystem();
 
-    //crearMemtable();
+    crearMemtable();
+/*
+ * Estas de aca son pruebas para ver si las funciones de la memtable andan
+ *
+    t_elem_memtable* elementoA = new_elem_memtable("TABLA1");
 
+    t_registro* registro1 = new_elem_registro(3, "\"Este es el primer registro que pruebo\"", 1548421507);
+    t_registro* registro2 = new_elem_registro(2, "\"Este es el segundo registro que pruebo\"", 1348451807);
+    t_registro* registro3 = new_elem_registro(3, "\"Este es el tercer registro que pruebo\"", 1548421508);
+
+    printf("Elementos del registro1: %d, %s, %d\n", registro1->key, registro1->value, registro1->timestamp);
+    printf("Elementos del registro2: %d, %s, %d\n", registro2->key, registro2->value, registro2->timestamp);
+    printf("Elementos del registro1: %d, %s, %d\n", registro3->key, registro3->value, registro3->timestamp);
+
+    insert_new_in_memtable(elementoA);
+
+    insert_new_in_registros("TABLA1", registro1);
+    insert_new_in_registros("TABLA1", registro2);
+    insert_new_in_registros("TABLA1", registro3);
+
+    t_elem_memtable* new = memtable_get("TABLA1");
+
+    printf("Este es el nombre de la tabla: %s\n", new->nombreTabla);
+
+    size_t cantElementos = Vector_size(&new->registros);
+
+    printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
+
+    t_registro* registro = registro_get_biggest_timestamp(new, 3);
+
+    if(registro == NULL){
+        printf("Esta vacio!!!\n");
+    } else {
+        printf("Este es el mayor timestamp: %d\n", registro->timestamp);
+    }
+*/
     //Pruebas Brenda/Denise desde ACA
 
     //create("Tabla3", "SC", 5, 2000);

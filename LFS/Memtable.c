@@ -4,16 +4,13 @@
 
 #include "Memtable.h"
 
-//Dejo otro comentario para Ariel: Si llegas a ver esto antes de que probemos si estas funciones andan,
-//aclaro que no probamos nada todavia xD No nos juzgues!!!!!
-
 void crearMemtable()
 {
-    size_t memTableElementSize = sizeof(t_elem_memtable);
-    Vector_Construct(&memTable, memTableElementSize, NULL, 0);
+    size_t memtableElementSize = sizeof(t_elem_memtable);
+    Vector_Construct(&memtable, memtableElementSize, NULL, 0);
+    LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
-//Funcion para crear un nuevo elemento del tipo t_elem_memtable
 t_elem_memtable* new_elem_memtable(char* nombreTabla)
 {
     t_elem_memtable* new = Malloc(sizeof(t_elem_memtable));
@@ -24,8 +21,7 @@ t_elem_memtable* new_elem_memtable(char* nombreTabla)
     return new;
 }
 
-//Funcion para crear nuevo elemento del tipo t_registro
-t_registro* new_elem_registro(int key, int value, int timestamp)
+t_registro* new_elem_registro(u_int16_t key, char* value, int timestamp)
 {
     t_registro* new = Malloc(sizeof(t_registro));
     new->key = key;
@@ -35,30 +31,44 @@ t_registro* new_elem_registro(int key, int value, int timestamp)
     return new;
 }
 
-//Funcion para meterle nuevos elementos a la memTable
-void insert_new_in_memTable(t_elem_memtable* elemento)
+void insert_new_in_memtable(t_elem_memtable* elemento)
 {
-    Vector_push_back(&memTable, elemento);
+    Vector_push_back(&memtable, elemento);
 }
 
-//Funcion para meterle nuevos elementos (registros) al vector registros de un elemento de la memTable
-void insert_new_in_registros(t_elem_memtable* elemento, t_registro* registro)
+void insert_new_in_registros(char* nombreTabla, t_registro* registro)
 {
-    Vector_push_back(&elemento->registros, registro);
-}
 
-//Funcion para buscar, si existe, un elemento en la memTable para una cierta Tabla
-//Si existe, lo retorna, sino retorna NULL
-t_elem_memtable* memtable_get(char* nombreTabla)
-{
-    size_t cantElementos = Vector_size(&memTable);
+    size_t cantElementos = Vector_size(&memtable);
     t_elem_memtable* elemento;
     int i = 0;
 
     while (i < cantElementos)
     {
-        elemento = Vector_at(&memTable, i);
+        elemento = Vector_at(&memtable, i);
         //Aca puede que falle esta comparacion del if...
+        if (elemento->nombreTabla == nombreTabla)
+        {
+            Vector_push_back(&elemento->registros, registro);
+            return;
+        }
+        i++;
+    }
+
+    LISSANDRA_LOG_ERROR("No existe la tabla en la memtable");
+
+}
+
+t_elem_memtable* memtable_get(char* nombreTabla)
+{
+    size_t cantElementos = Vector_size(&memtable);
+    t_elem_memtable* elemento;
+    int i = 0;
+
+    while (i < cantElementos)
+    {
+        elemento = Vector_at(&memtable, i);
+
         if (elemento->nombreTabla == nombreTabla)
         {
             return elemento;
@@ -71,8 +81,7 @@ t_elem_memtable* memtable_get(char* nombreTabla)
     return elemento;
 }
 
-//Funcion para buscar segun una key dada el registro con mayor timestamp
-t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, int key)
+t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, u_int16_t key)
 {
     size_t cantElementos = Vector_size(&elemento->registros);
     t_registro* registro;
@@ -83,6 +92,7 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, int key)
     while (i < cantElementos)
     {
         registro = Vector_at(&elemento->registros, i);
+
         if (registro->key == key)
         {
             if (registro->timestamp > timestamp)

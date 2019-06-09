@@ -8,9 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "vector.h"
 #include "Malloc.h"
 #include "Lissandra.h"
+#include "Logger.h"
+#include "vector.h"
 
 typedef struct
 {
@@ -23,25 +24,33 @@ typedef struct
 //no tengo la menor idea :D Graciaaaaaaas!
 typedef struct
 {
-    int key;
-    int value;
+    u_int16_t key;
+    char* value;
     int timestamp;
 } t_registro;
 
 
 void crearMemtable();
 
+//Funcion para crear un nuevo elemento del tipo t_elem_memtable
 t_elem_memtable* new_elem_memtable(char* nombreTabla);
 
-t_registro* new_elem_registro(int key, int value, int timestamp);
+//Funcion para crear nuevo elemento del tipo t_registro
+t_registro* new_elem_registro(u_int16_t key, char* value, int timestamp);
 
-void insert_new_in_memTable(t_elem_memtable* elemento);
+//Funcion para meterle nuevos elementos a la memtable
+void insert_new_in_memtable(t_elem_memtable* elemento);
 
-void insert_new_in_registros(t_elem_memtable* elemento, t_registro* registro);
+//Funcion para meterle nuevos elementos (registros) al vector registros de un elemento de la memtable
+//Se necesita el nombre de la tabla al cual agregar el registro
+void insert_new_in_registros(char* nombreTabla, t_registro* registro);
 
+//Funcion para buscar, si existe, un elemento en la memTable para una cierta Tabla
+//Si existe, lo retorna, sino retorna NULL
 t_elem_memtable* memtable_get(char* nombreTabla);
 
-t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, int key);
+//Funcion para buscar segun una key dada el registro con mayor timestamp
+t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, u_int16_t key);
 
 
 #endif //LISSANDRA_MEMTABLE_H

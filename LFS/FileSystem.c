@@ -114,10 +114,10 @@ void iniciarFileSystem()
     }
     else
     {
-        //TODO: Deberia fijarse si la cantidad de archivos dentro es la misma que confLFS->CANTIDAD_BLOQUES????
+
     }
 
-    LISSANDRA_LOG_DEBUG("Se finalizo la creacion del File System");
+    LISSANDRA_LOG_TRACE("Se finalizo la creacion del File System");
 
     free(pathMetadata);
     free(pathBloques);

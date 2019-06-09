@@ -39,6 +39,6 @@ typedef struct{
 
 t_config_FS * confLFS;
 
-Vector memTable;
+Vector memtable;
 
 #endif //LISSANDRA_LISSANDRA_H
