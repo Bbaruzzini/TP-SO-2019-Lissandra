@@ -40,7 +40,7 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     Packet_Read(p, &key);
 
     ///una respuesta al paquete bien podria ser de este estilo
-    char* valor;
+    char* valor = strdup("SELECT NO IMPLEMENTADO");
     ///if (!lfs_select(nombreTabla, key, &valor))
     ///{
     ///    LISSANDRA_LOG_ERROR("Recibi tabla/key (%s/%d) invalida!", nombreTabla, key);

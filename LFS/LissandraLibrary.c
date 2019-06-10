@@ -173,12 +173,6 @@ void iniciar_servidor(void)
 
     //Ariel: Monitorear socket de conexiones entrantes
     EventDispatcher_AddFDI(sock_LFS);
-
-    //----En loop infinito acepto los clientes (memorias)
-    EventDispatcher_Loop();
-
-    // cuando finaliza el proceso, limpiar las variables utilizadas
-    Socket_Destroy(sock_LFS);
 }
 
 void mkdirRecursivo(char* path)

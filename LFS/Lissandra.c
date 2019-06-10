@@ -176,10 +176,10 @@ int main(void)
 
     //HASTA ACA
 
+    iniciar_servidor();
+
     //Aca va consola ->Update: La consola subio para aca
     pruebaConsola();
-
-    iniciar_servidor();
 
     //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
