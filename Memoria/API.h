@@ -2,6 +2,7 @@
 #ifndef Memoria_API_h
 #define Memoria_API_h
 
+#include "Frame.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <vector.h>

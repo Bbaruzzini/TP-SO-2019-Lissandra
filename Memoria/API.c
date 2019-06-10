@@ -131,6 +131,30 @@ void API_Drop(char const* tableName)
     Packet_Destroy(p);
 }
 
+void Journal_Register(void* dirtyFrame)
+{
+    uint32_t const maxValueLength = Memory_GetMaxValueLength();
+
+    DirtyFrame* const df = dirtyFrame;
+
+    Packet* p = Packet_Create(LQL_INSERT, 50);
+    Packet_Append(p, df->TableName);
+    Packet_Append(p, df->Key);
+
+    char* value = Malloc(maxValueLength + 1);
+    *value = '\0';
+    strncat(value, df->Value, maxValueLength);
+    Packet_Append(p, value);
+    Free(value);
+
+    Packet_Append(p, true); // ts present
+    Packet_Append(p, df->Timestamp);
+
+    Socket_SendPacket(FileSystemSocket, p);
+    Packet_Destroy(p);
+}
+
 void API_Journal(void)
 {
+    Memory_DoJournal(Journal_Register);
 }

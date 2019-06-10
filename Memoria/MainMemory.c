@@ -1,5 +1,6 @@
 
 #include "MainMemory.h"
+#include "API.h"
 #include "PageTable.h"
 #include "SegmentTable.h"
 #include <libcommons/bitarray.h>
@@ -118,9 +119,18 @@ Frame* Memory_Read(size_t frameNumber)
     return ((Frame*) ((uint8_t*) Memory) + frameNumber * FrameSize);
 }
 
-void Memory_DoJournal(void)
+void Memory_DoJournal(void(*insertFn)(void*))
 {
+    Vector v;
+    Vector_Construct(&v, sizeof(DirtyFrame), NULL, 0);
+    SegmentTable_GetDirtyFrames(&v);
 
+    Vector_iterate(&v, insertFn);
+
+    memset(FrameBitmap, 0, bitarray_get_max_bit(FrameStatus) / 8);
+    SegmentTable_Clean();
+
+    Vector_Destruct(&v);
 }
 
 void Memory_Destroy(void)
@@ -154,15 +164,13 @@ static size_t GetFreeFrame(void)
             i = freeFrame;
         else
         {
-            // estoy full
-            Memory_DoJournal();
+            API_Journal();
 
             // el primero disponible es el elemento 0
             i = 0;
         }
     }
-    else
-        bitarray_set_bit(FrameStatus, i);
 
+    bitarray_set_bit(FrameStatus, i);
     return i;
 }

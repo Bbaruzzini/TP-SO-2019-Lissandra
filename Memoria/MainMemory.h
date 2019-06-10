@@ -2,9 +2,10 @@
 #ifndef MainMemory_h__
 #define MainMemory_h__
 
+#include "Frame.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "Frame.h"
+#include <vector.h>
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint);
 
@@ -22,7 +23,7 @@ uint32_t Memory_GetMaxValueLength(void);
 
 Frame* Memory_Read(size_t frameNumber);
 
-void Memory_DoJournal(void);
+void Memory_DoJournal(void(*insertFn)(void*));
 
 void Memory_Destroy(void);
 

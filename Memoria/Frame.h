@@ -14,4 +14,12 @@ typedef struct
     char Value[]; // tamaño maximo seteado en tiempo de ejecucion!
 } Frame;
 
+typedef struct
+{
+    char const* TableName;
+    uint32_t Timestamp;
+    uint16_t Key;
+    char const* Value;
+} DirtyFrame;
+
 #endif //Frame_h__

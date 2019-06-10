@@ -36,7 +36,7 @@ void PageTable_AddPage(PageTable* pt, uint16_t key, size_t frame)
     list_add(pt->Frames, p);
 }
 
-struct Param
+struct ParamLRU
 {
     size_t* minCounter;
     Page** minPage;
@@ -46,7 +46,7 @@ static void SaveLRUPage(void* page, void* param)
 {
     Page* const p = page;
 
-    struct Param* const data = param;
+    struct ParamLRU* const data = param;
     if (!p->Dirty && (!*data->minPage || p->Counter < *data->minCounter))
     {
         *data->minCounter = p->Counter;
@@ -62,7 +62,7 @@ bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp
     size_t minCounter = 0;
     Page* minPage = NULL;
 
-    struct Param p =
+    struct ParamLRU p =
     {
         .minCounter = &minCounter,
         .minPage = &minPage
@@ -76,6 +76,42 @@ bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp
     *frame = minPage->Counter;
 
     return true;
+}
+
+struct ParamDF
+{
+    char const* tableName;
+    Vector* dirtyFrames;
+};
+
+void AddDirtyFrame(void* page, void* param)
+{
+    Page* const p = page;
+    if (!p->Dirty)
+        return;
+
+    Frame* f = Memory_Read(p->Frame);
+    struct ParamDF* const data = param;
+    DirtyFrame df =
+    {
+        .TableName = data->tableName,
+        .Timestamp = f->Timestamp,
+        .Key = f->Key,
+        .Value = f->Value
+    };
+
+    Vector_push_back(data->dirtyFrames, &df);
+}
+
+void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector* dirtyFrames)
+{
+    struct ParamDF p =
+    {
+        .tableName = tableName,
+        .dirtyFrames = dirtyFrames
+    };
+
+    list_iterate_with_data(pt->Frames, AddDirtyFrame, &p);
 }
 
 bool PageTable_PreemptPage(PageTable* pt, uint16_t key)

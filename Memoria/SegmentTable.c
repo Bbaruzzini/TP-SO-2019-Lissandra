@@ -112,6 +112,17 @@ bool SegmentTable_GetLRUFrame(size_t* frame)
     return true;
 }
 
+static void GetDirtyFrames(void* segment, void* vec)
+{
+    Segment* const s = segment;
+    PageTable_GetDirtyFrames(&s->Pages, s->Table, (Vector*) vec);
+}
+
+void SegmentTable_GetDirtyFrames(Vector* dirtyFrames)
+{
+    list_iterate_with_data(SegmentTable, GetDirtyFrames, dirtyFrames);
+}
+
 static void _segmentDestroy(void* segment)
 {
     Segment* const s = segment;
@@ -123,6 +134,11 @@ static void _segmentDestroy(void* segment)
 void SegmentTable_DeleteSegment(char const* tableName)
 {
     list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, tableName, _segmentDestroy);
+}
+
+void SegmentTable_Clean(void)
+{
+    list_clean_and_destroy_elements(SegmentTable, _segmentDestroy);
 }
 
 void SegmentTable_Destroy(void)
