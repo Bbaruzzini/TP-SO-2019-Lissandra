@@ -103,6 +103,18 @@ void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
     p->Dirty = true;
 }
 
+static void CleanPage(void* page)
+{
+    Page* const p = page;
+    Memory_CleanFrame(p->Frame);
+    Free(p);
+}
+
+void PageTable_Clean(PageTable* pt)
+{
+    list_clean_and_destroy_elements(pt->Frames, CleanPage);
+}
+
 void PageTable_Destruct(PageTable* pt)
 {
     list_destroy_and_destroy_elements(pt->Frames, Free);

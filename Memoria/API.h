@@ -14,7 +14,7 @@ void API_Select(char const* tableName, uint16_t key, char* value);
 void API_Insert(char const* tableName, uint16_t key, char const* value);
 
 // devuelve false si la tabla ya existe en el FS
-bool API_Create(char const* tableName, char const* consistency, uint32_t partitions, uint32_t compactionTime);
+bool API_Create(char const* tableName, char const* consistency, uint16_t partitions, uint32_t compactionTime);
 
 // solicita al FS directamente
 // results se encuentra construido con sizeof(struct MD)

@@ -22,6 +22,8 @@ void PageTable_MarkDirty(PageTable const* pt, uint16_t key);
 
 bool PageTable_PreemptPage(PageTable* pt, uint16_t key);
 
+void PageTable_Clean(PageTable* pt);
+
 void PageTable_Destruct(PageTable* pt);
 
 #endif //PageTable_h__

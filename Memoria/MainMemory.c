@@ -84,6 +84,21 @@ void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
     PageTable_MarkDirty(pt, key);
 }
 
+void Memory_CleanFrame(size_t frameNumber)
+{
+    bitarray_clean_bit(FrameStatus, frameNumber);
+}
+
+void Memory_EvictPages(char const* tableName)
+{
+    PageTable* pt = SegmentTable_GetPageTable(tableName);
+    if (!pt)
+        return;
+
+    PageTable_Clean(pt);
+    SegmentTable_DeleteSegment(tableName);
+}
+
 Frame* Memory_GetFrame(char const* tableName, uint16_t key)
 {
     PageTable* pt = SegmentTable_GetPageTable(tableName);

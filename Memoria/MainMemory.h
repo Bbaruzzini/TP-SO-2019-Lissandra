@@ -12,6 +12,10 @@ void Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
 
 void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value);
 
+void Memory_CleanFrame(size_t frameNumber);
+
+void Memory_EvictPages(char const* tableName);
+
 Frame* Memory_GetFrame(char const* tableName, uint16_t key);
 
 uint32_t Memory_GetMaxValueLength(void);

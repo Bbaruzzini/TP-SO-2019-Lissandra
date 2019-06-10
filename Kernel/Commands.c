@@ -26,34 +26,6 @@ ScriptCommand const ScriptCommands[] =
     { NULL,       NULL           }
 };
 
-static inline bool CriteriaFromString(char const* string, CriteriaType* ct)
-{
-    struct CriteriaString
-    {
-        char const* String;
-        CriteriaType Criteria;
-    };
-
-    static struct CriteriaString const cs[NUM_CRITERIA] =
-    {
-        { "SC",  CRITERIA_SC },
-        { "SHC", CRITERIA_SHC },
-        { "EC",  CRITERIA_EC }
-    };
-
-    for (uint8_t i = 0; i < NUM_CRITERIA; ++i)
-    {
-        if (!strcmp(string, cs[i].String))
-        {
-            *ct = cs[i].Criteria;
-            return true;
-        }
-    }
-
-    LISSANDRA_LOG_ERROR("Criterio %s no válido. Criterios validos: SC - SHC - EC.", string);
-    return false;
-}
-
 static inline bool ValidateKey(char const* keyString, uint16_t* result)
 {
     uint32_t k = strtoul(keyString, NULL, 10);

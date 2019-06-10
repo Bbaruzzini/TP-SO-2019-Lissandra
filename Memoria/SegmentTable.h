@@ -12,6 +12,8 @@ PageTable* SegmentTable_GetPageTable(char const* tableName);
 
 bool SegmentTable_GetLRUFrame(size_t* frame);
 
+void SegmentTable_DeleteSegment(char const* tableName);
+
 void SegmentTable_Destroy(void);
 
 #endif //SegmentTable_h__

@@ -88,6 +88,34 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
+bool CriteriaFromString(char const* string, CriteriaType* ct)
+{
+    struct CriteriaString
+    {
+        char const* String;
+        CriteriaType Criteria;
+    };
+
+    static struct CriteriaString const cs[NUM_CRITERIA] =
+    {
+        { "SC",  CRITERIA_SC },
+        { "SHC", CRITERIA_SHC },
+        { "EC",  CRITERIA_EC }
+    };
+
+    for (uint8_t i = 0; i < NUM_CRITERIA; ++i)
+    {
+        if (!strcmp(string, cs[i].String))
+        {
+            *ct = cs[i].Criteria;
+            return true;
+        }
+    }
+
+    LISSANDRA_LOG_ERROR("Criterio %s no válido. Criterios validos: SC - SHC - EC.", string);
+    return false;
+}
+
 void Criterias_Init(void)
 {
     srandom(GetMSTime());

@@ -53,6 +53,8 @@ typedef struct
     } Data;
 } DBRequest;
 
+bool CriteriaFromString(char const* string, CriteriaType* ct);
+
 void Criterias_Init(void);
 
 void Criteria_AddMemory(CriteriaType type, Socket* s);

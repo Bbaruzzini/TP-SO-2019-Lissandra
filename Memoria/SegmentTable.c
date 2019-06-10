@@ -120,6 +120,11 @@ static void _segmentDestroy(void* segment)
     Free(s);
 }
 
+void SegmentTable_DeleteSegment(char const* tableName)
+{
+    list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, tableName, _segmentDestroy);
+}
+
 void SegmentTable_Destroy(void)
 {
     Free(TablePath);
