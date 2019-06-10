@@ -128,15 +128,16 @@ bool PageTable_PreemptPage(PageTable* pt, uint16_t key)
     return list_is_empty(pt->Frames);
 }
 
-Frame* PageTable_GetFrame(PageTable const* pt, uint16_t key)
+bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page)
 {
     struct KeyWrap kw = { key };
     Page* p = list_find(pt->Frames, FindPagePred, &kw);
     if (!p)
-        return NULL;
+        return false;
 
     p->Counter = ++MonotonicCounter;
-    return Memory_Read(p->Frame);
+    *page = p->Frame;
+    return true;
 }
 
 void PageTable_MarkDirty(PageTable const* pt, uint16_t key)

@@ -20,6 +20,9 @@ typedef enum
     MSG_HANDSHAKE, /* mensaje enviado al conectar
                     *
                     * uint8_t: module id (ver enum)
+                    *
+                    * Responde: MSG_HANDSHAKE_RESPUESTA (LFS->Memoria)
+                    *           MSG_MEMORY_ID (Memoria->Kernel)
                     */
 
     // requests
@@ -70,6 +73,9 @@ typedef enum
 
     MSG_HANDSHAKE_RESPUESTA, /* uint32_t: tamanioValue
                               * char*: puntoMontaje
+                              */
+
+    MSG_MEMORY_ID,           /* uint32_t: memoryId
                               */
 
     NUM_OPCODES

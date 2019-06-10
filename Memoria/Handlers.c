@@ -2,6 +2,7 @@
 #include "Handlers.h"
 #include "API.h"
 #include "MainMemory.h"
+#include <Config.h>
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
@@ -22,12 +23,17 @@ OpcodeHandler const opcodeTable[NUM_OPCODES] =
     // respuesta de un SELECT, no se recibe sino que se envia
     { "MSG_SELECT", NULL },
 
+    { "MSG_INSERT", NULL },
+
     // respuesta del DESCRIBE, se envia
     { "MSG_DESCRIBE",        NULL },
     { "MSG_DESCRIBE_GLOBAL", NULL },
 
     // el kernel envia este query
-    { "LQL_JOURNAL", HandleJournalOpcode }
+    { "LQL_JOURNAL", HandleJournalOpcode },
+
+    { "MSG_HANDSHAKE_RESPUESTA" , NULL },
+    { "MSG_MEMORY_ID", NULL }
 };
 
 void HandleHandshakeOpcode(Socket* s, Packet* p)
@@ -43,6 +49,12 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
     }
 
     LISSANDRA_LOG_INFO("Se conecto el kernel en el fd: %d\n", s->_impl.Handle);
+
+    uint32_t memId = config_get_long_value(sConfig, "MEMORY_NUMBER");
+    Packet* resp = Packet_Create(MSG_MEMORY_ID, 4);
+    Packet_Append(resp, memId);
+    Socket_SendPacket(s, resp);
+    Packet_Destroy(resp);
 }
 
 void HandleSelectOpcode(Socket* s, Packet* p)
@@ -89,6 +101,11 @@ void HandleInsertOpcode(Socket* s, Packet* p)
 
     Free(tableName);
     Free(value);
+
+    // respuesta vacia para que el kernel sepa que procese el comando
+    Packet* res = Packet_Create(MSG_INSERT, 0);
+    Socket_SendPacket(s, res);
+    Packet_Destroy(res);
 }
 
 void HandleCreateOpcode(Socket* s, Packet* p)

@@ -25,9 +25,7 @@ static size_t GetFreeFrame(void);
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
-    pthread_rwlock_rdlock(&sConfigLock);
     size_t allocSize = config_get_long_value(sConfig, "TAM_MEM");
-    pthread_rwlock_unlock(&sConfigLock);
 
     // malloc de n bytes contiguos
     Memory = Malloc(allocSize);
@@ -65,13 +63,14 @@ void Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
 void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
 {
     PageTable* pt = SegmentTable_GetPageTable(tableName);
-    Frame* f = NULL;
+    size_t i;
+    bool res = false;
     if (pt)
-        f = PageTable_GetFrame(pt, key);
+        res = PageTable_GetFrameNumber(pt, key, &i);
 
-    if (!f)
+    if (!res)
     {
-        size_t i = GetFreeFrame();
+        i = GetFreeFrame();
         pt = SegmentTable_GetPageTable(tableName);
         if (!pt)
             pt = SegmentTable_CreateSegment(tableName);
@@ -79,9 +78,7 @@ void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
         PageTable_AddPage(pt, key, i);
     }
 
-    size_t const frameOffset = f - Memory;
-    WriteFrame(frameOffset, key, value);
-
+    WriteFrame(i, key, value);
     PageTable_MarkDirty(pt, key);
 }
 
@@ -106,7 +103,11 @@ Frame* Memory_GetFrame(char const* tableName, uint16_t key)
     if (!pt)
         return NULL;
 
-    return PageTable_GetFrame(pt, key);
+    size_t frame;
+    if (!PageTable_GetFrameNumber(pt, key, &frame))
+        return NULL;
+
+    return Memory_Read(frame);
 }
 
 uint32_t Memory_GetMaxValueLength(void)
@@ -146,7 +147,7 @@ static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)
     Frame* const f = Memory_Read(frameNumber);
     f->Key = key;
     f->Timestamp = GetMSTime();
-    memcpy(f->Value, value, MaxValueLength);
+    strncpy(f->Value, value, MaxValueLength);
 }
 
 static size_t GetFreeFrame(void)

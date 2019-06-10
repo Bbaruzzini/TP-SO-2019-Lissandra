@@ -19,7 +19,7 @@ bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp
 
 void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector* dirtyFrames);
 
-Frame* PageTable_GetFrame(PageTable const* pt, uint16_t key);
+bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page);
 
 void PageTable_MarkDirty(PageTable const* pt, uint16_t key);
 

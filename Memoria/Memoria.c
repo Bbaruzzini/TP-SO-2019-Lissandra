@@ -64,12 +64,10 @@ static void IniciarDispatch(void)
 static void LoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
-    pthread_rwlock_wrlock(&sConfigLock);
     if (sConfig)
         config_destroy(sConfig);
 
     sConfig = config_create(fileName);
-    pthread_rwlock_unlock(&sConfigLock);
 }
 
 static void SetupConfigInitial(char const* fileName)
@@ -103,7 +101,6 @@ static void MainLoop(void)
 
 static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
 {
-    pthread_rwlock_rdlock(&sConfigLock);
     char* const fs_ip = config_get_string_value(sConfig, "IP_FS");
     char* const fs_port = config_get_string_value(sConfig, "PUERTO_FS");
 
@@ -115,7 +112,6 @@ static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
         .SocketOnAcceptClient = NULL
     };
     FileSystemSocket = Socket_Create(&so);
-    pthread_rwlock_unlock(&sConfigLock);
 
     if (!FileSystemSocket)
     {
@@ -149,7 +145,6 @@ static void StartMemory(void)
     Memory_Initialize(maxValueLength, mountPoint);
     Free(mountPoint);
 
-    pthread_rwlock_rdlock(&sConfigLock);
     char* const listen_port = config_get_string_value(sConfig, "PUERTO");
 
     SocketOpts const so =
@@ -160,7 +155,6 @@ static void StartMemory(void)
         .SocketOnAcceptClient = NULL
     };
     ListeningSocket = Socket_Create(&so);
-    pthread_rwlock_unlock(&sConfigLock);
 
     if (!ListeningSocket)
     {
@@ -189,6 +183,7 @@ static void Cleanup(void)
 int main(void)
 {
     static char const configFileName[] = "memoria.conf";
+
     IniciarLogger();
     IniciarDispatch();
     SigintSetup();

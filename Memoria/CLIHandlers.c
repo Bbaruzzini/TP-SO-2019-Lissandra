@@ -9,6 +9,7 @@
 
 static inline bool ValidateKey(char const* keyString, uint16_t* result)
 {
+    errno = 0;
     uint32_t k = strtoul(keyString, NULL, 10);
     if (errno || k > UINT16_MAX)
     {
