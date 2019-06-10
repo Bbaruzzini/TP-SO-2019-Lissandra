@@ -2,21 +2,12 @@
 #include "API.h"
 #include "FileSystemSocket.h"
 #include "Frame.h"
-#include "Kernel/Criteria.h"
 #include "MainMemory.h"
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
 #include <string.h>
-
-typedef struct
-{
-    char* tableName;
-    CriteriaType ct;
-    uint16_t parts;
-    uint32_t compTime;
-} MD;
 
 void API_Select(char const* tableName, uint16_t key, char* value)
 {
@@ -59,15 +50,11 @@ void API_Insert(char const* tableName, uint16_t key, char const* value)
     Memory_UpdateValue(tableName, key, value);
 }
 
-bool API_Create(char const* tableName, char const* consistency, uint16_t partitions, uint32_t compactionTime)
+bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)
 {
-    CriteriaType ct;
-    if (!CriteriaFromString(consistency, &ct))
-        return false;
-
     Packet* p = Packet_Create(LQL_CREATE, 16 + 3 + 4 + 4); // adivinar tamaño
     Packet_Append(p, tableName);
-    Packet_Append(p, (uint8_t) ct);
+    Packet_Append(p, (uint8_t) consistency);
     Packet_Append(p, partitions);
     Packet_Append(p, compactionTime);
 
@@ -98,20 +85,16 @@ void API_Describe(char const* tableName, Vector* results)
             Packet_Read(p, &numTables);
             break;
         default:
-        {
             LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
             return;
-        }
     }
 
     Vector_reserve(results, numTables);
     for (uint32_t i = 0; i < numTables; ++i)
     {
-        MD Metadata;
-        uint8_t ct;
+        TableMD Metadata;
         Packet_Read(p, &Metadata.tableName);
-        Packet_Read(p, &ct);
-        Metadata.ct = (CriteriaType) ct;
+        Packet_Read(p, &Metadata.ct);
         Packet_Read(p, &Metadata.parts);
         Packet_Read(p, &Metadata.compTime);
 

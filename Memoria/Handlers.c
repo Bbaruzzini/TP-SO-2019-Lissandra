@@ -1,5 +1,7 @@
 
 #include "Handlers.h"
+#include "API.h"
+#include "MainMemory.h"
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
@@ -45,30 +47,121 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
 
 void HandleSelectOpcode(Socket* s, Packet* p)
 {
+    char* tableName;
+    uint16_t key;
 
+    Packet_Read(p, &tableName);
+    Packet_Read(p, &key);
+
+    uint32_t maxValueLength = Memory_GetMaxValueLength();
+
+    char* value = Malloc(maxValueLength + 1);
+    API_Select(tableName, key, value);
+
+    Packet* resp = Packet_Create(MSG_SELECT, maxValueLength + 1);
+    Packet_Append(resp, value);
+    Socket_SendPacket(s, resp);
+    Packet_Destroy(resp);
+
+    Free(value);
+    Free(tableName);
 }
 
 void HandleInsertOpcode(Socket* s, Packet* p)
 {
+    (void) s;
 
+    char* tableName;
+    uint16_t key;
+    char* value;
+    bool ts;
+
+    Packet_Read(p, &tableName);
+    Packet_Read(p, &key);
+    Packet_Read(p, &value);
+    Packet_Read(p, &ts);
+
+    // en el kernel el timestamp no se pone
+    if (ts)
+        LISSANDRA_LOG_ERROR("INSERT: Recibi un paquete de kernel con timestamp!");
+
+    API_Insert(tableName, key, value);
+
+    Free(tableName);
+    Free(value);
 }
 
 void HandleCreateOpcode(Socket* s, Packet* p)
 {
+    (void) s;
 
+    char* tableName;
+    uint8_t ct;
+    uint16_t parts;
+    uint32_t compactionTime;
+
+    Packet_Read(p, &tableName);
+    Packet_Read(p, &ct);
+    Packet_Read(p, &parts);
+    Packet_Read(p, &compactionTime);
+
+    API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
+}
+
+static void AddToPacket(void* md, void* packet)
+{
+    TableMD* const p = md;
+    Packet* const resp = packet;
+
+    Packet_Append(resp, p->tableName);
+    Packet_Append(resp, p->ct);
+    Packet_Append(resp, p->parts);
+    Packet_Append(resp, p->compTime);
 }
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
+    bool tablePresent;
+    Packet_Read(p, &tablePresent);
 
+    char* tableName = NULL;
+    if (tablePresent)
+        Packet_Read(p, &tableName);
+
+    Vector v;
+    Vector_Construct(&v, sizeof(TableMD), FreeMD, 0);
+
+    API_Describe(tableName, &v);
+
+    Packet* resp = Packet_Create(Vector_size(&v) == 1 ? MSG_DESCRIBE : MSG_DESCRIBE_GLOBAL, 100);
+    if (Packet_GetOpcode(resp) == MSG_DESCRIBE_GLOBAL)
+        Packet_Append(p, Vector_size(&v));
+
+    Vector_iterate_with_data(&v, AddToPacket, resp);
+    Vector_Destruct(&v);
+
+    Socket_SendPacket(s, resp);
+    Packet_Destroy(resp);
+
+    Free(tableName);
 }
 
 void HandleDropOpcode(Socket* s, Packet* p)
 {
+    (void) s;
 
+    char* tableName;
+    Packet_Read(p, &tableName);
+
+    API_Drop(tableName);
+
+    Free(tableName);
 }
 
 void HandleJournalOpcode(Socket* s, Packet* p)
 {
+    (void) s;
+    (void) p;
 
+    API_Journal();
 }

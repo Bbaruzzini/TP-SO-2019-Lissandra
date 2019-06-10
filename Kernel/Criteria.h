@@ -3,7 +3,10 @@
 #define Criteria_h__
 
 #include "Metric.h"
+#include <Logger.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 typedef struct Socket Socket;
 
@@ -15,6 +18,34 @@ typedef enum
 
     NUM_CRITERIA
 } CriteriaType;
+
+struct CriteriaString
+{
+    char const* String;
+    CriteriaType Criteria;
+};
+
+static struct CriteriaString const CriteriaString[NUM_CRITERIA] =
+{
+    { "SC",  CRITERIA_SC },
+    { "SHC", CRITERIA_SHC },
+    { "EC",  CRITERIA_EC }
+};
+
+static inline bool CriteriaFromString(char const* string, CriteriaType* ct)
+{
+    for (uint8_t i = 0; i < NUM_CRITERIA; ++i)
+    {
+        if (!strcmp(string, CriteriaString[i].String))
+        {
+            *ct = CriteriaString[i].Criteria;
+            return true;
+        }
+    }
+
+    LISSANDRA_LOG_ERROR("Criterio %s no válido. Criterios validos: SC - SHC - EC.", string);
+    return false;
+}
 
 typedef enum
 {
@@ -52,8 +83,6 @@ typedef struct
         } Create;
     } Data;
 } DBRequest;
-
-bool CriteriaFromString(char const* string, CriteriaType* ct);
 
 void Criterias_Init(void);
 

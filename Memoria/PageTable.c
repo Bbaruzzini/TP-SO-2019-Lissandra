@@ -14,10 +14,17 @@ typedef struct
     bool Dirty;
 } Page;
 
-static bool FindPagePred(void* page, void* key)
+struct KeyWrap
+{
+    uint16_t key;
+};
+
+static bool FindPagePred(void* page, void* kw)
 {
     Page* const p = page;
-    return p->Key == (uint16_t) key;
+    struct KeyWrap* const k = kw;
+
+    return p->Key == k->key;
 }
 
 void PageTable_Construct(PageTable* pt)
@@ -116,13 +123,15 @@ void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector
 
 bool PageTable_PreemptPage(PageTable* pt, uint16_t key)
 {
-    list_remove_and_destroy_by_condition(pt->Frames, FindPagePred, (void*) key, Free);
+    struct KeyWrap kw = { key };
+    list_remove_and_destroy_by_condition(pt->Frames, FindPagePred, &kw, Free);
     return list_is_empty(pt->Frames);
 }
 
 Frame* PageTable_GetFrame(PageTable const* pt, uint16_t key)
 {
-    Page* p = list_find(pt->Frames, FindPagePred, (void*) key);
+    struct KeyWrap kw = { key };
+    Page* p = list_find(pt->Frames, FindPagePred, &kw);
     if (!p)
         return NULL;
 
@@ -132,7 +141,8 @@ Frame* PageTable_GetFrame(PageTable const* pt, uint16_t key)
 
 void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
 {
-    Page* p = list_find(pt->Frames, FindPagePred, (void*) key);
+    struct KeyWrap kw = { key };
+    Page* p = list_find(pt->Frames, FindPagePred, &kw);
     if (!p)
         return;
 

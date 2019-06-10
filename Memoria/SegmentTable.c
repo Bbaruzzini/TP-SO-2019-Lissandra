@@ -133,7 +133,7 @@ static void _segmentDestroy(void* segment)
 
 void SegmentTable_DeleteSegment(char const* tableName)
 {
-    list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, tableName, _segmentDestroy);
+    list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, (void*) tableName, _segmentDestroy);
 }
 
 void SegmentTable_Clean(void)

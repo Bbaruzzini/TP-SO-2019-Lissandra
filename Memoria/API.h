@@ -3,9 +3,25 @@
 #define Memoria_API_h
 
 #include "Frame.h"
+#include "Kernel/Criteria.h"
+#include <Malloc.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <vector.h>
+
+typedef struct
+{
+    char* tableName;
+    uint8_t ct;
+    uint16_t parts;
+    uint32_t compTime;
+} TableMD;
+
+static inline void FreeMD(void* md)
+{
+    TableMD* const p = md;
+    Free(p->tableName);
+}
 
 // devuelve value o NULL si no se encuentra
 // value debe apuntar a un espacio con (maxValueLength+1) bytes
@@ -15,7 +31,7 @@ void API_Select(char const* tableName, uint16_t key, char* value);
 void API_Insert(char const* tableName, uint16_t key, char const* value);
 
 // devuelve false si la tabla ya existe en el FS
-bool API_Create(char const* tableName, char const* consistency, uint16_t partitions, uint32_t compactionTime);
+bool API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uint32_t compactionTime);
 
 // solicita al FS directamente
 // results se encuentra construido con sizeof(struct MD)
