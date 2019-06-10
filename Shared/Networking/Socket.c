@@ -127,6 +127,10 @@ Packet* Socket_RecvPacket(Socket* s)
         return NULL;
     }
 
+    // manejo especial de paquetes vacios (recv se queda bloqueado)
+    if (!header->size)
+        return Packet_Create(header->cmd, 0);
+
     if (header->size > s->PacketBuffSize)
     {
         s->PacketBuffer = Realloc(s->PacketBuffer, header->size);
@@ -209,7 +213,10 @@ static bool _acceptCb(void* socket)
 
     Socket* client = _initSocket(&si);
     if (listener->SockAcceptFn)
+    {
         listener->SockAcceptFn(listener, client);
+        return true;
+    }
 
     EventDispatcher_AddFDI(client);
     return true;
