@@ -86,13 +86,19 @@ typedef struct
 
 void Criterias_Init(void);
 
-void Criteria_AddMemory(CriteriaType type, Socket* s);
+void Criteria_ConnectMemory(uint32_t memId, Socket* s);
+
+bool Criteria_MemoryExists(uint32_t memId);
+
+void Criteria_AddMemory(CriteriaType type, uint32_t memId);
 
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
 
 void Criterias_Report(void);
 
 Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr);
+
+void Criteria_DisconnectMemory(uint32_t memId);
 
 void Criterias_Destroy(void);
 

@@ -14,7 +14,7 @@
 typedef struct
 {
     Metrics* MemMetrics;
-    Socket* MemSocket;
+    uint32_t MemId;
 } Memory;
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
@@ -88,14 +88,18 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
+static t_hashmap* MemoryMap = NULL;
+
 void Criterias_Init(void)
 {
+    MemoryMap = hashmap_create();
+
     srandom(GetMSTime());
 
     // ugly pero bue
     Criteria_SC* sc = Malloc(sizeof(Criteria_SC));
     _initBase(sc, _sc_add, _sc_dispatch, _sc_report, _sc_destroy);
-    sc->SCMem = NULL;
+    sc->SCMem = 0;
 
     Criteria_SHC* shc = Malloc(sizeof(Criteria_SHC));
     _initBase(shc, _shc_add, _shc_dispatch, _shc_report, _shc_destroy);
@@ -110,13 +114,29 @@ void Criterias_Init(void)
     Criterias[CRITERIA_EC] = (Criteria*) ec;
 }
 
-void Criteria_AddMemory(CriteriaType type, Socket* s)
+void Criteria_ConnectMemory(uint32_t memId, Socket* s)
+{
+    if (Criteria_MemoryExists(memId))
+    {
+        LISSANDRA_LOG_ERROR("Intento de agregar memoria %u ya existente!", memId);
+        return;
+    }
+
+    hashmap_put(MemoryMap, memId, s);
+}
+
+bool Criteria_MemoryExists(uint32_t memId)
+{
+    return hashmap_has_key(MemoryMap, memId);
+}
+
+void Criteria_AddMemory(CriteriaType type, uint32_t memId)
 {
     Criteria* const itr = Criterias[type];
 
     Memory* mem = Malloc(sizeof(Memory));
     mem->MemMetrics = Metrics_Create();
-    mem->MemSocket = s;
+    mem->MemId = memId;
     itr->AddMemoryFn(itr, mem);
 }
 
@@ -177,10 +197,50 @@ Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
     return itr->DispatchFn(itr, op, dbr);
 }
 
+static bool FindMemByIdPred(void* mem, void* id)
+{
+    Memory* const m = mem;
+    return m->MemId == (uint32_t) id;
+}
+
+void Criteria_DisconnectMemory(uint32_t memId)
+{
+    if (!Criteria_MemoryExists(memId))
+    {
+        LISSANDRA_LOG_ERROR("Intento de quitar memoria %u no existente!", memId);
+        return;
+    }
+
+    Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
+    if (sc->SCMem->MemId == memId)
+    {
+        _destroy_mem(sc->SCMem);
+        sc->SCMem = NULL;
+    }
+
+    Criteria_SHC* shc = (Criteria_SHC*) Criterias[CRITERIA_SHC];
+    Memory** data = Vector_data(&shc->MemoryArr);
+    for (size_t i = 0; i < Vector_size(&shc->MemoryArr); ++i)
+    {
+        if (data[i]->MemId == memId)
+        {
+            Vector_erase(&shc->MemoryArr, i);
+            break;
+        }
+    }
+
+    Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
+    list_remove_and_destroy_by_condition(ec->MemoryList, FindMemByIdPred, (void*) memId, _destroy_mem);
+
+    hashmap_remove_and_destroy(MemoryMap, memId, Socket_Destroy);
+}
+
 void Criterias_Destroy(void)
 {
     for (unsigned type = 0; type < NUM_CRITERIA; ++type)
         _destroy(Criterias[type]);
+
+    hashmap_destroy_and_destroy_elements(MemoryMap, Socket_Destroy);
 }
 
 /* PRIVATE */
@@ -198,7 +258,6 @@ static void _destroy_mem(void* elem)
 {
     Memory* const m = elem;
     Metrics_Destroy(m->MemMetrics);
-    // EventDispatcher elimina el socket
     Free(m);
 }
 
@@ -412,7 +471,13 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
         _build_journal
     };
 
-    Socket* const s = mem->MemSocket;
+    Socket* const s = hashmap_get(MemoryMap, mem->MemId);
+    if (!s)
+    {
+        LISSANDRA_LOG_ERROR("Dispatch: memoria %u inexistente", mem->MemId);
+        return NULL;
+    }
+
     Packet* p = PacketBuilders[op](dbr);
 
     Socket_SendPacket(s, p);

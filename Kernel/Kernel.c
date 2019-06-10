@@ -12,7 +12,10 @@
 #include <libcommons/config.h>
 #include <libcommons/string.h>
 #include <Logger.h>
+#include <Opcodes.h>
+#include <Packet.h>
 #include <pthread.h>
+#include <Socket.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -70,13 +73,49 @@ static void InitConsole(void)
     CLICommandQueue = LockedQueue_Create();
 
     // subimos el nivel a errores para no entorpecer la consola
-    Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
+    //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
 }
 
 static void InitMemorySubsystem(void)
 {
     Criterias_Init();
     Metadata_Init();
+
+    char* const seed_ip = config_get_string_value(sConfig, "IP_MEMORIA");
+    char* const seed_port = config_get_string_value(sConfig, "PUERTO_MEMORIA");
+
+    SocketOpts const so =
+    {
+        .HostName = seed_ip,
+        .ServiceOrPort = seed_port,
+        .SocketMode = SOCKET_CLIENT,
+        .SocketOnAcceptClient = NULL
+    };
+    Socket* s = Socket_Create(&so);
+    if (!s)
+    {
+        LISSANDRA_LOG_FATAL("No pude conectarme a la memoria semilla!!");
+        exit(1);
+    }
+
+    static uint8_t const id = KERNEL;
+    Packet* p = Packet_Create(MSG_HANDSHAKE, 1);
+    Packet_Append(p, id);
+    Socket_SendPacket(s, p);
+    Packet_Destroy(p);
+
+    p = Socket_RecvPacket(s);
+    if (Packet_GetOpcode(p) != MSG_MEMORY_ID)
+    {
+        LISSANDRA_LOG_FATAL("Memoria envió respuesta inválida.");
+        exit(1);
+    }
+
+    uint32_t memId;
+    Packet_Read(p, &memId);
+    Packet_Destroy(p);
+
+    Criteria_ConnectMemory(memId, s);
 }
 
 static void MainLoop(void)

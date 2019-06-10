@@ -28,6 +28,7 @@ ScriptCommand const ScriptCommands[] =
 
 static inline bool ValidateKey(char const* keyString, uint16_t* result)
 {
+    errno = 0;
     uint32_t k = strtoul(keyString, NULL, 10);
     if (errno || k > UINT16_MAX)
     {
@@ -114,12 +115,13 @@ bool HandleInsert(Vector const* args)
     char* const key = tokens[2];
     char* const value = tokens[3];
 
-    CriteriaType ct;
-    if (!Metadata_Get(table, &ct))
+    // todo: para probar
+    CriteriaType ct = CRITERIA_SC;
+    /*if (!Metadata_Get(table, &ct))
     {
         LISSANDRA_LOG_ERROR("INSERT: Tabla %s no encontrada en metadata", table);
         return false;
-    }
+    }*/
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -346,7 +348,7 @@ bool HandleAdd(Vector const* args)
     }
 
     uint32_t memIdx = strtoul(idx, NULL, 10);
-    if (!memIdx)
+    if (!memIdx || !Criteria_MemoryExists(memIdx))
     {
         LISSANDRA_LOG_ERROR("ADD: Memoria %s no válida", idx);
         return false;
@@ -362,9 +364,7 @@ bool HandleAdd(Vector const* args)
     if (!CriteriaFromString(criteria, &type))
         return false;
 
-    //TODO
-    //Socket* s = MemoryMgr_GetConnection(memIdx);
-    Criteria_AddMemory(type, NULL /*s*/);
+    Criteria_AddMemory(type, memIdx);
     return true;
 }
 
