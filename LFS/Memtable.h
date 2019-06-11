@@ -24,9 +24,9 @@ typedef struct
 //no tengo la menor idea :D Graciaaaaaaas!
 typedef struct
 {
-    u_int16_t key;
+    uint16_t key;
     char* value;
-    int timestamp;
+    time_t timestamp;
 } t_registro;
 
 
@@ -36,7 +36,7 @@ void crearMemtable();
 t_elem_memtable* new_elem_memtable(char* nombreTabla);
 
 //Funcion para crear nuevo elemento del tipo t_registro
-t_registro* new_elem_registro(u_int16_t key, char* value, int timestamp);
+t_registro* new_elem_registro(uint16_t key, char* value, time_t timestamp);
 
 //Funcion para meterle nuevos elementos a la memtable
 void insert_new_in_memtable(t_elem_memtable* elemento);
@@ -50,7 +50,7 @@ void insert_new_in_registros(char* nombreTabla, t_registro* registro);
 t_elem_memtable* memtable_get(char* nombreTabla);
 
 //Funcion para buscar segun una key dada el registro con mayor timestamp
-t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, u_int16_t key);
+t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t key);
 
 
 #endif //LISSANDRA_MEMTABLE_H

@@ -46,6 +46,8 @@ int traverse(char* fn, t_list* lista, char* tabla);
 
 bool dirIsEmpty(char* path);
 
+bool hayDump(char* nombreTabla);
+
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

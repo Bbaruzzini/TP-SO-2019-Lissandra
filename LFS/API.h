@@ -8,19 +8,10 @@
 #include "LissandraLibrary.h"
 #include "FileSystem.h"
 
-
 //void select(char* nombreTabla,int key);
-//void insert(char* nombreTabla, int key, char* value, int timeStamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
-int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime);
-void* describe(char* tabla);
+int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp); //MODIFICAR EL TIPO DE DATO DE TIMESTAMP
+int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime);
+void* describe(char* nombreTabla);
 //void drop(char* nombreTabla);
-
-
-CLICommandHandlerFn HandleSelect;
-CLICommandHandlerFn HandleInsert;
-CLICommandHandlerFn HandleCreate;
-CLICommandHandlerFn HandleDescribe;
-CLICommandHandlerFn HandleDrop;
-
 
 #endif //LFS_API_h__

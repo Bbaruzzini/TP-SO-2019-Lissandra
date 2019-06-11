@@ -2,7 +2,56 @@
 
 #include "API.h"
 
-int create(char* nombreTabla, char* tipoConsistencia, int numeroParticiones, int compactionTime)
+int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp)
+{
+    //Verifica si la tabla existe en el File System
+    char* path = generarPathTabla(nombreTabla);
+
+    if (!existeDir(path))
+    {
+
+        LISSANDRA_LOG_ERROR("La tabla ingresada para INSERT: %s no existe en el File System", nombreTabla);
+        printf("ERROR: La tabla ingresada: %s no existe en el File System\n", nombreTabla);
+        return EXIT_FAILURE;
+
+    }
+
+    //Esto comentado creo que no va. No recuerdo ni por que lo hice...
+    /*
+    //Si la tabla existe, carga los datos de su metadata en tableMetadata
+    char* pathMetadataTabla = string_new();
+    string_append(&pathMetadataTabla, path);
+    string_append(&pathMetadataTabla, "/Metadata.bin");
+
+    t_describe* tableMetadata;
+    tableMetadata = get_table_metadata(pathMetadataTabla, nombreTabla);
+    */
+
+    //Verifica si hay datos a dumpear, y si no existen aloca memoria
+    if (!hayDump(nombreTabla))
+    {
+
+        t_elem_memtable* newElem = new_elem_memtable(nombreTabla);
+        insert_new_in_memtable(newElem);
+
+    }
+    //Si el parametro timestamp es nulo, se obtiene el valor actual del Epoch UNIX
+    if (timestamp == 0)
+    {
+
+        timestamp = (unsigned) time(NULL);
+
+    }
+
+    t_registro* newReg = new_elem_registro(key, value, timestamp);
+    insert_new_in_registros(nombreTabla, newReg);
+
+    LISSANDRA_LOG_INFO("Se inserto un nuevo registro en la tabla %s", nombreTabla);
+
+    return EXIT_SUCCESS;
+}
+
+int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     char nomTabla[100];
@@ -146,7 +195,7 @@ void drop(char* nombreTabla){
 }
 */
 
-void* describe(char* tabla)
+void* describe(char* nombreTabla)
 {
 
     char* dirTablas;
@@ -156,7 +205,7 @@ void* describe(char* tabla)
     string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
     string_append(&dirTablas, "Tables");
 //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
-    if (strcmp(tabla, "") == 0)
+    if (strcmp(nombreTabla, "") == 0)
     {
 
         realpath = dirTablas;
@@ -189,7 +238,7 @@ void* describe(char* tabla)
     {
 
         string_append(&dirTablas, "/");
-        string_append(&dirTablas, tabla);
+        string_append(&dirTablas, nombreTabla);
         realpath = dirTablas;
 
         if (!existeDir(realpath))
@@ -206,7 +255,7 @@ void* describe(char* tabla)
         realpath = dirTablas;
 
         t_describe* tableMetadata = Malloc(sizeof(t_describe));
-        tableMetadata = get_table_metadata(realpath, tabla);
+        tableMetadata = get_table_metadata(realpath, nombreTabla);
 
         //Pruebas Brenda/Denise desde ACA
         printf("Por aca tambien paso\n");
@@ -224,48 +273,6 @@ void* describe(char* tabla)
 
 }
 
-void HandleSelect(Vector const* args)
-{
-    (void) args;
-}
 
-void HandleInsert(Vector const* args)
-{
-    (void) args;
-}
 
-void HandleCreate(Vector const* args)
-{
-    (void) args;
-}
-
-void HandleDescribe(Vector const* args)
-{/*
-    //           cmd args
-    //           0        1
-    // sintaxis: DESCRIBE [name]
-
-    if (Vector_size(args) > 2)
-    {
-        LISSANDRA_LOG_ERROR("DESCRIBE: Uso - DESCRIBE [tabla]");
-        return false;
-    }
-
-    char** const tokens = Vector_data(args);
-
-    char* table = NULL;
-    if (Vector_size(args) == 2)
-        table = tokens[1];
-
-    DBRequest dbr;
-    dbr.TableName = table;
-
-    //ACA VA LA FUNCION DE DESCRIBE
-  Metadata_Clear();  */ //ESTO LO PONEMOS POR LAS DUDAS PARA IR VIENDO SI ES NECESARIO O NO.
-}
-
-void HandleDrop(Vector const* args)
-{
-    (void) args;
-}
 

@@ -401,3 +401,16 @@ bool dirIsEmpty(char* path)
     else
         return false;
 }
+
+bool hayDump(char* nombreTabla)
+{
+    t_elem_memtable* elemento = memtable_get(nombreTabla);
+    if (elemento == NULL)
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
