@@ -172,7 +172,13 @@ static void PeriodicDescribe(void)
 {
     static uint8_t ct = CRITERIA_SC;
 
-    Criteria_Dispatch(ct, OP_DESCRIBE, NULL);
+    // hago un describe global
+    static DBRequest const dbr =
+    {
+        .TableName = NULL,
+        .Data = {{ 0 }}
+    };
+    Criteria_Dispatch(ct, OP_DESCRIBE, &dbr);
 
     // ciclar entre los diferentes criterios en cada refresco automatico
     ++ct;
