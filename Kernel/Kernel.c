@@ -125,8 +125,9 @@ static void InitMemorySubsystem(void)
     uint32_t memId;
     Packet_Read(p, &memId);
     Packet_Destroy(p);
+    Socket_Destroy(s);
 
-    Criteria_ConnectMemory(memId, s);
+    Criteria_ConnectMemory(memId, seed_ip, seed_port);
 }
 
 static void MainLoop(void)

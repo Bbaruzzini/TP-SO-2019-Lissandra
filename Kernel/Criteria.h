@@ -86,7 +86,7 @@ typedef struct
 
 void Criterias_Init(void);
 
-void Criteria_ConnectMemory(uint32_t memId, Socket* s);
+void Criteria_ConnectMemory(uint32_t memId, char const* address, char const* serviceOrPort);
 
 bool Criteria_MemoryExists(uint32_t memId);
 

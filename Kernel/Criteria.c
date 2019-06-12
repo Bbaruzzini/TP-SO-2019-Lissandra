@@ -7,15 +7,23 @@
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <Timer.h>
 #include <vector.h>
 
 typedef struct
 {
-    Metrics* MemMetrics;
     uint32_t MemId;
+    Metrics* MemMetrics;
+    Socket* MemSocket;
 } Memory;
+
+typedef struct
+{
+    char Ip[INET6_ADDRSTRLEN];
+    char Port[10 + 1]; //10 digitos, deberia ser suficiente
+} MemoryConnectionData;
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
 typedef Socket* DispatchFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
@@ -88,11 +96,11 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
-static t_hashmap* MemoryMap = NULL;
+static t_hashmap* MemoryIPMap = NULL;
 
 void Criterias_Init(void)
 {
-    MemoryMap = hashmap_create();
+    MemoryIPMap = hashmap_create();
 
     srandom(GetMSTime());
 
@@ -114,7 +122,7 @@ void Criterias_Init(void)
     Criterias[CRITERIA_EC] = (Criteria*) ec;
 }
 
-void Criteria_ConnectMemory(uint32_t memId, Socket* s)
+void Criteria_ConnectMemory(uint32_t memId, char const* address, char const* serviceOrPort)
 {
     if (Criteria_MemoryExists(memId))
     {
@@ -122,21 +130,47 @@ void Criteria_ConnectMemory(uint32_t memId, Socket* s)
         return;
     }
 
-    hashmap_put(MemoryMap, memId, s);
+    MemoryConnectionData* mcd = Malloc(sizeof(MemoryConnectionData));
+    snprintf(mcd->Ip, INET6_ADDRSTRLEN, "%s", address);
+    snprintf(mcd->Port, 10 + 1, "%s", serviceOrPort);
+
+    hashmap_put(MemoryIPMap, memId, mcd);
 }
 
 bool Criteria_MemoryExists(uint32_t memId)
 {
-    return hashmap_has_key(MemoryMap, memId);
+    return hashmap_has_key(MemoryIPMap, memId);
 }
 
 void Criteria_AddMemory(CriteriaType type, uint32_t memId)
 {
     Criteria* const itr = Criterias[type];
 
+    MemoryConnectionData* mcd = hashmap_get(MemoryIPMap, memId);
+    if (!mcd)
+    {
+        LISSANDRA_LOG_ERROR("Criteria_AddMemory: Intento de agregar memoria %u no existente", memId);
+        return;
+    }
+
+    SocketOpts const so =
+    {
+        .HostName = mcd->Ip,
+        .ServiceOrPort = mcd->Port,
+        .SocketMode = SOCKET_CLIENT,
+        .SocketOnAcceptClient = NULL
+    };
+    Socket* s = Socket_Create(&so);
+    if (!s)
+    {
+        LISSANDRA_LOG_ERROR("Criteria_AddMemory: Error al crear socket para memoria %u!", memId);
+        return;
+    }
+
     Memory* mem = Malloc(sizeof(Memory));
-    mem->MemMetrics = Metrics_Create();
     mem->MemId = memId;
+    mem->MemMetrics = Metrics_Create();
+    mem->MemSocket = s;
     itr->AddMemoryFn(itr, mem);
 }
 
@@ -232,7 +266,7 @@ void Criteria_DisconnectMemory(uint32_t memId)
     Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
     list_remove_and_destroy_by_condition(ec->MemoryList, FindMemByIdPred, (void*) memId, _destroy_mem);
 
-    hashmap_remove_and_destroy(MemoryMap, memId, Socket_Destroy);
+    hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
 }
 
 void Criterias_Destroy(void)
@@ -240,7 +274,7 @@ void Criterias_Destroy(void)
     for (unsigned type = 0; type < NUM_CRITERIA; ++type)
         _destroy(Criterias[type]);
 
-    hashmap_destroy_and_destroy_elements(MemoryMap, Socket_Destroy);
+    hashmap_destroy_and_destroy_elements(MemoryIPMap, Free);
 }
 
 /* PRIVATE */
@@ -258,6 +292,7 @@ static void _destroy_mem(void* elem)
 {
     Memory* const m = elem;
     Metrics_Destroy(m->MemMetrics);
+    Socket_Destroy(m->MemSocket);
     Free(m);
 }
 
@@ -471,18 +506,11 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
         _build_journal
     };
 
-    Socket* const s = hashmap_get(MemoryMap, mem->MemId);
-    if (!s)
-    {
-        LISSANDRA_LOG_ERROR("Dispatch: memoria %u inexistente", mem->MemId);
-        return NULL;
-    }
-
     Packet* p = PacketBuilders[op](dbr);
 
-    Socket_SendPacket(s, p);
+    Socket_SendPacket(mem->MemSocket, p);
     Packet_Destroy(p);
-    return s;
+    return mem->MemSocket;
 }
 
 static void _shc_report_one(void* pElem, void* rt)
