@@ -22,7 +22,6 @@ static void _delete_task(TCB* tcb);
 
 static void _addSingleLine(char const* line);
 
-static void _terminateWorker(void* pWorkId);
 static void _addToReadyQueue(TCB* tcb);
 static bool _parseCommand(char const* command);
 
@@ -45,13 +44,38 @@ void Runner_Init(void)
     size_t multiprocessing = config_get_int_value(sConfig, "MULTIPROCESAMIENTO");
     pthread_rwlock_unlock(&sConfigLock);
 
-    Vector_Construct(&WorkerIds, sizeof(pthread_t), _terminateWorker, multiprocessing);
+    pthread_attr_t attr;
+    int r = pthread_attr_init(&attr);
+    if (r < 0)
+    {
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_init");
+        return;
+    }
+
+    r = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (r < 0)
+    {
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_setdetachstate");
+        return;
+    }
+
+    Vector_Construct(&WorkerIds, sizeof(pthread_t), NULL, multiprocessing);
     for (size_t i = 0; i < multiprocessing; ++i)
     {
         pthread_t tid;
-        pthread_create(&tid, NULL, _workerThread, NULL);
+        r = pthread_create(&tid, &attr, _workerThread, NULL);
+        if (r < 0)
+        {
+            LISSANDRA_LOG_SYSERR(r, "pthread_create");
+            continue;
+        }
+
         Vector_push_back(&WorkerIds, &tid);
     }
+
+    r = pthread_attr_destroy(&attr);
+    if (r < 0)
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_destroy");
 }
 
 void Runner_AddScript(File* sc)
@@ -88,12 +112,6 @@ static void _addSingleLine(char const* line)
 {
     Vector script = string_n_split(line, 1, NULL);
     _addToReadyQueue(_create_task(&script));
-}
-
-static void _terminateWorker(void* pWorkId)
-{
-    pthread_t const tid = *((pthread_t*) pWorkId);
-    pthread_cancel(tid);
 }
 
 static void _addToReadyQueue(TCB* tcb)

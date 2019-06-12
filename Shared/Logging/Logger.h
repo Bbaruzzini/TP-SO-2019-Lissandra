@@ -64,12 +64,14 @@ void check_args(char const*, ...) __attribute__ ((__format__ (__printf__, 1, 2))
 #define LISSANDRA_LOG_FATAL(...) \
     LISSANDRA_LOG_MESSAGE(LOG_LEVEL_FATAL, __VA_ARGS__)
 
-#define LISSANDRA_LOG_SYSERROR(call__)                                                      \
+#define LISSANDRA_LOG_SYSERR(er__, call__)                                                  \
 do                                                                                          \
 {                                                                                           \
         char errmsg__[256];                                                                 \
-        strerror_r(errno, errmsg__, 256);                                                   \
-        LISSANDRA_LOG_ERROR("%s: Error en %s: %i (%s)", __func__, call__, errno, errmsg__); \
+        strerror_r(er__, errmsg__, 256);                                                    \
+        LISSANDRA_LOG_ERROR("%s: Error en %s: %i (%s)", __func__, call__, er__, errmsg__);  \
 } while (false)
+
+#define LISSANDRA_LOG_SYSERROR(call__) LISSANDRA_LOG_SYSERR(errno, call__)
 
 #endif //Logger_h__
