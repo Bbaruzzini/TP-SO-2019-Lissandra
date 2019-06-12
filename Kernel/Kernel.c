@@ -18,6 +18,7 @@
 #include <Socket.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <Timer.h>
 
 char const* CLIPrompt = "KRNL_LISSANDRA> ";
 
@@ -25,8 +26,11 @@ LockedQueue* CLICommandQueue = NULL;
 
 atomic_bool ProcessRunning = true;
 
-static Appender* consoleLog;
-static Appender* fileLog;
+static Appender* consoleLog = NULL;
+static Appender* fileLog = NULL;
+
+static PeriodicTimer* DescribeTimer = NULL;
+static void PeriodicDescribe(void);
 
 static void IniciarLogger(void)
 {
@@ -56,16 +60,27 @@ static void LoadConfig(char const* fileName)
 
     sConfig = config_create(fileName);
     pthread_rwlock_unlock(&sConfigLock);
+
+    // recargo el intervalo de metadata
+    pthread_rwlock_rdlock(&sConfigLock);
+    uint32_t metadataRefreshTimer = config_get_long_value(sConfig, "METADATA_REFRESH");
+    pthread_rwlock_unlock(&sConfigLock);
+
+    PeriodicTimer_ReSetTimer(DescribeTimer, metadataRefreshTimer);
 }
 
 static void SetupConfigInitial(char const* fileName)
 {
+    DescribeTimer = PeriodicTimer_Create(0, PeriodicDescribe);
     LoadConfig(fileName);
 
     // notificarme si hay cambios en la config
     FileWatcher* fw = FileWatcher_Create();
     FileWatcher_AddWatch(fw, fileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
+
+    // agregar timer al dispatch
+    EventDispatcher_AddFDI(DescribeTimer);
 }
 
 static void InitConsole(void)
@@ -156,4 +171,15 @@ int main(void)
     MainLoop();
 
     Cleanup();
+}
+
+static void PeriodicDescribe(void)
+{
+    static uint8_t ct = CRITERIA_SC;
+
+    Criteria_Dispatch(ct, OP_DESCRIBE, NULL);
+
+    // ciclar entre los diferentes criterios en cada refresco automatico
+    ++ct;
+    ct %= NUM_CRITERIA;
 }
