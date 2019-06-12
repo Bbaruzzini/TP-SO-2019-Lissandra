@@ -66,7 +66,7 @@ void EventDispatcher_RemoveFDI(void* interface)
 
 void EventDispatcher_Dispatch(void)
 {
-    int res = epoll_wait(sDispatcher.Handle, sDispatcher._events, PER_LOOP_FDS, 0);
+    int res = epoll_wait(sDispatcher.Handle, sDispatcher._events, PER_LOOP_FDS, -1);
     if (res < 0)
     {
         if (errno != EINTR)
