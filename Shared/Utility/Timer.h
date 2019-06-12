@@ -2,8 +2,27 @@
 #ifndef Timer_h__
 #define Timer_h__
 
+#include "FileDescInterface.h"
 #include <stdint.h>
 #include <time.h>
+
+typedef void TimerCallbackFnType(void);
+typedef struct
+{
+    FDI _impl;
+
+    struct timespec Interval;
+    TimerCallbackFnType* Callback;
+} PeriodicTimer;
+
+// Crea un nuevo timer: intervalo en milisegundos, y funcion de llamada cuando el mismo expire
+PeriodicTimer* PeriodicTimer_Create(uint32_t intervalMS, TimerCallbackFnType* callback);
+
+// cambia el intervalo de tiempo
+void PeriodicTimer_ReSetTimer(PeriodicTimer* pt, uint32_t newIntervalMS);
+
+// destruye un periodic timer
+void PeriodicTimer_Destroy(void* timer);
 
 static inline uint32_t TimeSpecToMS(struct timespec const* ts)
 {
