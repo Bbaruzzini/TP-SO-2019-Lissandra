@@ -86,14 +86,6 @@ void EventDispatcher_Loop(void)
     {
         realCurrTime = GetMSTime();
 
-        // procesar comandos
-        char* command;
-        while ((command = LockedQueue_Next(CLICommandQueue)))
-        {
-            CommandParser(command);
-            Free(command);
-        }
-
         // procesar fds (sockets, inotify, etc...)
         EventDispatcher_Dispatch();
 

@@ -2,7 +2,6 @@
 #ifndef Console_h__
 #define Console_h__
 
-#include "LockedQueue.h"
 #include <stdatomic.h>
 #include <vector.h>
 
@@ -18,7 +17,6 @@ typedef void CommandParserFn(char const*);
 
 extern CLICommand const CLICommands[];
 extern char const* CLIPrompt;
-extern LockedQueue* CLICommandQueue;
 extern atomic_bool ProcessRunning;
 extern CommandParserFn* CommandParser;
 

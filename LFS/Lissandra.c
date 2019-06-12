@@ -3,8 +3,6 @@
 #include "API.h"
 #include "CLIHandlers.h"
 
-
-
 CLICommand const CLICommands[] =
 {
     { "SELECT",   HandleSelect   },
@@ -16,8 +14,6 @@ CLICommand const CLICommands[] =
 };
 
 char const* CLIPrompt = "FS_LISSANDRA> ";
-
-LockedQueue* CLICommandQueue = NULL;
 
 atomic_bool ProcessRunning = true;
 
@@ -78,8 +74,6 @@ static void LoadConfig(char const* fileName)
 
 static void InitConsole(void)
 {
-    CLICommandQueue = LockedQueue_Create();
-
     // subimos el nivel a errores para no entorpecer la consola
     //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
 }
@@ -114,9 +108,6 @@ int main(void)
     InitConsole();
 
     EventDispatcher_Init();
-
-    // esta cola guarda los comandos que se nos envian por consola
-    CLICommandQueue = LockedQueue_Create();
 
     // notificarme si hay cambios en la config
     FileWatcher* fw = FileWatcher_Create();
@@ -184,7 +175,6 @@ int main(void)
 
     //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
-    LockedQueue_Destroy(CLICommandQueue, Free);
     Free(confLFS->PUNTO_MONTAJE);
     Free(confLFS->PUERTO_ESCUCHA);
     Free(confLFS);

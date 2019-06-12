@@ -30,8 +30,6 @@ CLICommand const CLICommands[] =
 
 char const* CLIPrompt = "MEM_LISSANDRA> ";
 
-LockedQueue* CLICommandQueue = NULL;
-
 atomic_bool ProcessRunning = true;
 
 static Appender* consoleLog;
@@ -82,8 +80,6 @@ static void SetupConfigInitial(char const* fileName)
 
 static void InitConsole(void)
 {
-    CLICommandQueue = LockedQueue_Create();
-
     // subimos el nivel a errores para no entorpecer la consola
     //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
 }
@@ -175,7 +171,6 @@ static void StartGossip(void)
 static void Cleanup(void)
 {
     Memory_Destroy();
-    LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();
 }

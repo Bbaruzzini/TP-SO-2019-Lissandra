@@ -22,8 +22,6 @@
 
 char const* CLIPrompt = "KRNL_LISSANDRA> ";
 
-LockedQueue* CLICommandQueue = NULL;
-
 atomic_bool ProcessRunning = true;
 
 static Appender* consoleLog = NULL;
@@ -85,8 +83,6 @@ static void SetupConfigInitial(char const* fileName)
 
 static void InitConsole(void)
 {
-    CLICommandQueue = LockedQueue_Create();
-
     // subimos el nivel a errores para no entorpecer la consola
     //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
 }
@@ -150,7 +146,6 @@ static void Cleanup(void)
 {
     Metadata_Destroy();
     Criterias_Destroy();
-    LockedQueue_Destroy(CLICommandQueue, Free);
     EventDispatcher_Terminate();
     Logger_Terminate();
 }

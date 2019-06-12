@@ -100,7 +100,8 @@ void* CliThread(void* param)
 
             fflush(stdout);
 
-            LockedQueue_Add(CLICommandQueue, strdup(command_str));
+            // procesar comando
+            CommandParser(command_str);
 
             add_history(command_str);
             Free(command_str);
