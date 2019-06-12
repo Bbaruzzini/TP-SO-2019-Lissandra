@@ -1,6 +1,7 @@
 
 #include "Console.h"
 #include "Logger.h"
+#include "Malloc.h"
 #include <libcommons/string.h>
 #include <readline/history.h>
 #include <readline/readline.h>

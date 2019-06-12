@@ -1,4 +1,5 @@
 
+#include "API.h"
 #include "CLIHandlers.h"
 #include "FileSystemSocket.h"
 #include "MainMemory.h"
@@ -16,6 +17,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <Timer.h>
 
 CLICommand const CLICommands[] =
 {
@@ -32,12 +34,16 @@ char const* CLIPrompt = "MEM_LISSANDRA> ";
 
 atomic_bool ProcessRunning = true;
 
-static Appender* consoleLog;
-static Appender* fileLog;
-
-Socket* FileSystemSocket = NULL;
+static Appender* consoleLog = NULL;
+static Appender* fileLog = NULL;
 
 static Socket* ListeningSocket = NULL;
+
+static PeriodicTimer* JournalTimer = NULL;
+static PeriodicTimer* GossipTimer = NULL;
+static void PeriodicGossip(void);
+
+Socket* FileSystemSocket = NULL;
 
 static void IniciarLogger(void)
 {
@@ -66,16 +72,27 @@ static void LoadConfig(char const* fileName)
         config_destroy(sConfig);
 
     sConfig = config_create(fileName);
+
+    // recargar los timers
+    PeriodicTimer_ReSetTimer(JournalTimer, config_get_long_value(sConfig, "RETARDO_JOURNAL"));
+    PeriodicTimer_ReSetTimer(GossipTimer, config_get_long_value(sConfig, "RETARDO_GOSSIPING"));
 }
 
 static void SetupConfigInitial(char const* fileName)
 {
+    JournalTimer = PeriodicTimer_Create(0, API_Journal);
+    GossipTimer = PeriodicTimer_Create(0, PeriodicGossip);
+
     LoadConfig(fileName);
 
     // notificarme si hay cambios en la config
     FileWatcher* fw = FileWatcher_Create();
     FileWatcher_AddWatch(fw, fileName, LoadConfig);
     EventDispatcher_AddFDI(fw);
+
+    // agregar timers asi tengo notificaciones
+    EventDispatcher_AddFDI(JournalTimer);
+    EventDispatcher_AddFDI(GossipTimer);
 }
 
 static void InitConsole(void)
@@ -192,4 +209,9 @@ int main(void)
     MainLoop();
 
     Cleanup();
+}
+
+static void PeriodicGossip(void)
+{
+    //todo
 }

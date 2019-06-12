@@ -114,7 +114,7 @@ void API_Drop(char const* tableName)
     Packet_Destroy(p);
 }
 
-void Journal_Register(void* dirtyFrame)
+static void Journal_Register(void* dirtyFrame)
 {
     uint32_t const maxValueLength = Memory_GetMaxValueLength();
 
