@@ -3,16 +3,20 @@
 #include "FileSystemSocket.h"
 #include "Frame.h"
 #include "MainMemory.h"
+#include <Config.h>
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
 #include <string.h>
+#include <Timer.h>
 
 void API_Select(char const* tableName, uint16_t key, char* value)
 {
     uint32_t const maxValueLength = Memory_GetMaxValueLength();
 
+    // delay artificial acceso a memoria (read latency)
+    MSSleep(config_get_long_value(sConfig, "RETARDO_MEM"));
     Frame* f = Memory_GetFrame(tableName, key);
     if (f)
     {
@@ -20,6 +24,9 @@ void API_Select(char const* tableName, uint16_t key, char* value)
         strncat(value, f->Value, maxValueLength);
         return;
     }
+
+    // delay artificial acceso FS
+    MSSleep(config_get_long_value(sConfig, "RETARDO_FS"));
 
     // si llegué aca es porque no encuentro el valor asi que voy a ir a buscarlo al FS
     Packet* p = Packet_Create(LQL_SELECT, 16 + 2); // adivinar tamaño
@@ -43,11 +50,17 @@ void API_Select(char const* tableName, uint16_t key, char* value)
     Packet_Destroy(p);
 
     Memory_SaveNewValue(tableName, key, value);
+
+    // delay artificial acceso a memoria (write latency)
+    MSSleep(config_get_long_value(sConfig, "RETARDO_MEM"));
 }
 
 void API_Insert(char const* tableName, uint16_t key, char const* value)
 {
     Memory_UpdateValue(tableName, key, value);
+
+    // delay artificial acceso a memoria (write latency)
+    MSSleep(config_get_long_value(sConfig, "RETARDO_MEM"));
 }
 
 bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)
