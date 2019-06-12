@@ -32,8 +32,6 @@ static t_queue* ReadyQueue;
 static pthread_mutex_t QueueLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t QueueCond = PTHREAD_COND_INITIALIZER;
 
-static Vector WorkerIds;
-
 void Runner_Init(void)
 {
     CommandParser = _addSingleLine;
@@ -59,7 +57,6 @@ void Runner_Init(void)
         return;
     }
 
-    Vector_Construct(&WorkerIds, sizeof(pthread_t), NULL, multiprocessing);
     for (size_t i = 0; i < multiprocessing; ++i)
     {
         pthread_t tid;
@@ -69,8 +66,6 @@ void Runner_Init(void)
             LISSANDRA_LOG_SYSERR(r, "pthread_create");
             continue;
         }
-
-        Vector_push_back(&WorkerIds, &tid);
     }
 
     r = pthread_attr_destroy(&attr);
@@ -84,12 +79,6 @@ void Runner_AddScript(File* sc)
     file_close(sc);
 
     _addToReadyQueue(_create_task(&script));
-}
-
-void Runner_Terminate(void)
-{
-    Vector_Destruct(&WorkerIds);
-    queue_destroy_and_destroy_elements(ReadyQueue, Free);
 }
 
 /* PRIVATE*/

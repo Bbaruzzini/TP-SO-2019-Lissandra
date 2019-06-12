@@ -132,14 +132,15 @@ static void InitMemorySubsystem(void)
 
 static void MainLoop(void)
 {
+    // Runner cambia el manejador de consola asi que ejecuto antes de abrir la consola
+    Runner_Init();
+
     // el kokoro
     pthread_t consoleTid;
     pthread_create(&consoleTid, NULL, CliThread, NULL);
-    Runner_Init();
 
     EventDispatcher_Loop();
 
-    Runner_Terminate();
     pthread_join(consoleTid, NULL);
 }
 

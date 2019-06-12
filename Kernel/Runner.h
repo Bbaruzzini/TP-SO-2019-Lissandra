@@ -8,6 +8,4 @@ void Runner_Init(void);
 
 void Runner_AddScript(File* sc);
 
-void Runner_Terminate(void);
-
 #endif //Runner_h__
