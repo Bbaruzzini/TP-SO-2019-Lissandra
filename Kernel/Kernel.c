@@ -79,6 +79,9 @@ static void SetupConfigInitial(char const* fileName)
 
     // agregar timer al dispatch
     EventDispatcher_AddFDI(DescribeTimer);
+
+    // cada 30 segundos debe mostrar las metricas por consola
+    EventDispatcher_AddFDI(PeriodicTimer_Create(30 * 1000, Criterias_Report));
 }
 
 static void InitConsole(void)
