@@ -45,9 +45,21 @@ void HandleSelect(Vector const* args)
     uint32_t maxValueLength = Memory_GetMaxValueLength();
 
     char* value = Malloc(maxValueLength + 1);
-    API_Select(table, k, value);
+    switch (API_Select(table, k, value))
+    {
+        case MemoryFull:
+            LISSANDRA_LOG_ERROR("SELECT: Memoria llena. Hacer JOURNAL!");
+        case Ok:
+            LISSANDRA_LOG_INFO("SELECT: %s", value);
+            break;
+        case KeyNotFound:
+            LISSANDRA_LOG_ERROR("SELECT: clave %hu no encontrada!", k);
+            break;
+        default:
+            LISSANDRA_LOG_ERROR("API_Select retornó valor inválido!!");
+            break;
+    }
 
-    LISSANDRA_LOG_INFO("SELECT: %s", value);
     Free(value);
 }
 
@@ -74,7 +86,8 @@ void HandleInsert(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    API_Insert(table, k, value);
+    if (!API_Insert(table, k, value))
+        LISSANDRA_LOG_ERROR("INSERT: Memoria llena, valor no insertado. Hacer JOURNAL!");
 }
 
 void HandleCreate(Vector const* args)
@@ -136,7 +149,8 @@ void HandleDescribe(Vector const* args)
     Vector v;
     Vector_Construct(&v, sizeof(TableMD), FreeMD, 0);
 
-    API_Describe(table, &v);
+    if (!API_Describe(table, &v) && table)
+        LISSANDRA_LOG_ERROR("DESCRIBE: tabla %s no encontrada!", table);
 
     Vector_iterate(&v, DescribeTable);
 

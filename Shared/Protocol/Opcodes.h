@@ -78,6 +78,17 @@ typedef enum
     MSG_MEMORY_ID,           /* uint32_t: memoryId
                               */
 
+
+    // erores
+    MSG_ERR_NOT_FOUND, // key no encontrado
+
+    MSG_ERR_MEM_FULL,  /* memoria está full. Si es SELECT contiene:
+                        *
+                        * char*: value
+                        */
+
+    MSG_ERR_TABLE_NOT_EXISTS, // tabla no existe (ejemplo DROP, DESCRIBE)
+
     NUM_OPCODES
 } Opcodes;
 

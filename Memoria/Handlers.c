@@ -33,7 +33,10 @@ OpcodeHandler const opcodeTable[NUM_OPCODES] =
     { "LQL_JOURNAL", HandleJournalOpcode },
 
     { "MSG_HANDSHAKE_RESPUESTA" , NULL },
-    { "MSG_MEMORY_ID", NULL }
+    { "MSG_MEMORY_ID", NULL },
+
+    { "MSG_ERR_NOT_FOUND", NULL },
+    { "MSG_ERR_MEM_FULL",  NULL }
 };
 
 void HandleHandshakeOpcode(Socket* s, Packet* p)
@@ -68,10 +71,26 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     uint32_t maxValueLength = Memory_GetMaxValueLength();
 
     char* value = Malloc(maxValueLength + 1);
-    API_Select(tableName, key, value);
 
-    Packet* resp = Packet_Create(MSG_SELECT, maxValueLength + 1);
-    Packet_Append(resp, value);
+    Packet* resp;
+    switch (API_Select(tableName, key, value))
+    {
+        case Ok:
+            resp = Packet_Create(MSG_SELECT, maxValueLength + 1);
+            Packet_Append(resp, value);
+            break;
+        case KeyNotFound:
+            resp = Packet_Create(MSG_ERR_NOT_FOUND, 0);
+            break;
+        case MemoryFull:
+            resp = Packet_Create(MSG_ERR_MEM_FULL, maxValueLength + 1);
+            Packet_Append(resp, value);
+            break;
+        default:
+            LISSANDRA_LOG_ERROR("API_Select retornó valor inválido!!");
+            return;
+    }
+
     Socket_SendPacket(s, resp);
     Packet_Destroy(resp);
 
@@ -97,13 +116,15 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     if (ts)
         LISSANDRA_LOG_ERROR("INSERT: Recibi un paquete de kernel con timestamp!");
 
-    API_Insert(tableName, key, value);
+    Opcodes opcode = MSG_INSERT;
+    if (!API_Insert(tableName, key, value))
+        opcode = MSG_ERR_MEM_FULL;
 
     Free(tableName);
     Free(value);
 
     // respuesta vacia para que el kernel sepa que procese el comando
-    Packet* res = Packet_Create(MSG_INSERT, 0);
+    Packet* res = Packet_Create(opcode, 0);
     Socket_SendPacket(s, res);
     Packet_Destroy(res);
 }
@@ -148,10 +169,23 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
     Vector v;
     Vector_Construct(&v, sizeof(TableMD), FreeMD, 0);
 
-    API_Describe(tableName, &v);
+    if (!API_Describe(tableName, &v))
+    {
+        Free(tableName);
+        Vector_Destruct(&v);
 
-    Packet* resp = Packet_Create(Vector_size(&v) == 1 ? MSG_DESCRIBE : MSG_DESCRIBE_GLOBAL, 100);
-    if (Packet_GetOpcode(resp) == MSG_DESCRIBE_GLOBAL)
+        Packet* errPacket = Packet_Create(MSG_ERR_TABLE_NOT_EXISTS, 0);
+        Socket_SendPacket(s, errPacket);
+        Packet_Destroy(errPacket);
+        return;
+    }
+
+    Opcodes opcode = MSG_DESCRIBE;
+    if (Vector_size(&v) > 1)
+        opcode = MSG_DESCRIBE_GLOBAL;
+
+    Packet* resp = Packet_Create(opcode, 100);
+    if (opcode == MSG_DESCRIBE_GLOBAL)
         Packet_Append(p, Vector_size(&v));
 
     Vector_iterate_with_data(&v, AddToPacket, resp);

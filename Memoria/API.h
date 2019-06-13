@@ -23,19 +23,28 @@ static inline void FreeMD(void* md)
     Free(p->tableName);
 }
 
-// devuelve value o NULL si no se encuentra
+typedef enum
+{
+    Ok,
+    KeyNotFound,
+    MemoryFull
+} SelectResult;
+
+// devuelve un código dependiendo del resultado
 // value debe apuntar a un espacio con (maxValueLength+1) bytes
-void API_Select(char const* tableName, uint16_t key, char* value);
+SelectResult API_Select(char const* tableName, uint16_t key, char* value);
 
 // en memoria va sin timestamp el request, se calcula luego. ver #1355
-void API_Insert(char const* tableName, uint16_t key, char const* value);
+// devuelve false si la memoria está llena
+bool API_Insert(char const* tableName, uint16_t key, char const* value);
 
 // devuelve false si la tabla ya existe en el FS
 bool API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uint32_t compactionTime);
 
 // solicita al FS directamente
 // results se encuentra construido con sizeof(struct MD)
-void API_Describe(char const* tableName, Vector* results);
+// devuelve false si la tabla no existe en FS
+bool API_Describe(char const* tableName, Vector* results);
 
 void API_Drop(char const* tableName);
 

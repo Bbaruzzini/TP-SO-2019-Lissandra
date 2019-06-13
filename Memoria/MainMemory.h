@@ -9,9 +9,9 @@
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint);
 
-void Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value);
+bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value);
 
-void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value);
+bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value);
 
 void Memory_CleanFrame(size_t frameNumber);
 

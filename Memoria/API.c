@@ -11,7 +11,7 @@
 #include <string.h>
 #include <Timer.h>
 
-void API_Select(char const* tableName, uint16_t key, char* value)
+SelectResult API_Select(char const* tableName, uint16_t key, char* value)
 {
     uint32_t const maxValueLength = Memory_GetMaxValueLength();
 
@@ -22,7 +22,7 @@ void API_Select(char const* tableName, uint16_t key, char* value)
     {
         *value = '\0';
         strncat(value, f->Value, maxValueLength);
-        return;
+        return Ok;
     }
 
     // delay artificial acceso FS
@@ -36,10 +36,18 @@ void API_Select(char const* tableName, uint16_t key, char* value)
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
-    if (Packet_GetOpcode(p) != MSG_SELECT)
+    switch (Packet_GetOpcode(p))
     {
-        LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-        return;
+        case MSG_SELECT:
+            break;
+        case MSG_ERR_NOT_FOUND:
+            Packet_Destroy(p);
+            return KeyNotFound;
+        default:
+            // deberia ser otra cosa pero para no confundir al llamante con un estado de "otro error"
+            LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+            Packet_Destroy(p);
+            return Ok;
     }
 
     char* fs_value;
@@ -49,18 +57,22 @@ void API_Select(char const* tableName, uint16_t key, char* value)
     Free(fs_value);
     Packet_Destroy(p);
 
-    Memory_SaveNewValue(tableName, key, value);
+    if (!Memory_SaveNewValue(tableName, key, value))
+        return MemoryFull;
 
     // delay artificial acceso a memoria (write latency)
     MSSleep(config_get_long_value(sConfig, "RETARDO_MEM"));
+    return Ok;
 }
 
-void API_Insert(char const* tableName, uint16_t key, char const* value)
+bool API_Insert(char const* tableName, uint16_t key, char const* value)
 {
-    Memory_UpdateValue(tableName, key, value);
+    if (!Memory_UpdateValue(tableName, key, value))
+        return false;
 
     // delay artificial acceso a memoria (write latency)
     MSSleep(config_get_long_value(sConfig, "RETARDO_MEM"));
+    return true;
 }
 
 bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)
@@ -74,11 +86,13 @@ bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partit
     Socket_SendPacket(FileSystemSocket, p);
     Packet_Destroy(p);
 
+    // todo implementar false
     return true;
 }
 
-void API_Describe(char const* tableName, Vector* results)
+bool API_Describe(char const* tableName, Vector* results)
 {
+    bool result = true;
     Packet* p = Packet_Create(LQL_DESCRIBE, 16);
     Packet_Append(p, (bool) tableName);
     if (tableName)
@@ -91,6 +105,12 @@ void API_Describe(char const* tableName, Vector* results)
     p = Socket_RecvPacket(FileSystemSocket);
     switch (Packet_GetOpcode(p))
     {
+        case MSG_ERR_TABLE_NOT_EXISTS:
+            if (tableName)
+                LISSANDRA_LOG_ERROR("DESCRIBE: tabla %s no existe en FileSystem!", tableName);
+            numTables = 0;
+            result = false;
+            break;
         case MSG_DESCRIBE:
             numTables = 1;
             break;
@@ -99,7 +119,8 @@ void API_Describe(char const* tableName, Vector* results)
             break;
         default:
             LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-            return;
+            Packet_Destroy(p);
+            return true; // para no complicar la interfaz
     }
 
     Vector_reserve(results, numTables);
@@ -115,6 +136,7 @@ void API_Describe(char const* tableName, Vector* results)
     }
 
     Packet_Destroy(p);
+    return result;
 }
 
 void API_Drop(char const* tableName)

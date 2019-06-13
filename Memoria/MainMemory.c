@@ -19,9 +19,10 @@ static size_t NumPages = 0;
 // bitmap de frames libres
 static uint8_t* FrameBitmap = NULL;
 static t_bitarray* FrameStatus = NULL;
+static bool Full = false; // valor cacheado para no tener que pasar por LRU de nuevo
 
 static void WriteFrame(size_t frameNumber, uint16_t key, char const* value);
-static size_t GetFreeFrame(void);
+static bool GetFreeFrame(size_t* frame);
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
@@ -48,38 +49,40 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
     LISSANDRA_LOG_INFO("Memoria inicializada. Tamaño: %d bytes (%d páginas). Tamaño de página: %d", allocSize, NumPages, FrameSize);
 }
 
-void Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
+bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
 {
-    size_t i = GetFreeFrame();
+    size_t freeFrame;
+    if (!GetFreeFrame(&freeFrame))
+        return false;
 
     PageTable* pt = SegmentTable_GetPageTable(tableName);
     if (!pt)
         pt = SegmentTable_CreateSegment(tableName);
 
-    PageTable_AddPage(pt, key, i);
-    WriteFrame(i, key, value);
+    PageTable_AddPage(pt, key, freeFrame);
+    WriteFrame(freeFrame, key, value);
+    return true;
 }
 
-void Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
+bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
 {
     PageTable* pt = SegmentTable_GetPageTable(tableName);
-    size_t i;
-    bool res = false;
-    if (pt)
-        res = PageTable_GetFrameNumber(pt, key, &i);
-
-    if (!res)
+    size_t frame;
+    if (!pt || !PageTable_GetFrameNumber(pt, key, &frame))
     {
-        i = GetFreeFrame();
+        if (!GetFreeFrame(&frame))
+            return false;
+
         pt = SegmentTable_GetPageTable(tableName);
         if (!pt)
             pt = SegmentTable_CreateSegment(tableName);
 
-        PageTable_AddPage(pt, key, i);
+        PageTable_AddPage(pt, key, frame);
     }
 
-    WriteFrame(i, key, value);
+    WriteFrame(frame, key, value);
     PageTable_MarkDirty(pt, key);
+    return true;
 }
 
 void Memory_CleanFrame(size_t frameNumber)
@@ -132,6 +135,7 @@ void Memory_DoJournal(void(*insertFn)(void*))
     SegmentTable_Clean();
 
     Vector_Destruct(&v);
+    Full = false;
 }
 
 void Memory_Destroy(void)
@@ -150,8 +154,11 @@ static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)
     strncpy(f->Value, value, MaxValueLength);
 }
 
-static size_t GetFreeFrame(void)
+static bool GetFreeFrame(size_t* frame)
 {
+    if (Full)
+        return false;
+
     size_t i = 0;
     for (; i < NumPages; ++i)
         if (!bitarray_test_bit(FrameStatus, i))
@@ -161,17 +168,16 @@ static size_t GetFreeFrame(void)
     {
         // no encontre ninguno libre, desalojar el LRU
         size_t freeFrame;
-        if (SegmentTable_GetLRUFrame(&freeFrame))
-            i = freeFrame;
-        else
+        if (!SegmentTable_GetLRUFrame(&freeFrame))
         {
-            API_Journal();
-
-            // el primero disponible es el elemento 0
-            i = 0;
+            Full = true;
+            return false;
         }
+
+        i = freeFrame;
     }
 
     bitarray_set_bit(FrameStatus, i);
-    return i;
+    *frame = i;
+    return true;
 }
