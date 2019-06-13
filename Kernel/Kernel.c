@@ -177,6 +177,8 @@ static void PeriodicDescribe(void)
 {
     static uint8_t ct = CRITERIA_SC;
 
+    // todo esto deberia ser en otra conexion para no pisarme si estoy esperando un dato
+
     // hago un describe global
     static DBRequest const dbr =
     {
