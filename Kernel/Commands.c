@@ -55,12 +55,13 @@ bool HandleSelect(Vector const* args)
     char* const table = tokens[1];
     char* const key = tokens[2];
 
-    CriteriaType ct;
-    if (!Metadata_Get(table, &ct))
+    // todo: para probar
+    CriteriaType ct = CRITERIA_SC;
+    /*if (!Metadata_Get(table, &ct))
     {
         LISSANDRA_LOG_ERROR("SELECT: Tabla %s no encontrada en metadata", table);
         return false;
-    }
+    }*/
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -75,6 +76,8 @@ bool HandleSelect(Vector const* args)
         return false;
 
     uint32_t requestTime = GetMSTime();
+
+    //todo recvpacket puede devolver null
     Packet* p = Socket_RecvPacket(s);
     uint32_t const latency = GetMSTimeDiff(requestTime, GetMSTime());
     Criteria_AddMetric(ct, EVT_READ_LATENCY, latency);
@@ -256,9 +259,11 @@ bool HandleDescribe(Vector const* args)
     dbr.TableName = table;
 
     Metadata_Clear();
-    for (CriteriaType ct = 0; ct < NUM_CRITERIA; ++ct)
+    // todo: deberia enviarlo a cualquier memoria conectada
+    // todo: no deberia borrar la metadata, solo actualizarla
+    //for (CriteriaType ct = 0; ct < NUM_CRITERIA; ++ct)
     {
-        Socket* s = Criteria_Dispatch(ct, OP_DESCRIBE, &dbr);
+        Socket* s = Criteria_Dispatch(CRITERIA_SC /*todo para probar */, OP_DESCRIBE, &dbr);
         if (!s) // no hay memorias conectadas? criteria loguea el error
             return false;
 
