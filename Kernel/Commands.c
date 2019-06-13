@@ -1,12 +1,10 @@
 
 #include "Commands.h"
-#include "Criteria.h"
 #include "Metadata.h"
+#include "PacketBuilders.h"
 #include "Runner.h"
 #include <File.h>
 #include <Logger.h>
-#include <Opcodes.h>
-#include <Packet.h>
 #include <Socket.h>
 #include <stdlib.h>
 #include <Timer.h>
@@ -81,10 +79,26 @@ bool HandleSelect(Vector const* args)
     uint32_t const latency = GetMSTimeDiff(requestTime, GetMSTime());
     Criteria_AddMetric(ct, EVT_READ_LATENCY, latency);
 
-    if (Packet_GetOpcode(p) != MSG_SELECT)
+    switch (Packet_GetOpcode(p))
     {
-        LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-        return false;
+        case MSG_SELECT:
+            break;
+        case MSG_ERR_MEM_FULL:
+        {
+            // usar valor igual (lo devuelve) pero además mandar un Journal
+            Packet* journalPacket = BuildJournal(NULL /*unused*/);
+            Socket_SendPacket(s, journalPacket); // no uso el dispatcher, se envia a la memoria que me dió el error.
+            Packet_Destroy(journalPacket);
+            break;
+        }
+        case MSG_ERR_NOT_FOUND:
+            LISSANDRA_LOG_ERROR("SELECT: key %hu no encontrada", k);
+            Packet_Destroy(p);
+            return false;
+        default:
+            LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+            Packet_Destroy(p);
+            return false;
     }
 
     char* value;
@@ -138,14 +152,38 @@ bool HandleInsert(Vector const* args)
 
     uint32_t requestTime = GetMSTime();
     Packet* p = Socket_RecvPacket(s);
+
+    switch (Packet_GetOpcode(p))
+    {
+        case MSG_INSERT:
+            break;
+        case MSG_ERR_MEM_FULL:
+        {
+            // se debe vaciar la memoria e intentar el request nuevamente. Esto aumenta la latencia de escritura.
+            while (Packet_GetOpcode(p) == MSG_ERR_MEM_FULL)
+            {
+                Packet_Destroy(p);
+
+                Packet* journal = BuildJournal(NULL /*unused*/);
+                Socket_SendPacket(s, journal);
+                Packet_Destroy(journal);
+
+                p = BuildInsert(&dbr);
+                Socket_SendPacket(s, p);
+                Packet_Destroy(p);
+
+                p = Socket_RecvPacket(s);
+            }
+            break;
+        }
+        default:
+            LISSANDRA_LOG_FATAL("INSERT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+            Packet_Destroy(p);
+            return false;
+    }
+
     uint32_t const latency = GetMSTimeDiff(requestTime, GetMSTime());
     Criteria_AddMetric(ct, EVT_WRITE_LATENCY, latency);
-
-    if (Packet_GetOpcode(p) != MSG_INSERT)
-    {
-        LISSANDRA_LOG_FATAL("INSERT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-        return false;
-    }
 
     LISSANDRA_LOG_INFO("INSERT: tabla: %s, key: %s, valor: %s", table, key, value);
     Packet_Destroy(p);

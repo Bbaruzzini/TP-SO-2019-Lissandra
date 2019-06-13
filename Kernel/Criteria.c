@@ -1,11 +1,9 @@
 
-#include "Criteria.h"
+#include "PacketBuilders.h"
 #include <libcommons/hashmap.h>
 #include <libcommons/list.h>
 #include <Logger.h>
 #include <Malloc.h>
-#include <Opcodes.h>
-#include <Packet.h>
 #include <Socket.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -440,70 +438,17 @@ static void _ec_destroy(void* criteria)
     Free(ec);
 }
 
-static Packet* _build_select(DBRequest const* dbr)
-{
-    Packet* p = Packet_Create(LQL_SELECT, 20);
-    Packet_Append(p, dbr->TableName);
-    Packet_Append(p, dbr->Data.Select.Key);
-    return p;
-}
-
-static Packet* _build_insert(DBRequest const* dbr)
-{
-    Packet* p = Packet_Create(LQL_INSERT, 40);
-    Packet_Append(p, dbr->TableName);
-    Packet_Append(p, dbr->Data.Insert.Key);
-    Packet_Append(p, dbr->Data.Insert.Value);
-    Packet_Append(p, (bool) false);
-    return p;
-}
-
-static Packet* _build_create(DBRequest const* dbr)
-{
-    Packet* p = Packet_Create(LQL_CREATE, 23);
-    Packet_Append(p, dbr->TableName);
-    Packet_Append(p, (uint8_t) dbr->Data.Create.Consistency);
-    Packet_Append(p, dbr->Data.Create.Partitions);
-    Packet_Append(p, dbr->Data.Create.CompactTime);
-    return p;
-}
-
-static Packet* _build_describe(DBRequest const* dbr)
-{
-    Packet* p = Packet_Create(LQL_DESCRIBE, 16);
-    {
-        char const* tableName = dbr->TableName;
-        Packet_Append(p, (bool) tableName);
-        if (tableName)
-            Packet_Append(p, tableName);
-    }
-    return p;
-}
-
-static Packet* _build_drop(DBRequest const* dbr)
-{
-    Packet* p = Packet_Create(LQL_DROP, 16);
-    Packet_Append(p, dbr->TableName);
-    return p;
-}
-
-static Packet* _build_journal(DBRequest const* dbr)
-{
-    (void) dbr;
-    return Packet_Create(LQL_JOURNAL, 0);
-}
-
 static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
 {
     typedef Packet* PacketBuildFn(DBRequest const*);
     static PacketBuildFn* const PacketBuilders[NUM_OPS] =
     {
-        _build_select,
-        _build_insert,
-        _build_create,
-        _build_describe,
-        _build_drop,
-        _build_journal
+        BuildSelect,
+        BuildInsert,
+        BuildCreate,
+        BuildDescribe,
+        BuildDrop,
+        BuildJournal
     };
 
     Packet* p = PacketBuilders[op](dbr);
