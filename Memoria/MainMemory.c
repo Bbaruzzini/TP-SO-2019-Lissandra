@@ -11,7 +11,7 @@
 #include <Timer.h>
 
 // la memoria es un arreglo de páginas contiguas
-static Frame* Memory = NULL;
+static Vector Memory;
 static uint32_t MaxValueLength = 0;
 static size_t FrameSize = 0;
 static size_t NumPages = 0;
@@ -26,10 +26,15 @@ static bool GetFreeFrame(size_t* frame);
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
-    size_t allocSize = config_get_long_value(sConfig, "TAM_MEM");
-
     // malloc de n bytes contiguos
-    Memory = Malloc(allocSize);
+    size_t const allocSize = config_get_long_value(sConfig, "TAM_MEM");
+
+    {
+        void* buf = Malloc(allocSize);
+        size_t bufSize = allocSize;
+        Vector_adopt(&Memory, &buf, &bufSize);
+    }
+
     MaxValueLength = maxValueLength;
 
     // el valor se guarda contiguo junto a los otros datos de longitud fija
@@ -120,7 +125,7 @@ uint32_t Memory_GetMaxValueLength(void)
 
 Frame* Memory_Read(size_t frameNumber)
 {
-    return ((Frame*) ((uint8_t*) Memory) + frameNumber * FrameSize);
+    return Vector_at(&Memory, frameNumber * FrameSize);
 }
 
 void Memory_DoJournal(void(*insertFn)(void*))
@@ -143,7 +148,7 @@ void Memory_Destroy(void)
     bitarray_destroy(FrameStatus);
     Free(FrameBitmap);
     SegmentTable_Destroy();
-    Free(Memory);
+    Vector_Destruct(&Memory);
 }
 
 static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)
