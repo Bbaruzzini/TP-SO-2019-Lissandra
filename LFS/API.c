@@ -2,6 +2,11 @@
 
 #include "API.h"
 
+void select_api(char* nombreTabla, int key)
+{
+
+}
+
 int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp)
 {
     //Verifica si la tabla existe en el File System
@@ -38,9 +43,7 @@ int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp)
     //Si el parametro timestamp es nulo, se obtiene el valor actual del Epoch UNIX
     if (timestamp == 0)
     {
-
         timestamp = (unsigned) time(NULL);
-
     }
 
     t_registro* newReg = new_elem_registro(key, value, timestamp);
@@ -117,6 +120,11 @@ int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones
                     // peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
                     // reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
                     // la otra peticion...
+                    int resDrop = drop(nombreTabla);
+                    if (resDrop == EXIT_FAILURE)
+                    {
+                        LISSANDRA_LOG_ERROR("Se produjo un error intentado borrar la tabla %s", nombreTabla);
+                    }
                     return EXIT_FAILURE;
 
                 }
@@ -151,49 +159,57 @@ int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones
 
 }
 
-/*
+
 //Verificar que la tabla exista en el file system.
 //Eliminar directorio y todos los archivos de dicha tabla.
 
-void drop(char* nombreTabla){
-    LOG_LEVEL_INFO("Se esta borrando la tabla...%s\n ", nombreTabla);
+int drop(char* nombreTabla)
+{
+
+    LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
 
     char* pathAbsoluto = generarPathTabla(nombreTabla);
 
     if(!existeDir(pathAbsoluto)){
-        LOG_LEVEL_ERROR("La tabla no existe...");
-        printf ("La tabla no existe");
-
+        LISSANDRA_LOG_ERROR("La tabla no existe...");
+        printf("La tabla no existe\n");
+        return EXIT_FAILURE;
     }
-   // En conclusión, debes:
-   // 1. Eliminar la memtable de esa tabla
-   // 2. Eliminar los archivos de esa tabla (.bin/.tmp/metadata) (También borrado de los bloques)
-   // 3. Eliminar el directorio de la tabla
-   //  4. Eliminar toda la información administrativa de la tabla
-    else{
-        t_config * data = config_create(pathAbsoluto);
-        char** bloques = config_get_array_value(data, "BLOQUES");
 
-        int j = 0;
+    t_elem_memtable* elemento = memtable_get(nombreTabla);
 
-        while(bloques[j] != NULL){
-            log_info(logger, "Bloque a liberar: %d", atoi(bloques[j]));
-            escribirValorBitarray(0, atoi(bloques[j]));
-            j++;
+    if (elemento != NULL)
+    {
+        //Se elimina la memtable de la tabla
+        int resMemtable = delete_elem_memtable(nombreTabla);
+
+        if (resMemtable != 0)
+        {
+            LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar de la memtable la tabla: %s", nombreTabla);
+            return EXIT_FAILURE;
         }
-
-        unlink(pathAbsoluto);
-        log_debug(logger, "ARCHIVO BORRADO CON EXITO");
-
-        enviar(socketKernel, BORRAR_ARCHIVO_OK, sizeof(int), &j);
-
-        config_destroy(data);
-        free(pathAbsoluto);
-
     }
-    return;
+
+    //Se eliminan los archivos de la tabla
+    int resultado = traverse_to_drop(pathAbsoluto, nombreTabla);
+
+
+    if (resultado != 0)
+    {
+        LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar la tabla: %s", nombreTabla);
+        return EXIT_FAILURE;
+    }
+
+    remove(pathAbsoluto);
+    //Se elimina la informacion administrativa de la tabla (?)
+
+
+    LISSANDRA_LOG_INFO("Tabla %s borrada con exito", nombreTabla);
+
+    return EXIT_SUCCESS;
+
 }
-*/
+
 
 void* describe(char* nombreTabla)
 {
@@ -205,9 +221,8 @@ void* describe(char* nombreTabla)
     string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
     string_append(&dirTablas, "Tables");
 //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
-    if (strcmp(nombreTabla, "") == 0)
+    if (nombreTabla == NULL)
     {
-
         realpath = dirTablas;
         t_list* listTableMetadata;
         listTableMetadata = list_create();
@@ -217,38 +232,31 @@ void* describe(char* nombreTabla)
 
         if (resultado == 0)
         {
-
             //free(dirTablas);
             free(realpath);
             return listTableMetadata;
-
         }
         else
         {
-
             printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
             //free(dirTablas);
             free(realpath);
             return NULL;
-
         }
 
     }
     else
     {
-
         string_append(&dirTablas, "/");
         string_append(&dirTablas, nombreTabla);
         realpath = dirTablas;
 
         if (!existeDir(realpath))
         {
-
             printf("ERROR: La ruta especificada es invalida\n");
             //free(dirTablas);
             free(realpath);
             return NULL;
-
         }
 
         string_append(&dirTablas, "/Metadata.bin");
@@ -258,11 +266,13 @@ void* describe(char* nombreTabla)
         tableMetadata = get_table_metadata(realpath, nombreTabla);
 
         //Pruebas Brenda/Denise desde ACA
+        /*
         printf("Por aca tambien paso\n");
         printf("Tabla: %s\n", tableMetadata->table);
         printf("Consistencia: %s\n", tableMetadata->consistency);
         printf("Particiones: %d\n", tableMetadata->partitions);
         printf("Tiempo: %d\n", tableMetadata->compaction_time);
+         */
         //HASTA ACA
 
         //free(dirTablas);
