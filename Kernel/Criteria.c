@@ -67,8 +67,6 @@ static inline uint32_t keyHash(uint16_t key)
     return key;
 }
 
-static Criteria* Criterias[NUM_CRITERIA] = { 0 };
-
 static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* dispatcher, ReportFnType* reporter, DestroyFnType* destroyer);
 static void _destroy_mem(void* elem);
 static void _destroy_mem_array(void* pElem);
@@ -94,7 +92,26 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
+static Criteria* Criterias[NUM_CRITERIA] = { 0 };
 static t_hashmap* MemoryIPMap = NULL;
+
+static inline MetricEvent GetEventFor(MemoryOps op)
+{
+    MetricEvent evt;
+    switch (op)
+    {
+        case OP_SELECT:
+            evt = EVT_MEM_READ;
+            break;
+        case OP_INSERT:
+            evt = EVT_MEM_WRITE;
+            break;
+        default:
+            evt = EVT_MEM_OP;
+            break;
+    }
+    return evt;
+}
 
 void Criterias_Init(void)
 {
@@ -210,22 +227,8 @@ Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
 {
     Criteria* const itr = Criterias[type];
 
-    MetricEvent evt;
-    switch (op)
-    {
-        case OP_SELECT:
-            evt = EVT_MEM_READ;
-            break;
-        case OP_INSERT:
-            evt = EVT_MEM_WRITE;
-            break;
-        default:
-            evt = EVT_MEM_OP;
-            break;
-    }
-
     // registrar la operacion para metricas
-    Criteria_AddMetric(type, evt, 0);
+    Criteria_AddMetric(type, GetEventFor(op), 0);
     return itr->DispatchFn(itr, op, dbr);
 }
 
@@ -451,10 +454,15 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
         BuildJournal
     };
 
-    Packet* p = PacketBuilders[op](dbr);
+    // metrica por memoria
+    Metrics_Add(mem->MemMetrics, GetEventFor(op), 0);
 
-    Socket_SendPacket(mem->MemSocket, p);
-    Packet_Destroy(p);
+    {
+        Packet* p = PacketBuilders[op](dbr);
+        Socket_SendPacket(mem->MemSocket, p);
+        Packet_Destroy(p);
+    }
+
     return mem->MemSocket;
 }
 

@@ -1,39 +1,52 @@
 
 #include "Metric.h"
-#include <LockedQueue.h>
 #include <Logger.h>
 #include <Malloc.h>
 #include <Timer.h>
 
-typedef struct
+typedef struct Metric
 {
     MetricEvent Type;
     uint32_t Timestamp;
 
     // para los tiempos de exec
     uint32_t Value;
+
+    struct Metric* Next;
 } Metric;
 
 typedef struct Metrics
 {
-    LockedQueue* list;
+    Metric* Head;
+    Metric* Tail;
 } Metrics;
 
 Metrics* Metrics_Create(void)
 {
     Metrics* m = Malloc(sizeof(Metrics));
-    m->list = LockedQueue_Create();
+    m->Head = NULL;
+    m->Tail = NULL;
     return m;
 }
 
 void Metrics_Add(Metrics* m, MetricEvent event, uint32_t value)
 {
     Metric* metric = Malloc(sizeof(Metric));
-
     metric->Type = event;
     metric->Timestamp = GetMSTime();
     metric->Value = value;
-    LockedQueue_Add(m->list, metric);
+    metric->Next = NULL;
+
+    if (!m->Head)
+    {
+        m->Head = metric;
+        m->Tail = metric;
+    }
+    else
+    {
+        m->Tail->Next = metric;
+        m->Tail = metric;
+    }
 }
 
 void Metrics_PruneOldEvents(Metrics* m)
@@ -43,46 +56,37 @@ void Metrics_PruneOldEvents(Metrics* m)
 
     // la lista está ordenada. el evento mas reciente es el ultimo
     // hay que considerar solo los eventos que ocurrieron hasta 30 segs antes, descartando los otros
-
-    // necesito de alguna forma aprovechar el hecho de que la lista este ordenada
-    // no puedo hacerlo con la abstraccion actual, necesito algo como splice e iteradores, asi que vamos a manopla
-    pthread_mutex_lock(&m->list->_lock);
+    // por lo tanto el primer elemento que no cumpla es mi condicion de corte
 
     uint32_t now = GetMSTime();
 
-    size_t n = 0;
-    Node* p = m->list->_head;
-    for (; p != NULL; p = p->Next)
+    Metric* metric = m->Head;
+    for (; metric != NULL; metric = metric->Next)
     {
         // busco el primer elemento mas nuevo y corto la iteracion
-        Metric const* const metric = p->Data;
         if (metric->Timestamp + CUT_INTERVAL_MS >= now)
             break;
-
-        ++n;
     }
 
     // eliminamos los elementos restantes (mas viejos que 30 seg)
-    for (Node* i = m->list->_head; i != p;)
+    for (Metric* i = m->Head; i != metric;)
     {
-        Node* next = i->Next;
-        Free(i->Data);
+        Metric* next = i->Next;
+        Free(i);
         i = next;
     }
-    m->list->_head = p;
-
-    pthread_mutex_unlock(&m->list->_lock);
+    m->Head = metric;
 }
 
-static double _meanReadLatency(LockedQueue*);
-static double _meanWriteLatency(LockedQueue*);
-static double _totalReads(LockedQueue*);
-static double _totalWrites(LockedQueue*);
-static double _memoryLoad(LockedQueue*);
+static double _meanReadLatency(Metrics const*);
+static double _meanWriteLatency(Metrics const*);
+static double _totalReads(Metrics const*);
+static double _totalWrites(Metrics const*);
+static double _memoryLoad(Metrics const*);
 
 void Metrics_Report(Metrics const* m, ReportType report)
 {
-    typedef double ListIterateFn(LockedQueue*);
+    typedef double ListIterateFn(Metrics const*);
 
     struct ListIterator
     {
@@ -100,109 +104,102 @@ void Metrics_Report(Metrics const* m, ReportType report)
     };
 
     struct ListIterator const* const itr = ListIterators + report;
-    double res = itr->Iterator(m->list);
+    double res = itr->Iterator(m);
 
     LISSANDRA_LOG_INFO(itr->Format, res);
 }
 
 void Metrics_Destroy(Metrics* m)
 {
-    LockedQueue_Destroy(m->list, Free);
+    Metric* metric = m->Head;
+    while (metric != NULL)
+    {
+        Metric* next = metric->Next;
+        Free(metric);
+        metric = next;
+    }
+
     Free(m);
 }
 
 /* PRIVATE */
 // horrible repeticion de codigo pero bueno, C no es C++ y se nota
-static double _meanReadLatency(LockedQueue* l)
+static double _meanReadLatency(Metrics const* m)
 {
     double res = 0.0;
     double count = 0.0;
 
-    pthread_mutex_lock(&l->_lock);
-    for (Node* i = l->_head; i != NULL; i = i->Next)
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
     {
-        Metric const* const m = i->Data;
-        if (m->Type != EVT_READ_LATENCY)
+        if (i->Type != EVT_READ_LATENCY)
             continue;
 
-        res += m->Value;
+        res += i->Value;
         ++count;
     }
-    pthread_mutex_unlock(&l->_lock);
 
     if (!count)
         return 0.0;
     return res / count;
 }
 
-static double _meanWriteLatency(LockedQueue* l)
+static double _meanWriteLatency(Metrics const* m)
 {
     double res = 0.0;
     double count = 0.0;
 
-    pthread_mutex_lock(&l->_lock);
-    for (Node* i = l->_head; i != NULL; i = i->Next)
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
     {
-        Metric const* const m = i->Data;
-        if (m->Type != EVT_WRITE_LATENCY)
+        if (i->Type != EVT_WRITE_LATENCY)
             continue;
 
-        res += m->Value;
+        res += i->Value;
         ++count;
     }
-    pthread_mutex_unlock(&l->_lock);
 
     if (!count)
         return 0.0;
     return res / count;
 }
 
-static double _totalReads(LockedQueue* l)
+static double _totalReads(Metrics const* m)
 {
     double count = 0.0;
 
-    pthread_mutex_lock(&l->_lock);
-    for (Node* i = l->_head; i != NULL; i = i->Next)
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
     {
-        Metric const* const m = i->Data;
-        if (m->Type != EVT_MEM_READ)
+        if (i->Type != EVT_MEM_READ)
             continue;
 
         ++count;
     }
-    pthread_mutex_unlock(&l->_lock);
 
     return count;
 }
 
-static double _totalWrites(LockedQueue* l)
+static double _totalWrites(Metrics const* m)
 {
     double count = 0.0;
 
-    pthread_mutex_lock(&l->_lock);
-    for (Node* i = l->_head; i != NULL; i = i->Next)
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
     {
-        Metric const* const m = i->Data;
-        if (m->Type != EVT_MEM_WRITE)
+        if (i->Type != EVT_MEM_WRITE)
             continue;
 
         ++count;
     }
-    pthread_mutex_unlock(&l->_lock);
 
     return count;
 }
 
-static double _memoryLoad(LockedQueue* l)
+static double _memoryLoad(Metrics const* m)
 {
     double rwOp = 0.0;
     double total = 0.0;
 
-    pthread_mutex_lock(&l->_lock);
-    for (Node* i = l->_head; i != NULL; i = i->Next)
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
     {
-        Metric const* const m = i->Data;
-        switch (m->Type)
+        switch (i->Type)
         {
             case EVT_MEM_WRITE:
             case EVT_MEM_READ:
@@ -215,7 +212,6 @@ static double _memoryLoad(LockedQueue* l)
                 continue;
         }
     }
-    pthread_mutex_unlock(&l->_lock);
 
     if (!total)
         return 0.0;
