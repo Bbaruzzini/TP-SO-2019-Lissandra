@@ -10,10 +10,11 @@
 #include <stdlib.h>
 #include <libcommons/string.h>
 #include <Logger.h>
+#include "API.h"
 
 typedef struct
 {
-    char const* TableName;
+    char /*const*/* TableName;
     union
     {
         struct
@@ -24,7 +25,7 @@ typedef struct
         struct
         {
             uint16_t Key;
-            char const* Value;
+            char /*const*/* Value;
             time_t Timestamp;
         } Insert;
 
