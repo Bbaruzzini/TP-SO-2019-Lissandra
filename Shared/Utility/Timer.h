@@ -51,6 +51,13 @@ static inline uint32_t GetMSTimeDiff(uint32_t oldMSTime, uint32_t newMSTime)
 }
 
 // returns current tick in milliseconds
+static inline uint32_t GetMSEpoch(void)
+{
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return TimeSpecToMS(&ts);
+}
+
 static inline uint32_t GetMSTime(void)
 {
     struct timespec ts;

@@ -155,7 +155,7 @@ static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)
 {
     Frame* const f = Memory_Read(frameNumber);
     f->Key = key;
-    f->Timestamp = GetMSTime();
+    f->Timestamp = GetMSEpoch();
     strncpy(f->Value, value, MaxValueLength);
 }
 
