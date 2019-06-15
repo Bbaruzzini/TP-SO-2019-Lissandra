@@ -157,16 +157,28 @@ int main(void)
     //Pruebas Brenda/Denise desde ACA
 
     //create("Tabla3", "SC", 5, 2000);
+    //create("Tabla2", "SC", 4, 1000);
 
-   // t_list* prueba = malloc(sizeof(t_list));
+    //t_list* prueba = malloc(sizeof(t_list));
 
-   // prueba = describe("");
+    //prueba = describe("");
 
     //size_t tamanio = list_size(prueba);
 
-   // printf("tamanio: %d\n", tamanio);
+    //printf("tamanio: %d\n", tamanio);
+
+    //t_describe* prueba2 = Malloc(sizeof(t_describe));
+
+    //prueba2 = describe("TABLA2");
+
+    //printf("Tabla: %s\n", prueba2->table);
+    //printf("Consistencia: %s\n", prueba2->consistency);
+    //printf("Particiones: %d\n", prueba2->partitions);
+    //printf("Tiempo: %d\n", prueba2->compaction_time);
 
     //HASTA ACA
+
+    //drop("TABLA3");
 
     iniciar_servidor();
 

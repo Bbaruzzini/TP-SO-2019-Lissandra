@@ -48,6 +48,14 @@ bool dirIsEmpty(char* path);
 
 bool hayDump(char* nombreTabla);
 
+bool is_any(char* nombreArchivo);
+
+char* generarPathArchivo(char* nombreTabla, char* nombreArchivo);
+
+void borrarArchivo(char* nombreTabla, char* nombreArchivo);
+
+int traverse_to_drop(char* fn, char* nombreTabla);
+
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

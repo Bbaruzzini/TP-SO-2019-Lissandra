@@ -293,11 +293,13 @@ t_describe* get_table_metadata(char* path, char* tabla)
     infoMetadata->compaction_time = compaction_time;
 
     //Pruebas Brenda/Denise desde ACA
+    /*
     printf("Estoy en get_table_metadata\n");
     printf("Tabla: %s\n", infoMetadata->table);
     printf("Consistencia: %s\n", infoMetadata->consistency);
     printf("Particiones: %d\n", infoMetadata->partitions);
     printf("Tiempo: %d\n", infoMetadata->compaction_time);
+     */
     //HASTA ACA
 
     return infoMetadata;
@@ -308,63 +310,50 @@ int traverse(char* fn, t_list* lista, char* tabla)
 {
     DIR* dir;
     struct dirent* entry;
-    char path[1025];
+    char* path;
     struct stat info;
+    t_describe* informacion;
 
     if ((dir = opendir(fn)) == NULL)
     {
-
         printf("ERROR: La ruta especificada es invalida\n");
         return -1;
-
     }
     else
     {
-
         while ((entry = readdir(dir)) != NULL)
         {
-
+            path = string_new();
             if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
             {
-
-                strcpy(path, fn);
-                strcat(path, "/");
-                strcat(path, entry->d_name);
+                string_append(&path, fn);
+                string_append(&path, "/");
+                string_append(&path, entry->d_name);
                 if (stat(path, &info) != 0)
                 {
-
                     LISSANDRA_LOG_ERROR("Error stat() en %s", path);
                     return -1;
-
                 }
                 else
                 {
-
                     if (S_ISDIR(info.st_mode))
                     {
-
                         int resultado = traverse(path, lista, entry->d_name);
                         if (resultado == -1)
                         {
                             return -1;
                         }
-
                     }
                     else
                     {
-
                         if (S_ISREG(info.st_mode))
                         {
-
                             if (strcmp(entry->d_name, "Metadata.bin") == 0)
                             {
-
-                                t_describe* info = get_table_metadata(path, tabla);
-                                list_add(lista, info);
+                                informacion = get_table_metadata(path, tabla);
+                                list_add(lista, informacion);
                                 break;
-
                             }
-
                         }
 
                     }
@@ -379,7 +368,6 @@ int traverse(char* fn, t_list* lista, char* tabla)
         return 0;
 
     }
-
 }
 
 bool dirIsEmpty(char* path)
@@ -414,3 +402,139 @@ bool hayDump(char* nombreTabla)
         return true;
     }
 }
+
+bool is_any(char* nombreArchivo)
+{
+
+    Vector strings = string_split(nombreArchivo, ".");
+    char** string_1 = Vector_at(&strings, 0);
+    char** string_2 = Vector_at(&strings, 1);
+
+    char* string1 = (char*) string_1[0];
+    char* string2 = (char*) string_2[0];
+
+    if (strcmp(string2, "tmpc") == 0)
+    {
+        return true;
+    }
+    else
+    {
+        if (strcmp(string2, "tmp") == 0)
+        {
+            return true;
+        }
+        else
+        {
+            if (strcmp(string2, "bin") == 0)
+            {
+                if (strcmp(string1, "Metadata") == 0)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+}
+
+char* generarPathArchivo(char* nombreTabla, char* nombreArchivo)
+{
+
+    char* path = string_new();
+    string_append(&path, confLFS->PUNTO_MONTAJE);
+    string_append(&path, "Tables");
+    string_append(&path, "/");
+    string_append(&path, nombreTabla);
+    string_append(&path, "/");
+    string_append(&path, nombreArchivo);
+
+    return path;
+
+}
+
+void borrarArchivo(char* nombreTabla, char* nombreArchivo)
+{
+
+    char* pathAbsoluto = generarPathArchivo(nombreTabla, nombreArchivo);
+
+    t_config* data = config_create(pathAbsoluto);
+    Vector bloques = config_get_array_value(data, "BLOCKS");
+    size_t cantElementos = Vector_size(&bloques);
+
+    int j = 0;
+    t_config* elemento;
+
+    while (j < cantElementos)
+    {
+        elemento = Vector_at(&bloques, j);
+        escribirValorBitarray(0, atoi(elemento->path));
+        j++;
+    }
+
+    unlink(pathAbsoluto);
+    config_destroy(data);
+    //config_destroy(elemento);
+    free(pathAbsoluto);
+
+}
+
+int traverse_to_drop(char* fn, char* nombreTabla)
+{
+    DIR* dir;
+    struct dirent* entry;
+    struct stat info;
+    char* path;
+
+    if ((dir = opendir(fn)) == NULL)
+    {
+        printf("ERROR: La ruta especificada es invalida\n");
+        return -1;
+    }
+    else
+    {
+        while ((entry = readdir(dir)) != NULL)
+        {
+            path = string_new();
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+            {
+                string_append(&path, fn);
+                string_append(&path, "/");
+                string_append(&path, entry->d_name);
+                if (stat(path, &info) != 0)
+                {
+                    LISSANDRA_LOG_ERROR("Error stat() en %s", path);
+                    return -1;
+                }
+                else
+                {
+                    if (S_ISREG(info.st_mode))
+                    {
+                        if (is_any(entry->d_name))
+                        {
+                            borrarArchivo(nombreTabla, entry->d_name);
+                        }
+                        else
+                        {
+                            if (strcmp(entry->d_name, "Metadata.bin") == 0)
+                            {
+                                char* path_metadata = generarPathArchivo(nombreTabla, entry->d_name);
+                                unlink(path_metadata);
+                            }
+                        }
+                    }
+                }
+            }
+
+
+        }
+    }
+
+    closedir(dir);
+    return 0;
+
+}
+
