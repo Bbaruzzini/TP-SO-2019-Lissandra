@@ -108,3 +108,26 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
     return registroMayor;
 
 }
+
+int delete_elem_memtable(char* nombreTabla)
+{
+
+    size_t cantElementos = Vector_size(&memtable);
+    t_elem_memtable* elemento;
+    int i = 0;
+
+    while (i < cantElementos)
+    {
+        elemento = Vector_at(&memtable, i);
+
+        if (elemento->nombreTabla == nombreTabla)
+        {
+            Vector_erase(&memtable, i);
+            return 0;
+        }
+        i++;
+    }
+
+    return -1;
+
+}

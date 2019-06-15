@@ -52,5 +52,7 @@ t_elem_memtable* memtable_get(char* nombreTabla);
 //Funcion para buscar segun una key dada el registro con mayor timestamp
 t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t key);
 
+//Funcion para eliminar un elemento de la memtable
+int delete_elem_memtable(char* nombreTabla);
 
 #endif //LISSANDRA_MEMTABLE_H
