@@ -71,11 +71,63 @@ void HandleSelectOpcode(Socket* s, Packet* p)
 
 void HandleInsertOpcode(Socket* s, Packet* p)
 {
+    char* nombreTabla;
+    uint16_t key;
+    char* value;
+    time_t timestamp;
+    Packet_Read(p, &nombreTabla);
+    Packet_Read(p, &key);
+    Packet_Read(p, &value);
+
+    //Hay que agregar algo al define de Packet_Read?????
+    //Packet_Read(p, &timestamp);
+
+    //resultadoInsert es EXIT_SUCCESS o EXIT_FAILURE
+    int resultadoInsert = insert(nombreTabla, key, value, timestamp);
+
+    if (resultadoInsert == EXIT_FAILURE)
+    {
+        LISSANDRA_LOG_ERROR("No se pudo realizar el insert de: %s", nombreTabla);
+    }
+
+    //No estoy segura si va MSG_INSERT u otra cosa :/
+    Packet* respuesta = Packet_Create(MSG_INSERT_RESPUESTA, 2);
+    Packet_Append(respuesta, resultadoInsert);
+    Socket_SendPacket(s, respuesta);
+    Packet_Destroy(respuesta);
+
+    free(value);
+    free(nombreTabla);
 
 }
 
 void HandleCreateOpcode(Socket* s, Packet* p)
 {
+    char* nombreTabla;
+    char* tipoConsistencia;
+    uint16_t numeroParticiones;
+    uint32_t compactionTime;
+
+    Packet_Read(p, &nombreTabla);
+    Packet_Read(p, &tipoConsistencia);
+    Packet_Read(p, &numeroParticiones);
+    Packet_Read(p, &compactionTime);
+
+    int resultadoCreate = create(nombreTabla, tipoConsistencia, numeroParticiones, compactionTime);
+
+    if (resultadoCreate == EXIT_FAILURE)
+    {
+        LISSANDRA_LOG_ERROR("No se pudo crear la tabla: %s", nombreTabla);
+    }
+
+    //Hay que crear un MSG_CREATE?????
+    Packet* respuesta = Packet_Create(MSG_CREATE_RESPUESTA, 2);
+    Packet_Append(respuesta, resultadoCreate);
+    Socket_SendPacket(s, respuesta);
+    Packet_Destroy(respuesta);
+
+    free(tipoConsistencia);
+    free(nombreTabla);
 
 }
 
@@ -94,5 +146,23 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
 void HandleDropOpcode(Socket* s, Packet* p)
 {
+    char* nombreTabla;
+
+    Packet_Read(p, &nombreTabla);
+
+    int resultadoDrop = drop(nombreTabla);
+
+    if (resultadoDrop == EXIT_FAILURE)
+    {
+        LISSANDRA_LOG_ERROR("No se pudo hacer drop de la tabla: %s", nombreTabla);
+    }
+
+    //Hay que crear un MSG_DROP?????
+    Packet* respuesta = Packet_Create(MSG_DROP_RESPUESTA, 2);
+    Packet_Append(respuesta, resultadoDrop);
+    Socket_SendPacket(s, respuesta);
+    Packet_Destroy(respuesta);
+
+    free(nombreTabla);
 
 }

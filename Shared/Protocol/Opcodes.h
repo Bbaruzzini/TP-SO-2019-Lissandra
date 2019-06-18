@@ -75,6 +75,15 @@ typedef enum
                               * char*: puntoMontaje
                               */
 
+    MSG_CREATE_RESPUESTA,   /*uint8: EXIT_SUCCESS o EXIT_FAILURE
+                            */
+
+    MSG_DROP_RESPUESTA, /*uint8: EXIT_SUCCESS o EXIT_FAILURE
+                        */
+
+    MSG_INSERT_RESPUESTA,   /*uint8: EXIT_SUCCESS o EXIT_FAILURE
+                            */
+
     MSG_MEMORY_ID,           /* uint32_t: memoryId
                               */
 
