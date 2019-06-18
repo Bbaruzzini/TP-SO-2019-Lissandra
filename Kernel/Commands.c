@@ -71,16 +71,18 @@ bool HandleSelect(Vector const* args)
     dbr.TableName = table;
     dbr.Data.Select.Key = k;
 
-    Socket* s = Criteria_Dispatch(ct, OP_SELECT, &dbr);
-    if (!s) // no hay memorias conectadas? criteria loguea el error
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_SELECT, &dbr);
+    if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
     uint32_t requestTime = GetMSTime();
+    Packet* p = Memory_SendRequestWithAnswer(mem, OP_SELECT, &dbr);
 
-    //todo recvpacket puede devolver null
-    Packet* p = Socket_RecvPacket(s);
-    uint32_t const latency = GetMSTimeDiff(requestTime, GetMSTime());
-    Criteria_AddMetric(ct, EVT_READ_LATENCY, latency);
+    // se desconecto la memoria! el sendrequest ya lo logueó
+    if (!p)
+        return false;
+
+    Criteria_AddMetric(ct, EVT_READ_LATENCY, GetMSTimeDiff(requestTime, GetMSTime()));
 
     switch (Packet_GetOpcode(p))
     {
@@ -89,9 +91,8 @@ bool HandleSelect(Vector const* args)
         case MSG_ERR_MEM_FULL:
         {
             // usar valor igual (lo devuelve) pero además mandar un Journal
-            Packet* journalPacket = BuildJournal(NULL /*unused*/);
-            Socket_SendPacket(s, journalPacket); // no uso el dispatcher, se envia a la memoria que me dió el error.
-            Packet_Destroy(journalPacket);
+            // no uso el dispatcher, se envia a la memoria que me dió el error.
+            Memory_SendRequest(mem, OP_JOURNAL, NULL /*unused*/);
             break;
         }
         case MSG_ERR_NOT_FOUND:
@@ -149,12 +150,16 @@ bool HandleInsert(Vector const* args)
     dbr.Data.Insert.Key = k;
     dbr.Data.Insert.Value = value;
 
-    Socket* s = Criteria_Dispatch(ct, OP_INSERT, &dbr);
-    if (!s) // no hay memorias conectadas? criteria loguea el error
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_INSERT, &dbr);
+    if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
     uint32_t requestTime = GetMSTime();
-    Packet* p = Socket_RecvPacket(s);
+    Packet* p = Memory_SendRequestWithAnswer(mem, OP_INSERT, &dbr);
+
+    // se desconecto la memoria! el sendrequest ya lo logueó
+    if (!p)
+        return false;
 
     switch (Packet_GetOpcode(p))
     {
@@ -163,20 +168,14 @@ bool HandleInsert(Vector const* args)
         case MSG_ERR_MEM_FULL:
         {
             // se debe vaciar la memoria e intentar el request nuevamente. Esto aumenta la latencia de escritura.
-            while (Packet_GetOpcode(p) == MSG_ERR_MEM_FULL)
+            do
             {
                 Packet_Destroy(p);
 
-                Packet* journal = BuildJournal(NULL /*unused*/);
-                Socket_SendPacket(s, journal);
-                Packet_Destroy(journal);
+                Memory_SendRequest(mem, OP_JOURNAL, NULL /*unused*/);
 
-                p = BuildInsert(&dbr);
-                Socket_SendPacket(s, p);
-                Packet_Destroy(p);
-
-                p = Socket_RecvPacket(s);
-            }
+                p = Memory_SendRequestWithAnswer(mem, OP_INSERT, &dbr);
+            } while (Packet_GetOpcode(p) == MSG_ERR_MEM_FULL);
             break;
         }
         default:
@@ -185,8 +184,7 @@ bool HandleInsert(Vector const* args)
             return false;
     }
 
-    uint32_t const latency = GetMSTimeDiff(requestTime, GetMSTime());
-    Criteria_AddMetric(ct, EVT_WRITE_LATENCY, latency);
+    Criteria_AddMetric(ct, EVT_WRITE_LATENCY, GetMSTimeDiff(requestTime, GetMSTime()));
 
     LISSANDRA_LOG_INFO("INSERT: tabla: %s, key: %s, valor: %s", table, key, value);
     Packet_Destroy(p);
@@ -228,9 +226,11 @@ bool HandleCreate(Vector const* args)
     dbr.Data.Create.Partitions = strtoul(partitions, NULL, 10);
     dbr.Data.Create.CompactTime = strtoul(compaction_time, NULL, 10);
 
-    Socket* s = Criteria_Dispatch(ct, OP_CREATE, &dbr);
-    if (!s) // no hay memorias conectadas? criteria loguea el error
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_CREATE, &dbr);
+    if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
+
+    Memory_SendRequest(mem, OP_CREATE, &dbr);
 
     LISSANDRA_LOG_INFO("CREATE: tabla: %s, consistencia: %s, particiones: %s, tiempo compactacion: %s", table, criteria,
                        partitions, compaction_time);
@@ -258,53 +258,64 @@ bool HandleDescribe(Vector const* args)
     DBRequest dbr;
     dbr.TableName = table;
 
-    Metadata_Clear();
-    // todo: deberia enviarlo a cualquier memoria conectada
-    // todo: no deberia borrar la metadata, solo actualizarla
-    //for (CriteriaType ct = 0; ct < NUM_CRITERIA; ++ct)
+    // para el global se utiliza cualquiera de los disponibles
+    CriteriaType ct = CRITERIA_ANY;
+    /*if (table && !Metadata_Get(table, &ct)) todo descomentar cuando tenga describe
     {
-        Socket* s = Criteria_Dispatch(CRITERIA_SC /*todo para probar */, OP_DESCRIBE, &dbr);
-        if (!s) // no hay memorias conectadas? criteria loguea el error
-            return false;
+        LISSANDRA_LOG_ERROR("INSERT: Tabla %s no encontrada en metadata", table);
+        return false;
+    }*/
 
-        Packet* p = Socket_RecvPacket(s);
-        if (Packet_GetOpcode(p) != MSG_DESCRIBE && Packet_GetOpcode(p) != MSG_DESCRIBE_GLOBAL)
-        {
-            LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-            return false;
-        }
+    // el global actualiza metadatos
+    if (!table)
+        Metadata_Clear();
+    else // el local borra la de la tabla pedida ya que puede que se haya DROPeado
+        Metadata_Del(table);
 
-        uint32_t num = 1;
-        if (Packet_GetOpcode(p) == MSG_DESCRIBE_GLOBAL)
-            Packet_Read(p, &num);
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_DESCRIBE, &dbr);
+    if (!mem) // no hay memorias conectadas? criteria loguea el error
+        return false;
 
-        LISSANDRA_LOG_INFO("DESCRIBE: numero de tablas %u", num);
+    Packet* p = Memory_SendRequestWithAnswer(mem, OP_DESCRIBE, &dbr);
+    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
+        return false;
 
-        for (uint32_t i = 0; i < num; ++i)
-        {
-            char* name;
-            Packet_Read(p, &name);
-
-            uint8_t type;
-            Packet_Read(p, &type);
-
-            uint16_t partitions;
-            Packet_Read(p, &partitions);
-
-            uint32_t compaction_time;
-            Packet_Read(p, &compaction_time);
-
-            LISSANDRA_LOG_INFO(
-                    "DESCRIBE: Tabla nº %u: nombre: %s, tipo consistencia %u, particiones: %u, tiempo entre compactaciones %u",
-                    num + 1, name, type, partitions, compaction_time);
-
-            Metadata_Add(name, type);
-            Free(name);
-        }
-
+    if (Packet_GetOpcode(p) != MSG_DESCRIBE && Packet_GetOpcode(p) != MSG_DESCRIBE_GLOBAL)
+    {
+        LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
         Packet_Destroy(p);
+        return false;
     }
 
+    uint32_t num = 1;
+    if (Packet_GetOpcode(p) == MSG_DESCRIBE_GLOBAL)
+        Packet_Read(p, &num);
+
+    LISSANDRA_LOG_INFO("DESCRIBE: numero de tablas %u", num);
+
+    for (uint32_t i = 0; i < num; ++i)
+    {
+        char* name;
+        Packet_Read(p, &name);
+
+        uint8_t type;
+        Packet_Read(p, &type);
+
+        uint16_t partitions;
+        Packet_Read(p, &partitions);
+
+        uint32_t compaction_time;
+        Packet_Read(p, &compaction_time);
+
+        LISSANDRA_LOG_INFO(
+                "DESCRIBE: Tabla nº %u: nombre: %s, tipo consistencia %u, particiones: %u, tiempo entre compactaciones %u",
+                i + 1, name, type, partitions, compaction_time);
+
+        Metadata_Add(name, type);
+        Free(name);
+    }
+
+    Packet_Destroy(p);
     return true;
 }
 
@@ -334,11 +345,11 @@ bool HandleDrop(Vector const* args)
     DBRequest dbr;
     dbr.TableName = table;
 
-    Socket* s = Criteria_Dispatch(ct, OP_DROP, &dbr);
-    if (!s) // no hay memorias conectadas? criteria loguea el error
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_DROP, &dbr);
+    if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
-    Metadata_Del(table);
+    Memory_SendRequest(mem, OP_DROP, &dbr);
     return true;
 }
 
@@ -355,13 +366,7 @@ bool HandleJournal(Vector const* args)
     }
 
     // broadcast a todos los criterios
-    for (CriteriaType ct = 0; ct < NUM_CRITERIA; ++ct)
-    {
-        Socket* s = Criteria_Dispatch(ct, OP_JOURNAL, NULL);
-        if (!s) // no hay memorias conectadas? criteria loguea el error
-            return false;
-    }
-
+    Criteria_BroadcastJournal();
     return true;
 }
 

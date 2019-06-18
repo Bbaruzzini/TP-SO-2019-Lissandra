@@ -39,7 +39,7 @@ typedef enum
                   */
 
     LQL_CREATE,  /* char*: nombre tabla
-                  * uint8: tipo consistencia (ver Kernel/Criteria.h)
+                  * uint8: tipo consistencia (ver Consistency.h)
                   * uint16: numero particiones
                   * uint32: tiempo entre compactaciones, en milisegundos
                   */
@@ -59,7 +59,7 @@ typedef enum
     MSG_INSERT,  /* nada */
 
     MSG_DESCRIBE, /* char*: nombre tabla
-                   * uint8: tipo de consistencia (ver Kernel/Criteria.h)
+                   * uint8: tipo de consistencia (ver Consistency.h)
                    * uint16: numero de particiones
                    * uint32: tiempo entre compactaciones, en milisegundos
                    */

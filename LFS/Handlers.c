@@ -1,7 +1,7 @@
 
 #include "Handlers.h"
-#include "Kernel/Criteria.h"
 #include "Lissandra.h"
+#include <Consistency.h>
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>

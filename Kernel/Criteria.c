@@ -4,17 +4,19 @@
 #include <libcommons/list.h>
 #include <Logger.h>
 #include <Malloc.h>
+#include <pthread.h>
 #include <Socket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <Timer.h>
 #include <vector.h>
 
-typedef struct
+typedef struct Memory
 {
     uint32_t MemId;
     Metrics* MemMetrics;
     Socket* MemSocket;
+    pthread_mutex_t MemLock;
 } Memory;
 
 typedef struct
@@ -24,16 +26,17 @@ typedef struct
 } MemoryConnectionData;
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
-typedef Socket* DispatchFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
+typedef Memory* GetMemFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
 typedef void ReportFnType(void const* criteria, ReportType report);
 typedef void DestroyFnType(void* criteria);
 
 typedef struct
 {
     Metrics* CritMetrics;
+    pthread_mutex_t CritLock;
 
     AddMemoryFnType* AddMemoryFn;
-    DispatchFnType* DispatchFn;
+    GetMemFnType* GetMemFn;
     ReportFnType* ReportFn;
     DestroyFnType* DestroyFn;
 } Criteria;
@@ -67,7 +70,7 @@ static inline uint32_t keyHash(uint16_t key)
     return key;
 }
 
-static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* dispatcher, ReportFnType* reporter, DestroyFnType* destroyer);
+static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer);
 static void _destroy_mem(void* elem);
 static void _destroy_mem_array(void* pElem);
 static void _destroy(Criteria* criteria);
@@ -76,9 +79,9 @@ static AddMemoryFnType _sc_add;
 static AddMemoryFnType _shc_add;
 static AddMemoryFnType _ec_add;
 
-static DispatchFnType _sc_dispatch;
-static DispatchFnType _shc_dispatch;
-static DispatchFnType _ec_dispatch;
+static GetMemFnType _sc_get;
+static GetMemFnType _shc_get;
+static GetMemFnType _ec_get;
 
 static ReportFnType _sc_report;
 static ReportFnType _shc_report;
@@ -88,7 +91,8 @@ static DestroyFnType _sc_destroy;
 static DestroyFnType _shc_destroy;
 static DestroyFnType _ec_destroy;
 
-static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
+static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
+static void _report_one(Memory* mem, ReportType rt);
 static void _shc_report_one(void* pElem, void* rt);
 static void _ec_report_one(void* elem, void* rt);
 
@@ -121,15 +125,15 @@ void Criterias_Init(void)
 
     // ugly pero bue
     Criteria_SC* sc = Malloc(sizeof(Criteria_SC));
-    _initBase(sc, _sc_add, _sc_dispatch, _sc_report, _sc_destroy);
+    _initBase(sc, _sc_add, _sc_get, _sc_report, _sc_destroy);
     sc->SCMem = 0;
 
     Criteria_SHC* shc = Malloc(sizeof(Criteria_SHC));
-    _initBase(shc, _shc_add, _shc_dispatch, _shc_report, _shc_destroy);
+    _initBase(shc, _shc_add, _shc_get, _shc_report, _shc_destroy);
     Vector_Construct(&shc->MemoryArr, sizeof(Memory*), _destroy_mem_array, 0);
 
     Criteria_EC* ec = Malloc(sizeof(Criteria_EC));
-    _initBase(ec, _ec_add, _ec_dispatch, _ec_report, _ec_destroy);
+    _initBase(ec, _ec_add, _ec_get, _ec_report, _ec_destroy);
     ec->MemoryList = list_create();
 
     Criterias[CRITERIA_SC] = (Criteria*) sc;
@@ -186,50 +190,8 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
     mem->MemId = memId;
     mem->MemMetrics = Metrics_Create();
     mem->MemSocket = s;
+    pthread_mutex_init(&mem->MemLock, NULL);
     itr->AddMemoryFn(itr, mem);
-}
-
-void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value)
-{
-    Criteria* const itr = Criterias[type];
-    Metrics_Add(itr->CritMetrics, event, value);
-}
-
-void Criterias_Report(void)
-{
-    static char const* const CRITERIA_NAMES[NUM_CRITERIA] =
-    {
-        "STRONG",
-        "STRONG HASH",
-        "EVENTUAL"
-    };
-
-    LISSANDRA_LOG_INFO("========REPORTE========");
-    for (unsigned type = 0; type < NUM_CRITERIA; ++type)
-    {
-        Criteria const* itr = Criterias[type];
-        Metrics_PruneOldEvents(itr->CritMetrics);
-
-        LISSANDRA_LOG_INFO("CRITERIO %s", CRITERIA_NAMES[type]);
-        for (ReportType r = CRITERIA_REPORTS_BEGIN; r < CRITERIA_REPORTS_END; ++r)
-            Metrics_Report(itr->CritMetrics, r);
-
-        // por ahora solo MEMORY_LOAD
-        for (ReportType r = MEMORY_REPORTS_BEGIN; r < MEMORY_REPORTS_END; ++r)
-            itr->ReportFn(itr, r);
-
-        LISSANDRA_LOG_INFO("\n");
-    }
-    LISSANDRA_LOG_INFO("======FIN REPORTE======");
-}
-
-Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr)
-{
-    Criteria* const itr = Criterias[type];
-
-    // registrar la operacion para metricas
-    Criteria_AddMetric(type, GetEventFor(op), 0);
-    return itr->DispatchFn(itr, op, dbr);
 }
 
 static bool FindMemByIdPred(void* mem, void* id)
@@ -247,7 +209,7 @@ void Criteria_DisconnectMemory(uint32_t memId)
     }
 
     Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
-    if (sc->SCMem->MemId == memId)
+    if (sc->SCMem && sc->SCMem->MemId == memId)
     {
         _destroy_mem(sc->SCMem);
         sc->SCMem = NULL;
@@ -270,6 +232,129 @@ void Criteria_DisconnectMemory(uint32_t memId)
     hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
 }
 
+void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value)
+{
+    Criteria* const itr = Criterias[type];
+
+    pthread_mutex_lock(&itr->CritLock);
+    Metrics_Add(itr->CritMetrics, event, value);
+    pthread_mutex_unlock(&itr->CritLock);
+}
+
+void Criterias_Report(void)
+{
+    static char const* const CRITERIA_NAMES[NUM_CRITERIA] =
+    {
+        "STRONG",
+        "STRONG HASH",
+        "EVENTUAL"
+    };
+
+    LISSANDRA_LOG_INFO("========REPORTE========");
+    for (unsigned type = 0; type < NUM_CRITERIA; ++type)
+    {
+        LISSANDRA_LOG_INFO("CRITERIO %s", CRITERIA_NAMES[type]);
+
+        Criteria* itr = Criterias[type];
+        pthread_mutex_lock(&itr->CritLock);
+
+        Metrics_PruneOldEvents(itr->CritMetrics);
+
+        for (ReportType r = CRITERIA_REPORTS_BEGIN; r < CRITERIA_REPORTS_END; ++r)
+            Metrics_Report(itr->CritMetrics, r);
+
+        // por ahora solo MEMORY_LOAD
+        for (ReportType r = MEMORY_REPORTS_BEGIN; r < MEMORY_REPORTS_END; ++r)
+            itr->ReportFn(itr, r);
+
+        pthread_mutex_unlock(&itr->CritLock);
+
+        LISSANDRA_LOG_INFO("\n");
+    }
+    LISSANDRA_LOG_INFO("======FIN REPORTE======");
+}
+
+static void ECJournalize(void* elem)
+{
+    Memory* const mem = elem;
+    _send_one(mem, OP_JOURNAL, NULL);
+}
+
+void Criteria_BroadcastJournal(void)
+{
+    Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
+    if (sc->SCMem)
+        _send_one(sc->SCMem, OP_JOURNAL, NULL);
+
+    Criteria_SHC* shc = (Criteria_SHC*) Criterias[CRITERIA_SHC];
+    Memory** data = Vector_data(&shc->MemoryArr);
+    for (size_t i = 0; i < Vector_size(&shc->MemoryArr); ++i)
+        _send_one(data[i], OP_JOURNAL, NULL);
+
+    Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
+    list_iterate(ec->MemoryList, ECJournalize);
+}
+
+Memory* Criteria_GetMemoryFor(CriteriaType type, MemoryOps op, DBRequest const* dbr)
+{
+    // elegir cualquier criterio que tenga memorias conectadas
+    if (type == CRITERIA_ANY)
+    {
+        CriteriaType types[NUM_CRITERIA] = { 0 };
+        uint32_t last = 0;
+
+        Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
+        if (sc->SCMem)
+            types[last++] = CRITERIA_SC;
+
+        Criteria_SHC* shc = (Criteria_SHC*) Criterias[CRITERIA_SHC];
+        if (!Vector_empty(&shc->MemoryArr))
+            types[last++] = CRITERIA_SHC;
+
+        Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
+        if (!list_is_empty(ec->MemoryList))
+            types[last++] = CRITERIA_EC;
+
+        if (!last)
+        {
+            LISSANDRA_LOG_ERROR("Criteria: no hay memorias conectadas. Utilizar ADD priemero!");
+            return NULL;
+        }
+
+        type = types[random() % last];
+    }
+
+    Criteria* const itr = Criterias[type];
+
+    // registrar la operacion para metricas
+    Criteria_AddMetric(type, GetEventFor(op), 0);
+
+    return itr->GetMemFn(itr, op, dbr);
+}
+
+void Memory_SendRequest(Memory* mem, MemoryOps op, DBRequest const* dbr)
+{
+    pthread_mutex_lock(&mem->MemLock);
+    _send_one(mem, op, dbr);
+    pthread_mutex_unlock(&mem->MemLock);
+}
+
+Packet* Memory_SendRequestWithAnswer(Memory* mem, MemoryOps op, DBRequest const* dbr)
+{
+    pthread_mutex_lock(&mem->MemLock);
+    _send_one(mem, op, dbr);
+    Packet* p = Socket_RecvPacket(mem->MemSocket);
+    pthread_mutex_unlock(&mem->MemLock);
+
+    if (!p)
+    {
+        LISSANDRA_LOG_ERROR("Se desconectó memoria %u mientras leia un request!!, quitando...", mem->MemId);
+        Criteria_DisconnectMemory(mem->MemId);
+    }
+
+    return p;
+}
+
 void Criterias_Destroy(void)
 {
     for (unsigned type = 0; type < NUM_CRITERIA; ++type)
@@ -279,12 +364,14 @@ void Criterias_Destroy(void)
 }
 
 /* PRIVATE */
-static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* dispatcher, ReportFnType* reporter, DestroyFnType* destroyer)
+static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer)
 {
     Criteria* const c = criteria;
     c->CritMetrics = Metrics_Create();
+    pthread_mutex_init(&c->CritLock, NULL);
+
     c->AddMemoryFn = adder;
-    c->DispatchFn = dispatcher;
+    c->GetMemFn = getmemer;
     c->ReportFn = reporter;
     c->DestroyFn = destroyer;
 }
@@ -292,6 +379,7 @@ static void _initBase(void* criteria, AddMemoryFnType* adder, DispatchFnType* di
 static void _destroy_mem(void* elem)
 {
     Memory* const m = elem;
+    pthread_mutex_destroy(&m->MemLock);
     Metrics_Destroy(m->MemMetrics);
     Socket_Destroy(m->MemSocket);
     Free(m);
@@ -306,6 +394,7 @@ static void _destroy_mem_array(void* pElem)
 
 static void _destroy(Criteria* c)
 {
+    pthread_mutex_destroy(&c->CritLock);
     Metrics_Destroy(c->CritMetrics);
     c->DestroyFn(c);
 }
@@ -332,8 +421,10 @@ static void _ec_add(void* criteria, Memory* mem)
     list_add(ec->MemoryList, mem);
 }
 
-static Socket* _sc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Memory* _sc_get(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
+    (void) dbr;
+
     Criteria_SC* const sc = criteria;
     if (!sc->SCMem)
     {
@@ -341,10 +432,10 @@ static Socket* _sc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
         return NULL;
     }
 
-    return _dispatch_one(sc->SCMem, op, dbr);
+    return sc->SCMem;
 }
 
-static Socket* _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Memory* _shc_get(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
     Criteria_SHC* const shc = criteria;
     if (Vector_empty(&shc->MemoryArr))
@@ -353,8 +444,8 @@ static Socket* _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
         return NULL;
     }
 
-    // por defecto primer memoria (no hay nada en el tp que diga lo contrario) ver issue 1326
-    size_t memPos = 0;
+    // por defecto cualquier memoria de las que tenga el criterio (ver issue 1326)
+    size_t memPos = random();
     switch (op)
     {
         case OP_SELECT:
@@ -370,17 +461,12 @@ static Socket* _shc_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
     memPos %= Vector_size(&shc->MemoryArr);
 
     Memory* const* const memArr = Vector_data(&shc->MemoryArr);
-    Memory* const mem = memArr[memPos];
-    return _dispatch_one(mem, op, dbr);
+    return memArr[memPos];
 }
 
-static Socket* _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
+static Memory* _ec_get(void* criteria, MemoryOps op, DBRequest const* dbr)
 {
-    // TODO: dejar random?
-    // otras opciones:
-    // LRU
-    // RR
-    // MR (min requests)
+    (void) dbr;
 
     Criteria_EC* const ec = criteria;
     if (list_is_empty(ec->MemoryList))
@@ -389,8 +475,13 @@ static Socket* _ec_dispatch(void* criteria, MemoryOps op, DBRequest const* dbr)
         return NULL;
     }
 
-    Memory* const mem = list_get(ec->MemoryList, random() % list_size(ec->MemoryList));
-    return _dispatch_one(mem, op, dbr);
+    // TODO: dejar random?
+    // otras opciones:
+    // LRU
+    // RR
+    // MR (min requests)
+    size_t const memPos = random() % list_size(ec->MemoryList);
+    return list_get(ec->MemoryList, memPos);
 }
 
 static void _sc_report(void const* criteria, ReportType report)
@@ -403,8 +494,7 @@ static void _sc_report(void const* criteria, ReportType report)
         return;
     }
 
-    Metrics_PruneOldEvents(mem->MemMetrics);
-    Metrics_Report(mem->MemMetrics, report);
+    _report_one(mem, report);
 }
 
 static void _shc_report(void const* criteria, ReportType report)
@@ -441,7 +531,7 @@ static void _ec_destroy(void* criteria)
     Free(ec);
 }
 
-static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
+static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
 {
     typedef Packet* PacketBuildFn(DBRequest const*);
     static PacketBuildFn* const PacketBuilders[NUM_OPS] =
@@ -457,13 +547,19 @@ static Socket* _dispatch_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
     // metrica por memoria
     Metrics_Add(mem->MemMetrics, GetEventFor(op), 0);
 
-    {
-        Packet* p = PacketBuilders[op](dbr);
-        Socket_SendPacket(mem->MemSocket, p);
-        Packet_Destroy(p);
-    }
+    Packet* p = PacketBuilders[op](dbr);
+    Socket_SendPacket(mem->MemSocket, p);
+    Packet_Destroy(p);
+}
 
-    return mem->MemSocket;
+static void _report_one(Memory* mem, ReportType rt)
+{
+    pthread_mutex_lock(&mem->MemLock);
+
+    Metrics_PruneOldEvents(mem->MemMetrics);
+    Metrics_Report(mem->MemMetrics, rt);
+
+    pthread_mutex_unlock(&mem->MemLock);
 }
 
 static void _shc_report_one(void* pElem, void* rt)
@@ -471,14 +567,12 @@ static void _shc_report_one(void* pElem, void* rt)
     Memory* const* const pMem = pElem;
     Memory* const mem = *pMem;
 
-    Metrics_PruneOldEvents(mem->MemMetrics);
-    Metrics_Report(mem->MemMetrics, (ReportType) rt);
+    _report_one(mem, (ReportType) rt);
 }
 
 static void _ec_report_one(void* elem, void* rt)
 {
     Memory* const mem = elem;
 
-    Metrics_PruneOldEvents(mem->MemMetrics);
-    Metrics_Report(mem->MemMetrics, (ReportType) rt);
+    _report_one(mem, (ReportType) rt);
 }

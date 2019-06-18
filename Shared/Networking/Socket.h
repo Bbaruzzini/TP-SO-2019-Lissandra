@@ -41,7 +41,6 @@ typedef struct
 } SocketOpts;
 
 #define BACKLOG 10
-#define READ_BLOCK_SIZE 4096
 
 /*
  * Socket_Create: crea un nuevo Socket

@@ -67,6 +67,7 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
 
 bool API_Insert(char const* tableName, uint16_t key, char const* value)
 {
+    LISSANDRA_LOG_DEBUG("INSERT %s %u %s", tableName, key, value);
     if (!Memory_UpdateValue(tableName, key, value))
         return false;
 
@@ -174,5 +175,6 @@ static void Journal_Register(void* dirtyFrame)
 
 void API_Journal(void)
 {
+    LISSANDRA_LOG_DEBUG("JOURNAL");
     Memory_DoJournal(Journal_Register);
 }

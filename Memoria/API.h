@@ -3,7 +3,7 @@
 #define Memoria_API_h
 
 #include "Frame.h"
-#include "Kernel/Criteria.h"
+#include <Consistency.h>
 #include <Malloc.h>
 #include <stdbool.h>
 #include <stdint.h>

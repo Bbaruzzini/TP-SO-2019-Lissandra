@@ -175,19 +175,15 @@ int main(void)
 
 static void PeriodicDescribe(void)
 {
-    static uint8_t ct = CRITERIA_SC;
-
-    // todo esto deberia ser en otra conexion para no pisarme si estoy esperando un dato
-
     // hago un describe global
     static DBRequest const dbr =
     {
         .TableName = NULL,
         .Data = {{ 0 }}
     };
-    Criteria_Dispatch(ct, OP_DESCRIBE, &dbr);
 
-    // ciclar entre los diferentes criterios en cada refresco automatico
-    ++ct;
-    ct %= NUM_CRITERIA;
+    // todo y que hacemos con el valor recibido?
+    Memory* m = Criteria_GetMemoryFor(CRITERIA_ANY, OP_DESCRIBE, &dbr);
+    Packet* p = Memory_SendRequestWithAnswer(m, OP_DESCRIBE, &dbr);
+
 }

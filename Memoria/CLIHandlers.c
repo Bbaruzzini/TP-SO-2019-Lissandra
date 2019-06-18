@@ -1,8 +1,8 @@
 
 #include "CLIHandlers.h"
 #include "API.h"
-#include "Kernel/Criteria.h"
 #include "MainMemory.h"
+#include <Consistency.h>
 #include <Logger.h>
 #include <stddef.h>
 #include <stdlib.h>

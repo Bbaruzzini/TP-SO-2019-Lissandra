@@ -3,49 +3,11 @@
 #define Criteria_h__
 
 #include "Metric.h"
-#include <Logger.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
+#include <Consistency.h>
 
+typedef struct Memory Memory;
+typedef struct Packet Packet;
 typedef struct Socket Socket;
-
-typedef enum
-{
-    CRITERIA_SC,
-    CRITERIA_SHC,
-    CRITERIA_EC,
-
-    NUM_CRITERIA
-} CriteriaType;
-
-struct CriteriaString
-{
-    char const* String;
-    CriteriaType Criteria;
-};
-
-static struct CriteriaString const CriteriaString[NUM_CRITERIA] =
-{
-    { "SC",  CRITERIA_SC },
-    { "SHC", CRITERIA_SHC },
-    { "EC",  CRITERIA_EC }
-};
-
-static inline bool CriteriaFromString(char const* string, CriteriaType* ct)
-{
-    for (uint8_t i = 0; i < NUM_CRITERIA; ++i)
-    {
-        if (!strcmp(string, CriteriaString[i].String))
-        {
-            *ct = CriteriaString[i].Criteria;
-            return true;
-        }
-    }
-
-    LISSANDRA_LOG_ERROR("Criterio %s no válido. Criterios validos: SC - SHC - EC.", string);
-    return false;
-}
 
 typedef enum
 {
@@ -92,13 +54,19 @@ bool Criteria_MemoryExists(uint32_t memId);
 
 void Criteria_AddMemory(CriteriaType type, uint32_t memId);
 
+void Criteria_DisconnectMemory(uint32_t memId);
+
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
 
 void Criterias_Report(void);
 
-Socket* Criteria_Dispatch(CriteriaType type, MemoryOps op, DBRequest const* dbr);
+void Criteria_BroadcastJournal(void);
 
-void Criteria_DisconnectMemory(uint32_t memId);
+Memory* Criteria_GetMemoryFor(CriteriaType type, MemoryOps op, DBRequest const* dbr);
+
+void Memory_SendRequest(Memory* mem, MemoryOps op, DBRequest const* dbr);
+
+Packet* Memory_SendRequestWithAnswer(Memory* mem, MemoryOps op, DBRequest const* dbr);
 
 void Criterias_Destroy(void);
 

@@ -97,8 +97,8 @@ static void SetupConfigInitial(char const* fileName)
 
 static void InitConsole(void)
 {
-    // subimos el nivel a errores para no entorpecer la consola
-    //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
+    // subimos el nivel a debug
+    Appender_SetLogLevel(consoleLog, LOG_LEVEL_DEBUG);
 }
 
 static void MainLoop(void)
