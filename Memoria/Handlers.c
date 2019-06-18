@@ -144,6 +144,7 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Packet_Read(p, &compactionTime);
 
     API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
+    Free(tableName);
 }
 
 static void AddToPacket(void* md, void* packet)
