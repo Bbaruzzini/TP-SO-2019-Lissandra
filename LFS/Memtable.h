@@ -15,7 +15,7 @@
 
 typedef struct
 {
-    char const* nombreTabla;
+    char* nombreTabla;
     Vector registros;
 } t_elem_memtable;
 
@@ -28,7 +28,7 @@ typedef struct
 typedef struct
 {
     uint16_t key;
-    char const* value;
+    char* value;
     time_t timestamp;
 } t_registro;
 
