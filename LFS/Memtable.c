@@ -4,14 +4,14 @@
 
 #include "Memtable.h"
 
-void crearMemtable()
+void crearMemtable(void)
 {
     size_t memtableElementSize = sizeof(t_elem_memtable);
     Vector_Construct(&memtable, memtableElementSize, NULL, 0);
     LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
-t_elem_memtable* new_elem_memtable(char* nombreTabla)
+t_elem_memtable* new_elem_memtable(char const* nombreTabla)
 {
     t_elem_memtable* new = Malloc(sizeof(t_elem_memtable));
     new->nombreTabla = nombreTabla;
@@ -21,7 +21,7 @@ t_elem_memtable* new_elem_memtable(char* nombreTabla)
     return new;
 }
 
-t_registro* new_elem_registro(uint16_t key, char* value, time_t timestamp)
+t_registro* new_elem_registro(uint16_t key, char const* value, time_t timestamp)
 {
     t_registro* new = Malloc(sizeof(t_registro));
     new->key = key;
@@ -36,12 +36,11 @@ void insert_new_in_memtable(t_elem_memtable* elemento)
     Vector_push_back(&memtable, elemento);
 }
 
-void insert_new_in_registros(char* nombreTabla, t_registro* registro)
+void insert_new_in_registros(char const* nombreTabla, t_registro* registro)
 {
-
     size_t cantElementos = Vector_size(&memtable);
     t_elem_memtable* elemento;
-    int i = 0;
+    size_t i = 0;
 
     while (i < cantElementos)
     {
@@ -56,14 +55,13 @@ void insert_new_in_registros(char* nombreTabla, t_registro* registro)
     }
 
     LISSANDRA_LOG_ERROR("No existe la tabla en la memtable");
-
 }
 
-t_elem_memtable* memtable_get(char* nombreTabla)
+t_elem_memtable* memtable_get(char const* nombreTabla)
 {
     size_t cantElementos = Vector_size(&memtable);
     t_elem_memtable* elemento;
-    int i = 0;
+    size_t i = 0;
 
     while (i < cantElementos)
     {
@@ -87,7 +85,7 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
     t_registro* registro;
     t_registro* registroMayor = NULL;
     int timestamp = 0;
-    int i = 0;
+    size_t i = 0;
 
     while (i < cantElementos)
     {
@@ -109,12 +107,12 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
 
 }
 
-int delete_elem_memtable(char* nombreTabla)
+int delete_elem_memtable(char const* nombreTabla)
 {
 
     size_t cantElementos = Vector_size(&memtable);
     t_elem_memtable* elemento;
-    int i = 0;
+    size_t i = 0;
 
     while (i < cantElementos)
     {

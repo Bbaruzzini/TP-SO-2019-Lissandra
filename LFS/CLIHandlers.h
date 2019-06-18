@@ -38,8 +38,8 @@ typedef struct
     } Data;
 } DBRequest;
 
-static inline bool ValidateKey(char const* keyString, uint16_t* result);
-static inline void ChangeTimestamp(char const* timestampString, time_t* result);
+bool ValidateKey(char const* keyString, uint16_t* result);
+void ChangeTimestamp(char const* timestampString, time_t* result);
 
 CLICommandHandlerFn HandleSelect;
 CLICommandHandlerFn HandleInsert;

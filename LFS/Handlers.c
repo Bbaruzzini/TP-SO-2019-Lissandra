@@ -6,6 +6,7 @@
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
+#include <Timer.h>
 
 OpcodeHandler const opcodeTable[NUM_OPCODES] =
 {
@@ -74,17 +75,22 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     char* nombreTabla;
     uint16_t key;
     char* value;
-    time_t timestamp;
+    uint32_t timestamp = GetMSEpoch();
     Packet_Read(p, &nombreTabla);
     Packet_Read(p, &key);
     Packet_Read(p, &value);
+
+    bool ts_present;
+    Packet_Read(p, &ts_present);
+
+    if (ts_present)
+        Packet_Read(p, &timestamp);
 
     //Hay que agregar algo al define de Packet_Read?????
     //Packet_Read(p, &timestamp);
 
     //resultadoInsert es EXIT_SUCCESS o EXIT_FAILURE
-    int resultadoInsert = insert(nombreTabla, key, value, timestamp);
-
+    int resultadoInsert = insert(nombreTabla, key, value, (time_t) timestamp);
     if (resultadoInsert == EXIT_FAILURE)
     {
         LISSANDRA_LOG_ERROR("No se pudo realizar el insert de: %s", nombreTabla);
@@ -104,7 +110,7 @@ void HandleInsertOpcode(Socket* s, Packet* p)
 void HandleCreateOpcode(Socket* s, Packet* p)
 {
     char* nombreTabla;
-    char* tipoConsistencia;
+    uint8_t tipoConsistencia;
     uint16_t numeroParticiones;
     uint32_t compactionTime;
 
@@ -126,7 +132,6 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Socket_SendPacket(s, respuesta);
     Packet_Destroy(respuesta);
 
-    free(tipoConsistencia);
     free(nombreTabla);
 
 }

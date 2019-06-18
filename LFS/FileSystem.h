@@ -34,7 +34,7 @@ t_bitarray* bitArray;
 
 //Funciones
 
-void iniciarFileSystem();
+void iniciarFileSystem(void);
 
 
 #endif //LISSANDRA_FILESYSTEM_H

@@ -4,7 +4,7 @@
 #include "LissandraLibrary.h"
 #include "Logger.h"
 
-void iniciarFileSystem()
+void iniciarFileSystem(void)
 {
     pathMetadata = string_new();
     string_append(&pathMetadata, confLFS->PUNTO_MONTAJE);
@@ -94,7 +94,6 @@ void iniciarFileSystem()
 
     if (dirIsEmpty(pathBloques))
     {
-
         for (j = 0; j < confLFS->CANTIDAD_BLOQUES; j++)
         {
             char* pathBloque = string_new();
@@ -114,7 +113,7 @@ void iniciarFileSystem()
     }
     else
     {
-
+        /// todo?
     }
 
     LISSANDRA_LOG_TRACE("Se finalizo la creacion del File System");
@@ -122,7 +121,6 @@ void iniciarFileSystem()
     free(pathMetadata);
     free(pathBloques);
     free(pathTablas);
-
 }
 
 

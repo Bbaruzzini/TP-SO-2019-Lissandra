@@ -19,8 +19,8 @@
 typedef struct
 {
 
-    char* table;
-    char* consistency;
+    char const* table;
+    uint8_t consistency;
     int partitions;
     int compaction_time;
 
@@ -28,33 +28,33 @@ typedef struct
 
 void iniciar_servidor(void);
 
-void mkdirRecursivo(char* path);
+void mkdirRecursivo(char const* path);
 
-bool existeArchivo(char* path);
+bool existeArchivo(char const* path);
 
-bool existeDir(char* pathDir);
+bool existeDir(char const* pathDir);
 
-char* generarPathTabla(char* nombreTabla);
+char* generarPathTabla(char const* nombreTabla);
 
-int buscarBloqueLibre();
+int buscarBloqueLibre(void);
 
 void escribirValorBitarray(bool valor, int pos);
 
-t_describe* get_table_metadata(char* path, char* tabla);
+t_describe* get_table_metadata(char const* path, char const* tabla);
 
-int traverse(char* fn, t_list* lista, char* tabla);
+int traverse(char const* fn, t_list* lista, char const* tabla);
 
-bool dirIsEmpty(char* path);
+bool dirIsEmpty(char const* path);
 
-bool hayDump(char* nombreTabla);
+bool hayDump(char const* nombreTabla);
 
-bool is_any(char* nombreArchivo);
+bool is_any(char const* nombreArchivo);
 
-char* generarPathArchivo(char* nombreTabla, char* nombreArchivo);
+char* generarPathArchivo(char const* nombreTabla, char const* nombreArchivo);
 
-void borrarArchivo(char* nombreTabla, char* nombreArchivo);
+void borrarArchivo(char const* nombreTabla, char const* nombreArchivo);
 
-int traverse_to_drop(char* fn, char* nombreTabla);
+int traverse_to_drop(char const* fn, char const* nombreTabla);
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!

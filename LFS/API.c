@@ -1,13 +1,13 @@
 
-
 #include "API.h"
+#include <Consistency.h>
 
-void select_api(char* nombreTabla, int key)
+void select_api(char const* nombreTabla, uint16_t key)
 {
-
+    /// todo
 }
 
-int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp)
+int insert(char const* nombreTabla, uint16_t key, char const* value, time_t timestamp)
 {
     //Verifica si la tabla existe en el File System
     char* path = generarPathTabla(nombreTabla);
@@ -54,7 +54,7 @@ int insert(char* nombreTabla, uint16_t key, char* value, time_t timestamp)
     return EXIT_SUCCESS;
 }
 
-int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
+int create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     char nomTabla[100];
@@ -81,7 +81,7 @@ int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones
         string_append(&pathMetadataTabla, "/Metadata.bin");
 
         FILE* metadata = fopen(pathMetadataTabla, "w");
-        fprintf(metadata, "CONSISTENCY=%s\n", tipoConsistencia);
+        fprintf(metadata, "CONSISTENCY=%s\n", CriteriaString[tipoConsistencia].String);
         fprintf(metadata, "PARTITIONS=%d\n", numeroParticiones);
         fprintf(metadata, "COMPACTION_TIME=%d\n", compactionTime);
         fclose(metadata);
@@ -129,7 +129,7 @@ int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones
 
                 }
 
-                escribirValorBitarray(1, bloqueLibre);
+                escribirValorBitarray(true, bloqueLibre);
 
                 particion = fopen(pathParticion, "a");
                 fprintf(particion, "SIZE=0\n");
@@ -163,7 +163,7 @@ int create(char* nombreTabla, char* tipoConsistencia, uint16_t numeroParticiones
 //Verificar que la tabla exista en el file system.
 //Eliminar directorio y todos los archivos de dicha tabla.
 
-int drop(char* nombreTabla)
+int drop(char const* nombreTabla)
 {
 
     LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
@@ -211,16 +211,16 @@ int drop(char* nombreTabla)
 }
 
 
-void* describe(char* nombreTabla)
+void* describe(char const* nombreTabla)
 {
-
     char* dirTablas;
     char* realpath;
 
     dirTablas = string_new();
     string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
     string_append(&dirTablas, "Tables");
-//SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
+
+    //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (nombreTabla == NULL)
     {
         realpath = dirTablas;
@@ -262,8 +262,7 @@ void* describe(char* nombreTabla)
         string_append(&dirTablas, "/Metadata.bin");
         realpath = dirTablas;
 
-        t_describe* tableMetadata = Malloc(sizeof(t_describe));
-        tableMetadata = get_table_metadata(realpath, nombreTabla);
+        t_describe* tableMetadata = get_table_metadata(realpath, nombreTabla);
 
         //Pruebas Brenda/Denise desde ACA
         /*
@@ -278,11 +277,5 @@ void* describe(char* nombreTabla)
         //free(dirTablas);
         free(realpath);
         return tableMetadata;
-
     }
-
 }
-
-
-
-

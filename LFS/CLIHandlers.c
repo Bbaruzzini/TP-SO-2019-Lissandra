@@ -3,8 +3,9 @@
 //
 
 #include "CLIHandlers.h"
+#include <Consistency.h>
 
-static inline bool ValidateKey(char const* keyString, uint16_t* result)
+bool ValidateKey(char const* keyString, uint16_t* result)
 {
     errno = 0;
     uint32_t k = strtoul(keyString, NULL, 10);
@@ -19,7 +20,7 @@ static inline bool ValidateKey(char const* keyString, uint16_t* result)
 }
 
 //Funcion para cambiar el timestamp de char* a time_t
-static inline void ChangeTimestamp(char const* timestampString, time_t* result)
+void ChangeTimestamp(char const* timestampString, time_t* result)
 {
     uint32_t ts = strtoul(timestampString, NULL, 10);
 
@@ -46,13 +47,8 @@ void HandleSelect(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    DBRequest dbr;
-    dbr.TableName = table;
-    dbr.Data.Select.Key = k;
-
     //TODO: completar con lo que falta desde aca
-    //select_api(dbr.TableName, dbr.Data.Select.Key);
-
+    select_api(table, k);
 }
 
 void HandleInsert(Vector const* args)
@@ -80,26 +76,11 @@ void HandleInsert(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    time_t ts;
-
+    time_t ts = 0;
     if (timestamp != NULL)
-    {
         ChangeTimestamp(timestamp, &ts);
-    }
-    else
-    {
-        ts = 0;
-    }
 
-    DBRequest dbr;
-
-    dbr.TableName = table;
-    dbr.Data.Insert.Key = k;
-    dbr.Data.Insert.Value = value;
-    dbr.Data.Insert.Timestamp = ts;
-
-    int resultadoInsert = insert(dbr.TableName, dbr.Data.Insert.Key, dbr.Data.Insert.Value, dbr.Data.Insert.Timestamp);
-
+    int resultadoInsert = insert(table, k, value, ts);
     if (resultadoInsert == EXIT_SUCCESS)
     {
         LISSANDRA_LOG_INFO("Se completo INSERT a la tabla: %s", table);
@@ -108,9 +89,6 @@ void HandleInsert(Vector const* args)
     {
         LISSANDRA_LOG_ERROR("No se pudo realizar el INSERT: la tabla ingresada no existe en el File System");
     }
-
-    //Deberia liberar a dbr???
-
 }
 
 void HandleCreate(Vector const* args)
@@ -131,16 +109,14 @@ void HandleCreate(Vector const* args)
     char* const partitions = tokens[3];
     char* const compaction_time = tokens[4];
 
-    DBRequest dbr;
+    CriteriaType ct; // ya se loguea el error
+    if (!CriteriaFromString(consistency, &ct))
+        return;
 
-    dbr.TableName = table;
-    dbr.Data.Create.Consistency = consistency;
-    dbr.Data.Create.Partitions = strtoul(partitions, NULL, 10);
-    dbr.Data.Create.CompactTime = strtoul(compaction_time, NULL, 10);
+    uint32_t const parts = strtoul(partitions, NULL, 10);
+    uint32_t const compTime = strtoul(compaction_time, NULL, 10);
 
-    int resultadoCreate = create(dbr.TableName, dbr.Data.Create.Consistency, dbr.Data.Create.Partitions,
-                                 dbr.Data.Create.CompactTime);
-
+    int resultadoCreate = create(table, ct, parts, compTime);
     if (resultadoCreate == EXIT_SUCCESS)
     {
         printf("La tabla %s se creo con exito\n", table);
@@ -169,37 +145,31 @@ void HandleDescribe(Vector const* args)
     if (Vector_size(args) == 2)
         table = tokens[1];
 
-    DBRequest dbr;
-
-    dbr.TableName = table;
-
     if (table == NULL)
     {
         t_describe* elemento;
-        int i = 0;
-        t_list* resultadoDescribeNull = Malloc(sizeof(t_describe));
-        resultadoDescribeNull = describe(dbr.TableName);
+        size_t i = 0;
+        t_list* resultadoDescribeNull = describe(NULL);
         while (i < list_size(resultadoDescribeNull))
         {
             elemento = list_get(resultadoDescribeNull, i);
             printf("Tabla: %s\n", elemento->table);
-            printf("Consistencia: %s\n", elemento->consistency);
+            printf("Consistencia: %s\n", CriteriaString[elemento->consistency].String);
             printf("Particiones: %d\n", elemento->partitions);
             printf("Tiempo: %d\n", elemento->compaction_time);
-            i++;
+            ++i;
         }
         free(resultadoDescribeNull);
     }
     else
     {
-        t_describe* resultadoDescribe = describe(dbr.TableName);
+        t_describe* resultadoDescribe = describe(table);
         printf("Tabla: %s\n", resultadoDescribe->table);
-        printf("Consistencia: %s\n", resultadoDescribe->consistency);
+        printf("Consistencia: %s\n", CriteriaString[resultadoDescribe->consistency].String);
         printf("Particiones: %d\n", resultadoDescribe->partitions);
         printf("Tiempo: %d\n", resultadoDescribe->compaction_time);
         free(resultadoDescribe);
     }
-
 }
 
 void HandleDrop(Vector const* args)
@@ -217,11 +187,7 @@ void HandleDrop(Vector const* args)
 
     char* const table = tokens[1];
 
-    DBRequest dbr;
-
-    dbr.TableName = table;
-
-    int resultado = drop(dbr.TableName);
+    int resultado = drop(table);
 
     if (resultado == EXIT_SUCCESS)
     {

@@ -4,7 +4,8 @@
 
 //Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
-
+#include <Consistency.h>
+#include <File.h>
 
 //Variables
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
@@ -175,64 +176,51 @@ void iniciar_servidor(void)
     EventDispatcher_AddFDI(sock_LFS);
 }
 
-void mkdirRecursivo(char* path)
+void mkdirRecursivo(char const* path)
 {
-
     char tmp[256];
-    char* p = NULL;
     size_t len;
 
     snprintf(tmp, sizeof(tmp), "%s", path);
     len = strlen(tmp);
     if (tmp[len - 1] == '/')
-        tmp[len - 1] = 0;
-    for (p = tmp + 1; *p; p++)
+        tmp[len - 1] = '\0';
+
+    for (char* p = tmp + 1; *p; ++p)
+    {
         if (*p == '/')
         {
-            *p = 0;
+            *p = '\0';
             mkdir(tmp, 0700);
             *p = '/';
         }
+    }
+
     mkdir(tmp, 0700);
 }
 
-bool existeArchivo(char* path)
+bool existeArchivo(char const* path)
 {
-
-    FILE* archi = fopen(path, "r");
-    if (archi != NULL)
+    File* file = file_open(path, F_OPEN_READ);
+    if (file_is_open(file))
     {
-        fclose(archi);
+        file_close(file);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
-bool existeDir(char* pathDir)
+bool existeDir(char const* pathDir)
 {
-
     struct stat st = { 0 };
-    if (stat(pathDir, &st) == -1)
-    { //Si existe devuelve 0
 
-        return false;
-
-    }
-    else
-    {
-
-        return true;
-
-    }
-
+    //Si existe devuelve 0
+    return stat(pathDir, &st) != -1;
 }
 
-char* generarPathTabla(char* nombreTabla)
+char* generarPathTabla(char const* nombreTabla)
 {
-
     LISSANDRA_LOG_INFO("Generando el path de la tabla");
     char* pathAbsTabla = string_new();
     string_append(&pathAbsTabla, confLFS->PUNTO_MONTAJE);
@@ -241,26 +229,17 @@ char* generarPathTabla(char* nombreTabla)
     string_append(&pathAbsTabla, nombreTabla);
 
     return pathAbsTabla;
-
 }
 
-int buscarBloqueLibre()
+int buscarBloqueLibre(void)
 {
+    int bloqueLibre = 0;
+    for (; bitarray_test_bit(bitArray, bloqueLibre) && bloqueLibre < confLFS->CANTIDAD_BLOQUES; ++bloqueLibre);
 
-    int bloqueLibre;
-
-    for (bloqueLibre = 0;
-         bitarray_test_bit(bitArray, bloqueLibre) && bloqueLibre < confLFS->CANTIDAD_BLOQUES; bloqueLibre++)
-    {
-
-    }
     if (bloqueLibre >= confLFS->CANTIDAD_BLOQUES)
-    {
         return -1;
-    }
 
     return bloqueLibre;
-
 }
 
 void escribirValorBitarray(bool valor, int pos)
@@ -277,18 +256,21 @@ void escribirValorBitarray(bool valor, int pos)
 
 }
 
-t_describe* get_table_metadata(char* path, char* tabla)
+t_describe* get_table_metadata(char const* path, char const* tabla)
 {
-
     t_config* contenido = config_create(path);
-    char* consistency = string_duplicate(config_get_string_value(contenido, "CONSISTENCY"));
+    char const* consistency = config_get_string_value(contenido, "CONSISTENCY");
+    CriteriaType ct;
+    if (!CriteriaFromString(consistency, &ct)) // error!
+        return NULL;
+
     int partitions = config_get_int_value(contenido, "PARTITIONS");
     int compaction_time = config_get_int_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
 
     t_describe* infoMetadata = malloc(sizeof(t_describe));
     infoMetadata->table = tabla;
-    infoMetadata->consistency = consistency;
+    infoMetadata->consistency = (uint8_t) ct;
     infoMetadata->partitions = partitions;
     infoMetadata->compaction_time = compaction_time;
 
@@ -303,10 +285,9 @@ t_describe* get_table_metadata(char* path, char* tabla)
     //HASTA ACA
 
     return infoMetadata;
-
 }
 
-int traverse(char* fn, t_list* lista, char* tabla)
+int traverse(char const* fn, t_list* lista, char const* tabla)
 {
     DIR* dir;
     struct dirent* entry;
@@ -370,80 +351,49 @@ int traverse(char* fn, t_list* lista, char* tabla)
     }
 }
 
-bool dirIsEmpty(char* path)
+bool dirIsEmpty(char const* path)
 {
-
     int n = 0;
     DIR* dir;
     struct dirent* entry;
 
     dir = opendir(path);
-    while ((entry = readdir(dir)) != NULL)
+    while ((entry = readdir(dir)))
     {
         if (++n > 2)
             break;
     }
     closedir(dir);
-    if (n <= 2) //Directorio vacio
-        return true;
-    else
-        return false;
+
+    //Directorio vacio contiene solo 2 entradas: "." y ".."
+    return n <= 2;
 }
 
-bool hayDump(char* nombreTabla)
+bool hayDump(char const* nombreTabla)
 {
-    t_elem_memtable* elemento = memtable_get(nombreTabla);
-    if (elemento == NULL)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
+    return memtable_get(nombreTabla) != NULL;
 }
 
-bool is_any(char* nombreArchivo)
+bool is_any(char const* nombreArchivo)
 {
-
     Vector strings = string_split(nombreArchivo, ".");
-    char** string_1 = Vector_at(&strings, 0);
-    char** string_2 = Vector_at(&strings, 1);
+    char** fileName = Vector_data(&strings);
 
-    char* string1 = (char*) string_1[0];
-    char* string2 = (char*) string_2[0];
+    char const* name = fileName[0];
+    char const* ext = fileName[1];
 
-    if (strcmp(string2, "tmpc") == 0)
-    {
-        return true;
-    }
-    else
-    {
-        if (strcmp(string2, "tmp") == 0)
-        {
-            return true;
-        }
-        else
-        {
-            if (strcmp(string2, "bin") == 0)
-            {
-                if (strcmp(string1, "Metadata") == 0)
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-        }
-    }
+    // tmpc || tmp || (bin && !Metadata)
+    bool res = false;
+    if (0 == strcmp(ext, "tmpc") || 0 == strcmp(ext, "tmp") ||
+        (0 == strcmp(ext, "bin") && 0 != strcmp(name, "Metadata")))
+        res = true;
 
+    Vector_Destruct(&strings);
+    return res;
 }
 
-char* generarPathArchivo(char* nombreTabla, char* nombreArchivo)
+char* generarPathArchivo(char const* nombreTabla, char const* nombreArchivo)
 {
-
     char* path = string_new();
     string_append(&path, confLFS->PUNTO_MONTAJE);
     string_append(&path, "Tables");
@@ -453,25 +403,23 @@ char* generarPathArchivo(char* nombreTabla, char* nombreArchivo)
     string_append(&path, nombreArchivo);
 
     return path;
-
 }
 
-void borrarArchivo(char* nombreTabla, char* nombreArchivo)
+void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
 {
-
     char* pathAbsoluto = generarPathArchivo(nombreTabla, nombreArchivo);
 
     t_config* data = config_create(pathAbsoluto);
     Vector bloques = config_get_array_value(data, "BLOCKS");
     size_t cantElementos = Vector_size(&bloques);
 
-    int j = 0;
+    size_t j = 0;
     t_config* elemento;
 
     while (j < cantElementos)
     {
         elemento = Vector_at(&bloques, j);
-        escribirValorBitarray(0, atoi(elemento->path));
+        escribirValorBitarray(false, atoi(elemento->path));
         j++;
     }
 
@@ -479,10 +427,9 @@ void borrarArchivo(char* nombreTabla, char* nombreArchivo)
     config_destroy(data);
     //config_destroy(elemento);
     free(pathAbsoluto);
-
 }
 
-int traverse_to_drop(char* fn, char* nombreTabla)
+int traverse_to_drop(char const* fn, char const* nombreTabla)
 {
     DIR* dir;
     struct dirent* entry;
@@ -537,4 +484,3 @@ int traverse_to_drop(char* fn, char* nombreTabla)
     return 0;
 
 }
-

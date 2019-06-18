@@ -96,7 +96,7 @@ int main(void)
 {
     static char const configFileName[] = "lissandra.conf";
 
-    pthread_t hiloIniciarServidor;
+    //pthread_t hiloIniciarServidor;
 
     IniciarLogger();
 
