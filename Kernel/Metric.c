@@ -7,10 +7,10 @@
 typedef struct Metric
 {
     MetricEvent Type;
-    uint32_t Timestamp;
+    uint64_t Timestamp;
 
     // para los tiempos de exec
-    uint32_t Value;
+    uint64_t Value;
 
     struct Metric* Next;
 } Metric;
@@ -29,7 +29,7 @@ Metrics* Metrics_Create(void)
     return m;
 }
 
-void Metrics_Add(Metrics* m, MetricEvent event, uint32_t value)
+void Metrics_Add(Metrics* m, MetricEvent event, uint64_t value)
 {
     Metric* metric = Malloc(sizeof(Metric));
     metric->Type = event;
@@ -58,7 +58,7 @@ void Metrics_PruneOldEvents(Metrics* m)
     // hay que considerar solo los eventos que ocurrieron hasta 30 segs antes, descartando los otros
     // por lo tanto el primer elemento que no cumpla es mi condicion de corte
 
-    uint32_t now = GetMSTime();
+    uint64_t now = GetMSTime();
 
     Metric* metric = m->Head;
     for (; metric != NULL; metric = metric->Next)

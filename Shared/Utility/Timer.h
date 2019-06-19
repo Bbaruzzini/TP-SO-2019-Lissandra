@@ -24,12 +24,12 @@ void PeriodicTimer_ReSetTimer(PeriodicTimer* pt, uint32_t newIntervalMS);
 // destruye un periodic timer
 void PeriodicTimer_Destroy(void* timer);
 
-static inline uint32_t TimeSpecToMS(struct timespec const* ts)
+static inline uint64_t TimeSpecToMS(struct timespec const* ts)
 {
     // nano  = 10 ^ (-9)
     // milli = 10 ^ (-3)
     // divide by 10 ^ 6 to get milli
-    return ts->tv_sec * 1000U + ts->tv_nsec / 1000000U;
+    return ts->tv_sec * 1000ULL + ts->tv_nsec / 1000000ULL;
 }
 
 static inline struct timespec MSToTimeSpec(uint32_t ms)
@@ -41,24 +41,20 @@ static inline struct timespec MSToTimeSpec(uint32_t ms)
     };
 }
 
-static inline uint32_t GetMSTimeDiff(uint32_t oldMSTime, uint32_t newMSTime)
+static inline uint64_t GetMSTimeDiff(uint64_t oldMSTime, uint64_t newMSTime)
 {
-    // manejamos overflows
-    if (oldMSTime > newMSTime)
-        return (0xFFFFFFFF - oldMSTime) + newMSTime;
-    else
-        return newMSTime - oldMSTime;
+    return newMSTime - oldMSTime;
 }
 
 // returns current tick in milliseconds
-static inline uint32_t GetMSEpoch(void)
+static inline uint64_t GetMSEpoch(void)
 {
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     return TimeSpecToMS(&ts);
 }
 
-static inline uint32_t GetMSTime(void)
+static inline uint64_t GetMSTime(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

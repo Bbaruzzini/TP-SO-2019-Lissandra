@@ -129,7 +129,7 @@ static inline uint8_t* Packet_Contents(Packet const* s)
       char*: Packet_Append_str,           \
 char const*: Packet_Append_str,           \
        bool: Packet_Append_bool           \
-) (p, X)
+) ((p), (X))
 
 /*
  * Packet_Read: lee un valor desde el buffer y lo guarda en la dirección apuntada por X
@@ -148,7 +148,7 @@ char const*: Packet_Append_str,           \
     double*: Packet_Read_double,        \
      char**: Packet_Read_str,           \
       bool*: Packet_Read_bool           \
-) (p, X)
+) ((p), (X))
 
 /*
  * Packet_Destroy: destruye el paquete

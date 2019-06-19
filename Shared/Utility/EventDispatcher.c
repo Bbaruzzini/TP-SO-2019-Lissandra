@@ -80,7 +80,7 @@ void EventDispatcher_Dispatch(void)
 
 void EventDispatcher_Loop(void)
 {
-    uint32_t realCurrTime = 0;
+    uint64_t realCurrTime = 0;
 
     while (ProcessRunning)
     {
@@ -90,7 +90,7 @@ void EventDispatcher_Loop(void)
         EventDispatcher_Dispatch();
 
         // si atendimos rapido ponemos a dormir un rato mas para no quemar la cpu (?
-        uint32_t executionTimeDiff = GetMSTimeDiff(realCurrTime, GetMSTime());
+        uint64_t executionTimeDiff = GetMSTimeDiff(realCurrTime, GetMSTime());
         if (executionTimeDiff < SLEEP_CONST)
             MSSleep(SLEEP_CONST - executionTimeDiff);
     }

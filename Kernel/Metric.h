@@ -36,7 +36,7 @@ typedef struct Metrics Metrics;
 
 Metrics* Metrics_Create(void);
 
-void Metrics_Add(Metrics*, MetricEvent, uint32_t);
+void Metrics_Add(Metrics*, MetricEvent, uint64_t);
 
 void Metrics_PruneOldEvents(Metrics*);
 

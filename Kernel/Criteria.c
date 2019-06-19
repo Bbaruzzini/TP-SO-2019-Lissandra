@@ -232,7 +232,7 @@ void Criteria_DisconnectMemory(uint32_t memId)
     hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
 }
 
-void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value)
+void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value)
 {
     Criteria* const itr = Criterias[type];
 

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 // tiempo a dormir en milisegundos por iteración
-#define SLEEP_CONST 50
+#define SLEEP_CONST 50ULL
 
 typedef struct EventDispatcher EventDispatcher;
 

@@ -75,7 +75,7 @@ bool HandleSelect(Vector const* args)
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
-    uint32_t requestTime = GetMSTime();
+    uint64_t requestTime = GetMSTime();
     Packet* p = Memory_SendRequestWithAnswer(mem, OP_SELECT, &dbr);
 
     // se desconecto la memoria! el sendrequest ya lo logueó
@@ -154,7 +154,7 @@ bool HandleInsert(Vector const* args)
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
-    uint32_t requestTime = GetMSTime();
+    uint64_t requestTime = GetMSTime();
     Packet* p = Memory_SendRequestWithAnswer(mem, OP_INSERT, &dbr);
 
     // se desconecto la memoria! el sendrequest ya lo logueó

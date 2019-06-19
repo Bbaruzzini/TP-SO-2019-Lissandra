@@ -75,7 +75,7 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     char* nombreTabla;
     uint16_t key;
     char* value;
-    uint32_t timestamp = GetMSEpoch();
+    uint64_t timestamp = GetMSEpoch();
     Packet_Read(p, &nombreTabla);
     Packet_Read(p, &key);
     Packet_Read(p, &value);
@@ -154,7 +154,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
         int tam = list_size(resDescribe) * (sizeof(t_describe));
         resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
         Packet_Append(resp, list_size(resDescribe));
-        int i = 0;
+        size_t i = 0;
         while (i < list_size(resDescribe))
         {
             elemento = list_get(resDescribe, i);

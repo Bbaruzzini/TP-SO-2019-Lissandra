@@ -35,7 +35,7 @@ typedef enum
     LQL_INSERT,  /* char*: nombre tabla
                   * uint16: key
                   * char*: value
-                  * uint32 OPCIONAL: timestamp
+                  * uint64: timestamp (de K->M no posee)
                   */
 
     LQL_CREATE,  /* char*: nombre tabla

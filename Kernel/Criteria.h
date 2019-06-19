@@ -56,7 +56,7 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId);
 
 void Criteria_DisconnectMemory(uint32_t memId);
 
-void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint32_t value);
+void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value);
 
 void Criterias_Report(void);
 
