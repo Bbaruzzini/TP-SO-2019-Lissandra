@@ -139,11 +139,14 @@ void HandleCreateOpcode(Socket* s, Packet* p)
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
-    char* nombreTabla;
+    bool tablePresent;
+    Packet_Read(p, &tablePresent);
+
+    char* nombreTabla = NULL;
+    if (tablePresent)
+        Packet_Read(p, &nombreTabla);;
     t_describe* elemento;
     Packet* resp;
-
-    Packet_Read(p, &nombreTabla);
 
     if (nombreTabla == NULL)
     {

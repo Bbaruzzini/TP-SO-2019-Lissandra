@@ -172,7 +172,7 @@ int main(void)
     //prueba2 = describe("TABLA2");
 
     //printf("Tabla: %s\n", prueba2->table);
-    //printf("Consistencia: %s\n", prueba2->consistency);
+    //printf("Consistencia: %d\n", prueba2->consistency);
     //printf("Particiones: %d\n", prueba2->partitions);
     //printf("Tiempo: %d\n", prueba2->compaction_time);
 
