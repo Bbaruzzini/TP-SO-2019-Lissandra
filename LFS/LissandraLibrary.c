@@ -16,8 +16,6 @@ static LockedQueue* lista_pedidos = NULL;
 
 static sem_t sem_pedido = { 0 }; //Cuando hagamos copy paste, cambiar el semaforo "pedido" por "sem_pedido"
 
-static pthread_t hilo_atender_memoria;
-
 t_pedido* obtener_pedido(void)
 {
     return LockedQueue_Next(lista_pedidos);
@@ -146,10 +144,32 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     Packet_Destroy(p);
 
     //----Creo un hilo para cada memoria que se me conecta
-    /* TODO: cada vez que una memoria se conecta, hilo_atender_memoria es sobreescrito
-     * Deberiamos acordarnos de todas las memorias para hacer un pthread_join
-     */
-    pthread_create(&hilo_atender_memoria, NULL, atender_memoria, memoriaNueva);
+    pthread_attr_t attr;
+    int r = pthread_attr_init(&attr);
+    if (r < 0)
+    {
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_init");
+        return;
+    }
+
+    r = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (r < 0)
+    {
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_setdetachstate");
+        return;
+    }
+
+    pthread_t hilo_atender_memoria;
+    r = pthread_create(&hilo_atender_memoria, &attr, atender_memoria, memoriaNueva);
+    if (r < 0)
+    {
+        LISSANDRA_LOG_SYSERR(r, "pthread_create");
+        return;
+    }
+
+    r = pthread_attr_destroy(&attr);
+    if (r < 0)
+        LISSANDRA_LOG_SYSERR(r, "pthread_attr_destroy");
 }
 
 void iniciar_servidor(void)
