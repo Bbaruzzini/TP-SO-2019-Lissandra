@@ -166,7 +166,6 @@ static void Journal_Register(void* dirtyFrame)
     Packet_Append(p, value);
     Free(value);
 
-    Packet_Append(p, true); // ts present
     Packet_Append(p, df->Timestamp);
 
     Socket_SendPacket(FileSystemSocket, p);

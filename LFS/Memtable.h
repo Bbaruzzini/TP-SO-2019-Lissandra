@@ -29,7 +29,7 @@ typedef struct
 {
     uint16_t key;
     char* value;
-    time_t timestamp;
+    uint64_t timestamp;
 } t_registro;
 
 void crearMemtable(void);
@@ -38,7 +38,7 @@ void crearMemtable(void);
 t_elem_memtable* new_elem_memtable(char const* nombreTabla);
 
 //Funcion para crear nuevo elemento del tipo t_registro
-t_registro* new_elem_registro(uint16_t key, char const* value, time_t timestamp);
+t_registro* new_elem_registro(uint16_t key, char const* value, uint64_t timestamp);
 
 //Funcion para meterle nuevos elementos a la memtable
 void insert_new_in_memtable(t_elem_memtable* elemento);

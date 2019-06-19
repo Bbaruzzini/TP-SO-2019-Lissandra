@@ -6,40 +6,9 @@
 #define LISSANDRA_CLIHANDLERS_H
 
 #include <Console.h>
-#include <string.h>
-#include <stdlib.h>
-#include <libcommons/string.h>
-#include <Logger.h>
-#include "API.h"
-
-typedef struct
-{
-    char /*const*/* TableName;
-    union
-    {
-        struct
-        {
-            uint16_t Key;
-        } Select;
-
-        struct
-        {
-            uint16_t Key;
-            char /*const*/* Value;
-            time_t Timestamp;
-        } Insert;
-
-        struct
-        {
-            /*CriteriaType*/char* Consistency;
-            uint16_t Partitions;
-            uint32_t CompactTime;
-        } Create;
-    } Data;
-} DBRequest;
+#include <stdint.h>
 
 bool ValidateKey(char const* keyString, uint16_t* result);
-void ChangeTimestamp(char const* timestampString, time_t* result);
 
 CLICommandHandlerFn HandleSelect;
 CLICommandHandlerFn HandleInsert;

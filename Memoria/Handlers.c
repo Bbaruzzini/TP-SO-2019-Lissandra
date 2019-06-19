@@ -105,16 +105,10 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     char* tableName;
     uint16_t key;
     char* value;
-    bool ts;
 
     Packet_Read(p, &tableName);
     Packet_Read(p, &key);
     Packet_Read(p, &value);
-    Packet_Read(p, &ts);
-
-    // en el kernel el timestamp no se pone
-    if (ts)
-        LISSANDRA_LOG_ERROR("INSERT: Recibi un paquete de kernel con timestamp!");
 
     Opcodes opcode = MSG_INSERT;
     if (!API_Insert(tableName, key, value))

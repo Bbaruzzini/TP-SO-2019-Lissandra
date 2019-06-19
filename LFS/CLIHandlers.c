@@ -3,7 +3,10 @@
 //
 
 #include "CLIHandlers.h"
+#include "API.h"
 #include <Consistency.h>
+#include <stdlib.h>
+#include <Timer.h>
 
 bool ValidateKey(char const* keyString, uint16_t* result)
 {
@@ -19,14 +22,6 @@ bool ValidateKey(char const* keyString, uint16_t* result)
     return true;
 }
 
-//Funcion para cambiar el timestamp de char* a time_t
-void ChangeTimestamp(char const* timestampString, time_t* result)
-{
-    uint32_t ts = strtoul(timestampString, NULL, 10);
-
-    *result = (time_t) ts;
-}
-
 void HandleSelect(Vector const* args)
 {
     //           cmd args
@@ -36,6 +31,7 @@ void HandleSelect(Vector const* args)
     if (Vector_size(args) != 3)
     {
         LISSANDRA_LOG_ERROR("SELECT: Uso - SELECT <tabla> <key>");
+        return;
     }
 
     char** const tokens = Vector_data(args);
@@ -60,6 +56,7 @@ void HandleInsert(Vector const* args)
     if (Vector_size(args) > 5)
     {
         LISSANDRA_LOG_ERROR("INSERT: Uso - INSERT <table> <key> <value> <timestamp>");
+        return;
     }
 
     char** const tokens = Vector_data(args);
@@ -76,9 +73,9 @@ void HandleInsert(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    time_t ts = 0;
+    uint64_t ts = GetMSEpoch();
     if (timestamp != NULL)
-        ChangeTimestamp(timestamp, &ts);
+        ts = strtoull(timestamp, NULL, 10);
 
     int resultadoInsert = insert(table, k, value, ts);
     if (resultadoInsert == EXIT_SUCCESS)
@@ -100,6 +97,7 @@ void HandleCreate(Vector const* args)
     if (Vector_size(args) != 5)
     {
         LISSANDRA_LOG_ERROR("CREATE: Uso - CREATE <tabla> <consistencia> <particiones> <tiempo entre compactaciones>");
+        return;
     }
 
     char** const tokens = Vector_data(args);
@@ -137,6 +135,7 @@ void HandleDescribe(Vector const* args)
     if (Vector_size(args) > 2)
     {
         LISSANDRA_LOG_ERROR("DESCRIBE: Uso - DESCRIBE <tabla>");
+        return;
     }
 
     char** const tokens = Vector_data(args);
@@ -181,6 +180,7 @@ void HandleDrop(Vector const* args)
     if (Vector_size(args) > 2)
     {
         LISSANDRA_LOG_ERROR("DROP: Uso - DROP <table>");
+        return;
     }
 
     char** const tokens = Vector_data(args);

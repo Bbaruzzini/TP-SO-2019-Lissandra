@@ -20,7 +20,6 @@ static inline Packet* BuildInsert(DBRequest const* dbr)
     Packet_Append(p, dbr->TableName);
     Packet_Append(p, dbr->Data.Insert.Key);
     Packet_Append(p, dbr->Data.Insert.Value);
-    Packet_Append(p, (bool) false);
     return p;
 }
 

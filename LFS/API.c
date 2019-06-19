@@ -7,7 +7,7 @@ void select_api(char const* nombreTabla, uint16_t key)
     /// todo
 }
 
-int insert(char const* nombreTabla, uint16_t key, char const* value, time_t timestamp)
+int insert(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
     //Verifica si la tabla existe en el File System
     char* path = generarPathTabla(nombreTabla);
@@ -39,11 +39,6 @@ int insert(char const* nombreTabla, uint16_t key, char const* value, time_t time
         t_elem_memtable* newElem = new_elem_memtable(nombreTabla);
         insert_new_in_memtable(newElem);
 
-    }
-    //Si el parametro timestamp es nulo, se obtiene el valor actual del Epoch UNIX
-    if (timestamp == 0)
-    {
-        timestamp = (unsigned) time(NULL);
     }
 
     t_registro* newReg = new_elem_registro(key, value, timestamp);

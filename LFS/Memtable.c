@@ -34,7 +34,7 @@ t_elem_memtable* new_elem_memtable(char const* nombreTabla)
     return new;
 }
 
-t_registro* new_elem_registro(uint16_t key, char const* value, time_t timestamp)
+t_registro* new_elem_registro(uint16_t key, char const* value, uint64_t timestamp)
 {
     t_registro* new = Malloc(sizeof(t_registro));
     new->key = key;
@@ -96,7 +96,7 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
     size_t cantElementos = Vector_size(&elemento->registros);
     t_registro* registro;
     t_registro* registroMayor = NULL;
-    time_t timestamp = 0;
+    uint64_t timestamp = 0;
     size_t i = 0;
 
     while (i < cantElementos)
