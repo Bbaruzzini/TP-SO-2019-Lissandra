@@ -136,9 +136,48 @@ void HandleCreateOpcode(Socket* s, Packet* p)
 
 }
 
+
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
+    char* nombreTabla;
+    t_describe* elemento;
+    Packet* resp;
+
+    Packet_Read(p, &nombreTabla);
+
+    if (nombreTabla == NULL)
+    {
+        t_list* resDescribe = describe(nombreTabla);
+        int tam = list_size(resDescribe) * (sizeof(t_describe));
+        resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
+        Packet_Append(resp, list_size(resDescribe));
+        int i = 0;
+        while (i < list_size(resDescribe))
+        {
+            elemento = list_get(resDescribe, i);
+            Packet_Append(resp, elemento->table);
+            Packet_Append(resp, elemento->consistency);
+            Packet_Append(resp, elemento->partitions);
+            Packet_Append(resp, elemento->compaction_time);
+            ++i;
+        }
+    }
+    else
+    {
+        elemento = describe(nombreTabla);
+        int tam = sizeof(t_describe);
+        resp = Packet_Create(MSG_DESCRIBE, tam);
+        Packet_Append(resp, nombreTabla);
+        Packet_Append(resp, elemento->consistency);
+        Packet_Append(resp, elemento->partitions);
+        Packet_Append(resp, elemento->compaction_time);
+    }
+
+    Socket_SendPacket(s, resp);
+    Packet_Destroy(resp);
+
     // dummy asi puedo probar!
+    /*
     Packet* resp = Packet_Create(MSG_DESCRIBE, 50);
     Packet_Append(resp, "PROBANDO");
     Packet_Append(resp, (uint8_t) CRITERIA_SC);
@@ -147,6 +186,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
     Socket_SendPacket(s, resp);
     Packet_Destroy(resp);
+     */
 }
 
 void HandleDropOpcode(Socket* s, Packet* p)
