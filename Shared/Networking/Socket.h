@@ -19,11 +19,6 @@ typedef struct Socket
 
     SocketAcceptFn* SockAcceptFn;
     IPAddress Address;
-
-    uint8_t* HeaderBuffer;
-
-    size_t PacketBuffSize;
-    uint8_t* PacketBuffer;
 } Socket;
 
 typedef struct

@@ -76,13 +76,13 @@ static inline Packet* Packet_Create(uint16_t cmd, uint16_t res)
  * Packet_Adopt: uso interno de la API de Socket, sirve para cambiar contenidos con un buffer
  * de forma tal que podemos utilizar los datos ya leídos sin necesidad de copiarlos
  */
-static inline Packet* Packet_Adopt(uint16_t cmd, uint8_t** buf, size_t* bufSize)
+static inline Packet* Packet_Adopt(uint16_t cmd, uint8_t* buf, size_t bufSize)
 {
     Packet* p = Malloc(sizeof(Packet));
     p->rpos = 0;
     p->wpos = 0;
     p->cmd = cmd;
-    Vector_adopt(&p->data, (void**) buf, bufSize);
+    Vector_adopt(&p->data, buf, bufSize);
 
     return p;
 }

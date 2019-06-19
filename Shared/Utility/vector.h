@@ -146,7 +146,7 @@ void Vector_swap(Vector* v, Vector* other);
 /*
  * Toma posesion de un bufer en memoria, el vector pasa a administrar la memoria
  */
-void Vector_adopt(Vector* v, void** buf, size_t* bufSize);
+void Vector_adopt(Vector* v, void* buf, size_t bufSize);
 
 /*
  * Limpia los elementos

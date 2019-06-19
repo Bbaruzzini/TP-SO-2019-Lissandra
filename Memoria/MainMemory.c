@@ -28,12 +28,7 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
     // malloc de n bytes contiguos
     size_t const allocSize = config_get_long_value(sConfig, "TAM_MEM");
-
-    {
-        void* buf = Malloc(allocSize);
-        size_t bufSize = allocSize;
-        Vector_adopt(&Memory, &buf, &bufSize);
-    }
+    Vector_adopt(&Memory, Malloc(allocSize), allocSize);
 
     MaxValueLength = maxValueLength;
 

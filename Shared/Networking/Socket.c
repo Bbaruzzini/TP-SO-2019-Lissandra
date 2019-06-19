@@ -12,9 +12,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-// tamaño inicial del bufer
-static size_t const INIT_ALLOC = 256;
-
 #pragma pack(push, 1)
 typedef struct
 {
@@ -102,7 +99,8 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
 
 Packet* Socket_RecvPacket(Socket* s)
 {
-    ssize_t readLen = recv(s->Handle, s->HeaderBuffer, sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
+    PacketHdr header;
+    ssize_t readLen = recv(s->Handle, &header, sizeof(PacketHdr), MSG_NOSIGNAL | MSG_WAITALL);
     if (readLen == 0)
     {
         // nos cerraron la conexion, limpiar socket
@@ -116,28 +114,22 @@ Packet* Socket_RecvPacket(Socket* s)
         return NULL;
     }
 
-    PacketHdr* header = (PacketHdr*) s->HeaderBuffer;
-    header->size = EndianConvert(header->size);
-    header->cmd = EndianConvert(header->cmd);
+    header.size = EndianConvert(header.size);
+    header.cmd = EndianConvert(header.cmd);
 
-    if (header->size >= 10240 || header->cmd >= NUM_OPCODES)
+    if (header.size >= 10240 || header.cmd >= NUM_OPCODES)
     {
         LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
-                            s->Address.HostIP, header->size, header->cmd);
+                            s->Address.HostIP, header.size, header.cmd);
         return NULL;
     }
 
-    // manejo especial de paquetes vacios (recv se queda bloqueado)
-    if (!header->size)
-        return Packet_Create(header->cmd, 0);
+    // manejo especial de paquetes vacios (recv se queda bloqueado con size == 0)
+    if (!header.size)
+        return Packet_Create(header.cmd, 0);
 
-    if (header->size > s->PacketBuffSize)
-    {
-        s->PacketBuffer = Realloc(s->PacketBuffer, header->size);
-        s->PacketBuffSize = header->size;
-    }
-
-    readLen = recv(s->Handle, s->PacketBuffer, header->size, MSG_NOSIGNAL | MSG_WAITALL);
+    uint8_t* packetBuf = Malloc(header.size);
+    readLen = recv(s->Handle, packetBuf, header.size, MSG_NOSIGNAL | MSG_WAITALL);
     if (readLen == 0)
     {
         // nos cerraron la conexion, limpiar socket
@@ -151,7 +143,7 @@ Packet* Socket_RecvPacket(Socket* s)
         return NULL;
     }
 
-    return Packet_Adopt(header->cmd, &s->PacketBuffer, &s->PacketBuffSize);
+    return Packet_Adopt(header.cmd, packetBuf, header.size);
 }
 
 bool Socket_HandlePacket(void* socket)
@@ -176,10 +168,7 @@ bool Socket_HandlePacket(void* socket)
 
 void Socket_Destroy(void* elem)
 {
-    Socket* s = elem;
-
-    Free(s->PacketBuffer);
-    Free(s->HeaderBuffer);
+    Socket* const s = elem;
 
     close(s->Handle);
     Free(s);
@@ -289,13 +278,7 @@ static Socket* _initSocket(SockInit const* si)
     s->_destroy = Socket_Destroy;
 
     s->SockAcceptFn = si->acceptFn;
-
     s->Address = *si->ipAddr;
-
-    s->HeaderBuffer = Malloc(sizeof(PacketHdr));
-
-    s->PacketBuffSize = INIT_ALLOC;
-    s->PacketBuffer = Malloc(INIT_ALLOC);
 
     switch (si->mode)
     {
