@@ -7,7 +7,7 @@ void select_api(char const* nombreTabla, uint16_t key)
     /// todo
 }
 
-int insert(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
+uint8_t insert(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
     //Verifica si la tabla existe en el File System
     char* path = generarPathTabla(nombreTabla);
@@ -49,7 +49,7 @@ int insert(char const* nombreTabla, uint16_t key, char const* value, uint64_t ti
     return EXIT_SUCCESS;
 }
 
-int create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
+uint8_t create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     char nomTabla[100];
@@ -115,11 +115,10 @@ int create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroPar
                     // peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
                     // reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
                     // la otra peticion...
-                    int resDrop = drop(nombreTabla);
+                    uint8_t resDrop = drop(nombreTabla);
                     if (resDrop == EXIT_FAILURE)
-                    {
                         LISSANDRA_LOG_ERROR("Se produjo un error intentado borrar la tabla %s", nombreTabla);
-                    }
+
                     return EXIT_FAILURE;
 
                 }
@@ -144,28 +143,26 @@ int create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroPar
     }
     else
     {
-
         LISSANDRA_LOG_ERROR("La tabla ya existe en el File System");
         printf("ERROR: La tabla ya existe en el File System\n");
         free(path);
         return EXIT_FAILURE;
-
     }
-
 }
 
 
 //Verificar que la tabla exista en el file system.
 //Eliminar directorio y todos los archivos de dicha tabla.
 
-int drop(char const* nombreTabla)
+uint8_t drop(char const* nombreTabla)
 {
 
     LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
 
     char* pathAbsoluto = generarPathTabla(nombreTabla);
 
-    if(!existeDir(pathAbsoluto)){
+    if(!existeDir(pathAbsoluto))
+    {
         LISSANDRA_LOG_ERROR("La tabla no existe...");
         printf("La tabla no existe\n");
         return EXIT_FAILURE;
@@ -187,8 +184,6 @@ int drop(char const* nombreTabla)
 
     //Se eliminan los archivos de la tabla
     int resultado = traverse_to_drop(pathAbsoluto, nombreTabla);
-
-
     if (resultado != 0)
     {
         LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar la tabla: %s", nombreTabla);
@@ -202,7 +197,6 @@ int drop(char const* nombreTabla)
     LISSANDRA_LOG_INFO("Tabla %s borrada con exito", nombreTabla);
 
     return EXIT_SUCCESS;
-
 }
 
 

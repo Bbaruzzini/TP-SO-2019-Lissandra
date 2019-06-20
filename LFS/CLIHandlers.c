@@ -77,7 +77,7 @@ void HandleInsert(Vector const* args)
     if (timestamp != NULL)
         ts = strtoull(timestamp, NULL, 10);
 
-    int resultadoInsert = insert(table, k, value, ts);
+    uint8_t resultadoInsert = insert(table, k, value, ts);
     if (resultadoInsert == EXIT_SUCCESS)
     {
         LISSANDRA_LOG_INFO("Se completo INSERT a la tabla: %s", table);
@@ -114,7 +114,7 @@ void HandleCreate(Vector const* args)
     uint32_t const parts = strtoul(partitions, NULL, 10);
     uint32_t const compTime = strtoul(compaction_time, NULL, 10);
 
-    int resultadoCreate = create(table, ct, parts, compTime);
+    uint8_t resultadoCreate = create(table, ct, parts, compTime);
     if (resultadoCreate == EXIT_SUCCESS)
     {
         printf("La tabla %s se creo con exito\n", table);
@@ -187,7 +187,7 @@ void HandleDrop(Vector const* args)
 
     char* const table = tokens[1];
 
-    int resultado = drop(table);
+    uint8_t resultado = drop(table);
 
     if (resultado == EXIT_SUCCESS)
     {
