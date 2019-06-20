@@ -163,11 +163,16 @@ void HandleDescribe(Vector const* args)
     else
     {
         t_describe* resultadoDescribe = describe(table);
-        printf("Tabla: %s\n", resultadoDescribe->table);
-        printf("Consistencia: %s\n", CriteriaString[resultadoDescribe->consistency].String);
-        printf("Particiones: %d\n", resultadoDescribe->partitions);
-        printf("Tiempo: %d\n", resultadoDescribe->compaction_time);
-        free(resultadoDescribe);
+        if(resultadoDescribe!=NULL){
+            printf("Tabla: %s\n", resultadoDescribe->table);
+            printf("Consistencia: %s\n", CriteriaString[resultadoDescribe->consistency].String);
+            printf("Particiones: %d\n", resultadoDescribe->partitions);
+            printf("Tiempo: %d\n", resultadoDescribe->compaction_time);
+            free(resultadoDescribe);
+        } else {
+            LISSANDRA_LOG_ERROR("No se pudo realizar el DESCRIBE: la tabla ingresada no existe en el File System");
+        }
+
     }
 }
 

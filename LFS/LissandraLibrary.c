@@ -333,6 +333,7 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                 if (stat(path, &info) != 0)
                 {
                     LISSANDRA_LOG_ERROR("Error stat() en %s", path);
+                    free(path);
                     return -1;
                 }
                 else
@@ -342,6 +343,7 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                         int resultado = traverse(path, lista, entry->d_name);
                         if (resultado == -1)
                         {
+                            free(path);
                             return -1;
                         }
                     }
@@ -353,6 +355,7 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                             {
                                 informacion = get_table_metadata(path, tabla);
                                 list_add(lista, informacion);
+                                free(path);
                                 break;
                             }
                         }
@@ -362,6 +365,8 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                 }
 
             }
+
+            free(path);
 
         }
 

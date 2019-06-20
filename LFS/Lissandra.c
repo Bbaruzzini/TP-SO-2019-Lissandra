@@ -180,6 +180,9 @@ int main(void)
 
     //drop("TABLA3");
 
+    //printf("hora ariel: %d\n", GetMSEpoch());
+    //printf("hora denise: %d\n", time(NULL));
+
     iniciar_servidor();
 
     //Aca va consola ->Update: La consola subio para aca

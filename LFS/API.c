@@ -203,7 +203,7 @@ uint8_t drop(char const* nombreTabla)
 void* describe(char const* nombreTabla)
 {
     char* dirTablas;
-    char* realpath;
+    //char* realpath;
 
     dirTablas = string_new();
     string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
@@ -212,24 +212,24 @@ void* describe(char const* nombreTabla)
     //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (nombreTabla == NULL)
     {
-        realpath = dirTablas;
+        //realpath = dirTablas;
         t_list* listTableMetadata;
         listTableMetadata = list_create();
 
-        int resultado = traverse(realpath, listTableMetadata,
+        int resultado = traverse(/*realpath*/dirTablas, listTableMetadata,
                                  ""); //No se si aca se le puede pasar "", pero quiero pasar vacio
 
         if (resultado == 0)
         {
-            //free(dirTablas);
-            free(realpath);
+            free(dirTablas);
+            //free(realpath);
             return listTableMetadata;
         }
         else
         {
             printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
-            //free(dirTablas);
-            free(realpath);
+            free(dirTablas);
+            //free(realpath);
             return NULL;
         }
 
@@ -238,20 +238,20 @@ void* describe(char const* nombreTabla)
     {
         string_append(&dirTablas, "/");
         string_append(&dirTablas, nombreTabla);
-        realpath = dirTablas;
+        //realpath = dirTablas;
 
-        if (!existeDir(realpath))
+        if (!existeDir(/*realpath*/dirTablas))
         {
             printf("ERROR: La ruta especificada es invalida\n");
-            //free(dirTablas);
-            free(realpath);
+            free(dirTablas);
+            //free(realpath);
             return NULL;
         }
 
         string_append(&dirTablas, "/Metadata.bin");
-        realpath = dirTablas;
+        //realpath = dirTablas;
 
-        t_describe* tableMetadata = get_table_metadata(realpath, nombreTabla);
+        t_describe* tableMetadata = get_table_metadata(/*realpath*/dirTablas, nombreTabla);
 
         //Pruebas Brenda/Denise desde ACA
         /*
@@ -263,8 +263,8 @@ void* describe(char const* nombreTabla)
          */
         //HASTA ACA
 
-        //free(dirTablas);
-        free(realpath);
+        free(dirTablas);
+        //free(realpath);
         return tableMetadata;
     }
 }
