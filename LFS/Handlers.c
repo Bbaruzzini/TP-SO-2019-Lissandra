@@ -20,7 +20,6 @@ OpcodeHandler const opcodeTable[NUM_OPCODES] =
 
     // mensajes que nosotros enviamos, ignoramos
     { "MSG_SELECT",          NULL },
-    { "MSG_INSERT",          NULL },
     { "MSG_DESCRIBE",        NULL },
     { "MSG_DESCRIBE_GLOBAL", NULL },
 
@@ -89,7 +88,6 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     if (resultadoInsert == EXIT_FAILURE)
         LISSANDRA_LOG_ERROR("No se pudo realizar el insert de: %s", nombreTabla);
 
-    //No estoy segura si va MSG_INSERT u otra cosa :/
     Packet* respuesta = Packet_Create(MSG_INSERT_RESPUESTA, 1);
     Packet_Append(respuesta, resultadoInsert);
     Socket_SendPacket(s, respuesta);
@@ -122,7 +120,6 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Packet_Destroy(respuesta);
 
     free(nombreTabla);
-
 }
 
 
@@ -167,18 +164,6 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
     Socket_SendPacket(s, resp);
     Packet_Destroy(resp);
-
-    // dummy asi puedo probar!
-    /*
-    Packet* resp = Packet_Create(MSG_DESCRIBE, 50);
-    Packet_Append(resp, "PROBANDO");
-    Packet_Append(resp, (uint8_t) CRITERIA_SC);
-    Packet_Append(resp, (uint16_t) 1);
-    Packet_Append(resp, (uint32_t) 30000);
-
-    Socket_SendPacket(s, resp);
-    Packet_Destroy(resp);
-     */
 }
 
 void HandleDropOpcode(Socket* s, Packet* p)

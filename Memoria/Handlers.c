@@ -23,8 +23,6 @@ OpcodeHandler const opcodeTable[NUM_OPCODES] =
     // respuesta de un SELECT, no se recibe sino que se envia
     { "MSG_SELECT", NULL },
 
-    { "MSG_INSERT", NULL },
-
     // respuesta del DESCRIBE, se envia
     { "MSG_DESCRIBE",        NULL },
     { "MSG_DESCRIBE_GLOBAL", NULL },
@@ -110,7 +108,7 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     Packet_Read(p, &key);
     Packet_Read(p, &value);
 
-    Opcodes opcode = MSG_INSERT;
+    Opcodes opcode = MSG_INSERT_RESPUESTA;
     if (!API_Insert(tableName, key, value))
         opcode = MSG_ERR_MEM_FULL;
 
@@ -137,8 +135,13 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Packet_Read(p, &parts);
     Packet_Read(p, &compactionTime);
 
-    API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
+    bool createResult = API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
     Free(tableName);
+
+    Packet* res = Packet_Create(MSG_CREATE_RESPUESTA, 1);
+    Packet_Append(res, createResult);
+    Socket_SendPacket(s, res);
+    Packet_Destroy(res);
 }
 
 static void AddToPacket(void* md, void* packet)
@@ -199,9 +202,13 @@ void HandleDropOpcode(Socket* s, Packet* p)
     char* tableName;
     Packet_Read(p, &tableName);
 
-    API_Drop(tableName);
-
+    bool dropResult = API_Drop(tableName);
     Free(tableName);
+
+    Packet* res = Packet_Create(MSG_DROP_RESPUESTA, 1);
+    Packet_Append(res, dropResult);
+    Socket_SendPacket(s, res);
+    Packet_Destroy(res);
 }
 
 void HandleJournalOpcode(Socket* s, Packet* p)

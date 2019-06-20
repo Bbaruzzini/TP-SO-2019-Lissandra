@@ -56,8 +56,6 @@ typedef enum
     MSG_SELECT,  /* char*: value
                   */
 
-    MSG_INSERT,  /* nada */
-
     MSG_DESCRIBE, /* char*: nombre tabla
                    * uint8: tipo de consistencia (ver Consistency.h)
                    * uint16: numero de particiones

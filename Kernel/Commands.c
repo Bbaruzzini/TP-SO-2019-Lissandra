@@ -163,7 +163,7 @@ bool HandleInsert(Vector const* args)
 
     switch (Packet_GetOpcode(p))
     {
-        case MSG_INSERT:
+        case MSG_INSERT_RESPUESTA:
             break;
         case MSG_ERR_MEM_FULL:
         {
@@ -230,7 +230,26 @@ bool HandleCreate(Vector const* args)
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
-    Memory_SendRequest(mem, OP_CREATE, &dbr);
+    Packet* p = Memory_SendRequestWithAnswer(mem, OP_CREATE, &dbr);
+    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
+        return false;
+
+    if (Packet_GetOpcode(p) != MSG_CREATE_RESPUESTA)
+    {
+        LISSANDRA_LOG_FATAL("CREATE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+        Packet_Destroy(p);
+        return false;
+    }
+
+    uint8_t res;
+    Packet_Read(p, &res);
+    Packet_Destroy(p);
+
+    if (res == EXIT_FAILURE)
+    {
+        LISSANDRA_LOG_ERROR("CREATE: error al crear tabla %s!", table);
+        return false;
+    }
 
     LISSANDRA_LOG_INFO("CREATE: tabla: %s, consistencia: %s, particiones: %s, tiempo compactacion: %s", table, criteria,
                        partitions, compaction_time);
@@ -262,7 +281,7 @@ bool HandleDescribe(Vector const* args)
     CriteriaType ct = CRITERIA_ANY;
     /*if (table && !Metadata_Get(table, &ct)) todo descomentar cuando tenga describe
     {
-        LISSANDRA_LOG_ERROR("INSERT: Tabla %s no encontrada en metadata", table);
+        LISSANDRA_LOG_ERROR("DESCRIBE: Tabla %s no encontrada en metadata", table);
         return false;
     }*/
 
@@ -349,7 +368,27 @@ bool HandleDrop(Vector const* args)
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
-    Memory_SendRequest(mem, OP_DROP, &dbr);
+    Packet* p = Memory_SendRequestWithAnswer(mem, OP_DROP, &dbr);
+    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
+        return false;
+
+    if (Packet_GetOpcode(p) != MSG_DROP_RESPUESTA)
+    {
+        LISSANDRA_LOG_FATAL("DROP: recibido opcode no esperado %hu", Packet_GetOpcode(p));
+        Packet_Destroy(p);
+        return false;
+    }
+
+    uint8_t res;
+    Packet_Read(p, &res);
+    Packet_Destroy(p);
+
+    if (res == EXIT_FAILURE)
+    {
+        LISSANDRA_LOG_ERROR("DROP: error al dropear tabla %s!", table);
+        return false;
+    }
+
     return true;
 }
 

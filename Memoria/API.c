@@ -8,6 +8,7 @@
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
+#include <stdlib.h>
 #include <string.h>
 #include <Timer.h>
 
@@ -87,8 +88,15 @@ bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partit
     Socket_SendPacket(FileSystemSocket, p);
     Packet_Destroy(p);
 
-    // todo implementar false
-    return true;
+    p = Socket_RecvPacket(FileSystemSocket);
+    if (!p || Packet_GetOpcode(p) != MSG_CREATE_RESPUESTA) // todo
+        ;
+
+    uint8_t createRes;
+    Packet_Read(p, &createRes);
+    Packet_Destroy(p);
+
+    return createRes == EXIT_SUCCESS;
 }
 
 bool API_Describe(char const* tableName, Vector* results)
@@ -140,7 +148,7 @@ bool API_Describe(char const* tableName, Vector* results)
     return result;
 }
 
-void API_Drop(char const* tableName)
+bool API_Drop(char const* tableName)
 {
     Memory_EvictPages(tableName);
 
@@ -148,6 +156,16 @@ void API_Drop(char const* tableName)
     Packet_Append(p, tableName);
     Socket_SendPacket(FileSystemSocket, p);
     Packet_Destroy(p);
+
+    p = Socket_RecvPacket(FileSystemSocket);
+    if (!p || Packet_GetOpcode(p) != MSG_DROP_RESPUESTA) // todo
+        ;
+
+    uint8_t dropRes;
+    Packet_Read(p, &dropRes);
+    Packet_Destroy(p);
+
+    return dropRes == EXIT_SUCCESS;
 }
 
 static void Journal_Register(void* dirtyFrame)
@@ -169,6 +187,14 @@ static void Journal_Register(void* dirtyFrame)
     Packet_Append(p, df->Timestamp);
 
     Socket_SendPacket(FileSystemSocket, p);
+    Packet_Destroy(p);
+
+    p = Socket_RecvPacket(FileSystemSocket);
+    if (!p) // todo que hacer en estos casos?
+        ;
+    if (Packet_GetOpcode(p) != MSG_INSERT_RESPUESTA)
+        ;
+
     Packet_Destroy(p);
 }
 

@@ -46,7 +46,7 @@ bool API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uin
 // devuelve false si la tabla no existe en FS
 bool API_Describe(char const* tableName, Vector* results);
 
-void API_Drop(char const* tableName);
+bool API_Drop(char const* tableName);
 
 void API_Journal(void);
 
