@@ -32,7 +32,7 @@ bool existeArchivo(char const* path);
 
 bool existeDir(char const* pathDir);
 
-char* generarPathTabla(char const* nombreTabla);
+void generarPathTabla(char const* nombreTabla, char* buf);
 
 int buscarBloqueLibre(void);
 

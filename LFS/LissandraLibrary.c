@@ -222,13 +222,10 @@ void mkdirRecursivo(char const* path)
 bool existeArchivo(char const* path)
 {
     File* file = file_open(path, F_OPEN_READ);
-    if (file_is_open(file))
-    {
-        file_close(file);
-        return true;
-    }
+    bool res = file_is_open(file);
 
-    return false;
+    file_close(file);
+    return res;
 }
 
 bool existeDir(char const* pathDir)
@@ -239,16 +236,10 @@ bool existeDir(char const* pathDir)
     return stat(pathDir, &st) != -1;
 }
 
-char* generarPathTabla(char const* nombreTabla)
+void generarPathTabla(char const* nombreTabla, char* buf)
 {
     LISSANDRA_LOG_INFO("Generando el path de la tabla");
-    char* pathAbsTabla = string_new();
-    string_append(&pathAbsTabla, confLFS->PUNTO_MONTAJE);
-    string_append(&pathAbsTabla, "Tables");
-    if (!string_starts_with(nombreTabla, "/")) string_append(&pathAbsTabla, "/");
-    string_append(&pathAbsTabla, nombreTabla);
-
-    return pathAbsTabla;
+    snprintf(buf, PATH_MAX, "%sTables/%s", confLFS->PUNTO_MONTAJE, nombreTabla);
 }
 
 int buscarBloqueLibre(void)
