@@ -80,19 +80,10 @@ void EventDispatcher_Dispatch(void)
 
 void EventDispatcher_Loop(void)
 {
-    uint64_t realCurrTime = 0;
-
     while (ProcessRunning)
     {
-        realCurrTime = GetMSTime();
-
         // procesar fds (sockets, inotify, etc...)
         EventDispatcher_Dispatch();
-
-        // si atendimos rapido ponemos a dormir un rato mas para no quemar la cpu (?
-        uint64_t executionTimeDiff = GetMSTimeDiff(realCurrTime, GetMSTime());
-        if (executionTimeDiff < SLEEP_CONST)
-            MSSleep(SLEEP_CONST - executionTimeDiff);
     }
 }
 
