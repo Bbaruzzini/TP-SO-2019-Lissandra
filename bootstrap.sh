@@ -5,5 +5,5 @@ mkdir ~/cmake
 
 mkdir build
 cd build
-/home/utnso/cmake/bin/cmake -G"Unix Makefiles" ../
+/home/utnso/cmake/bin/cmake -DCMAKE_BUILD_TYPE="Release" -G"Unix Makefiles" ../
 make -j 4
