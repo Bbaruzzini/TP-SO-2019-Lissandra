@@ -131,35 +131,38 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
     char* nombreTabla = NULL;
     if (tablePresent)
         Packet_Read(p, &nombreTabla);;
-    t_describe* elemento;
     Packet* resp;
 
-    if (nombreTabla == NULL)
+    if (!nombreTabla)
     {
         t_list* resDescribe = describe(nombreTabla);
-        int tam = list_size(resDescribe) * (sizeof(t_describe));
+        size_t const tam = list_size(resDescribe) * (sizeof(t_describe));
         resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
         Packet_Append(resp, list_size(resDescribe));
         size_t i = 0;
         while (i < list_size(resDescribe))
         {
-            elemento = list_get(resDescribe, i);
+            t_describe* elemento = list_get(resDescribe, i);
             Packet_Append(resp, elemento->table);
             Packet_Append(resp, elemento->consistency);
             Packet_Append(resp, elemento->partitions);
             Packet_Append(resp, elemento->compaction_time);
             ++i;
         }
+
+        list_destroy_and_destroy_elements(resDescribe, Free);
     }
     else
     {
-        elemento = describe(nombreTabla);
-        int tam = sizeof(t_describe);
+        t_describe* elemento = describe(nombreTabla);
+        size_t const tam = sizeof(t_describe);
         resp = Packet_Create(MSG_DESCRIBE, tam);
         Packet_Append(resp, nombreTabla);
         Packet_Append(resp, elemento->consistency);
         Packet_Append(resp, elemento->partitions);
         Packet_Append(resp, elemento->compaction_time);
+
+        Free(elemento);
     }
 
     Socket_SendPacket(s, resp);

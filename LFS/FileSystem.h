@@ -22,9 +22,9 @@
  * Variables
  */
 
-char* pathBloques, *pathTablas, *pathMetadata, *pathMetadataFS, *pathMetadataBitarray;
+extern char pathMetadataBitarray[];
 
-t_bitarray* bitArray;
+extern t_bitarray* bitArray;
 
 //typedef uint32_t t_num;
 
@@ -38,5 +38,3 @@ void iniciarFileSystem(void);
 
 
 #endif //LISSANDRA_FILESYSTEM_H
-
-

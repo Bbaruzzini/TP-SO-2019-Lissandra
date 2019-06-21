@@ -202,69 +202,40 @@ uint8_t drop(char const* nombreTabla)
 
 void* describe(char const* nombreTabla)
 {
-    char* dirTablas;
-    //char* realpath;
-
-    dirTablas = string_new();
-    string_append(&dirTablas, confLFS->PUNTO_MONTAJE);
-    string_append(&dirTablas, "Tables");
-
     //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (nombreTabla == NULL)
     {
-        //realpath = dirTablas;
-        t_list* listTableMetadata;
-        listTableMetadata = list_create();
+        char dirTablas[PATH_MAX];
+        snprintf(dirTablas, PATH_MAX, "%sTables", confLFS->PUNTO_MONTAJE);
 
-        int resultado = traverse(/*realpath*/dirTablas, listTableMetadata,
-                                 ""); //No se si aca se le puede pasar "", pero quiero pasar vacio
-
+        t_list* listTableMetadata = list_create();
+        int resultado = traverse(dirTablas, listTableMetadata, NULL);
         if (resultado == 0)
-        {
-            free(dirTablas);
-            //free(realpath);
             return listTableMetadata;
-        }
-        else
-        {
-            printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
-            free(dirTablas);
-            //free(realpath);
-            return NULL;
-        }
 
+        printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
+        return NULL;
     }
-    else
+
+    char pathTableMeta[PATH_MAX];
+    snprintf(pathTableMeta, PATH_MAX, "%sTables/%s/Metadata.bin", confLFS->PUNTO_MONTAJE, nombreTabla);
+
+    if (!existeArchivo(pathTableMeta))
     {
-        string_append(&dirTablas, "/");
-        string_append(&dirTablas, nombreTabla);
-        //realpath = dirTablas;
-
-        if (!existeDir(/*realpath*/dirTablas))
-        {
-            printf("ERROR: La ruta especificada es invalida\n");
-            free(dirTablas);
-            //free(realpath);
-            return NULL;
-        }
-
-        string_append(&dirTablas, "/Metadata.bin");
-        //realpath = dirTablas;
-
-        t_describe* tableMetadata = get_table_metadata(/*realpath*/dirTablas, nombreTabla);
-
-        //Pruebas Brenda/Denise desde ACA
-        /*
-        printf("Por aca tambien paso\n");
-        printf("Tabla: %s\n", tableMetadata->table);
-        printf("Consistencia: %s\n", tableMetadata->consistency);
-        printf("Particiones: %d\n", tableMetadata->partitions);
-        printf("Tiempo: %d\n", tableMetadata->compaction_time);
-         */
-        //HASTA ACA
-
-        free(dirTablas);
-        //free(realpath);
-        return tableMetadata;
+        printf("ERROR: La ruta especificada es invalida\n");
+        return NULL;
     }
+
+    //Pruebas Brenda/Denise desde ACA
+    /*t_describe* tableMetadata = get_table_metadata(pathMetadata, nombreTabla);
+
+    printf("Por aca tambien paso\n");
+    printf("Tabla: %s\n", tableMetadata->table);
+    printf("Consistencia: %s\n", tableMetadata->consistency);
+    printf("Particiones: %d\n", tableMetadata->partitions);
+    printf("Tiempo: %d\n", tableMetadata->compaction_time);
+     */
+    //HASTA ACA
+
+    return get_table_metadata(pathTableMeta, nombreTabla);
 }

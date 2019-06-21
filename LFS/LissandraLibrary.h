@@ -18,12 +18,10 @@
 
 typedef struct
 {
-
-    char const* table;
+    char table[NAME_MAX + 1];
     uint8_t consistency;
     int partitions;
     int compaction_time;
-
 } t_describe;
 
 void iniciar_servidor(void);

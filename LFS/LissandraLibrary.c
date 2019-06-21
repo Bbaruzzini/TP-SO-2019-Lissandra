@@ -289,7 +289,7 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     config_destroy(contenido);
 
     t_describe* infoMetadata = malloc(sizeof(t_describe));
-    infoMetadata->table = tabla;
+    snprintf(infoMetadata->table, NAME_MAX + 1, "%s", tabla);
     infoMetadata->consistency = (uint8_t) ct;
     infoMetadata->partitions = partitions;
     infoMetadata->compaction_time = compaction_time;
@@ -310,70 +310,52 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
 int traverse(char const* fn, t_list* lista, char const* tabla)
 {
     DIR* dir;
-    struct dirent* entry;
-    char* path;
-    struct stat info;
-    t_describe* informacion;
-
-    if ((dir = opendir(fn)) == NULL)
+    if (!(dir = opendir(fn)))
     {
         printf("ERROR: La ruta especificada es invalida\n");
         return -1;
     }
-    else
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)))
     {
-        while ((entry = readdir(dir)) != NULL)
+        char path[PATH_MAX];
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
         {
-            path = string_new();
-            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+            struct stat info;
+
+            snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
+            if (stat(path, &info) != 0)
             {
-                string_append(&path, fn);
-                string_append(&path, "/");
-                string_append(&path, entry->d_name);
-                if (stat(path, &info) != 0)
+                LISSANDRA_LOG_ERROR("Error stat() en %s", path);
+                return -1;
+            }
+            else
+            {
+                if (S_ISDIR(info.st_mode))
                 {
-                    LISSANDRA_LOG_ERROR("Error stat() en %s", path);
-                    free(path);
-                    return -1;
+                    int resultado = traverse(path, lista, entry->d_name);
+                    if (resultado == -1)
+                        return -1;
                 }
                 else
                 {
-                    if (S_ISDIR(info.st_mode))
+                    if (S_ISREG(info.st_mode))
                     {
-                        int resultado = traverse(path, lista, entry->d_name);
-                        if (resultado == -1)
+                        if (strcmp(entry->d_name, "Metadata.bin") == 0)
                         {
-                            free(path);
-                            return -1;
+                            list_add(lista, get_table_metadata(path, tabla));
+                            break;
                         }
                     }
-                    else
-                    {
-                        if (S_ISREG(info.st_mode))
-                        {
-                            if (strcmp(entry->d_name, "Metadata.bin") == 0)
-                            {
-                                informacion = get_table_metadata(path, tabla);
-                                list_add(lista, informacion);
-                                free(path);
-                                break;
-                            }
-                        }
-
-                    }
-
                 }
-
             }
 
-            free(path);
-
         }
-
-        closedir(dir);
-        return 0;
-
     }
+
+    closedir(dir);
+    return 0;
 }
 
 bool dirIsEmpty(char const* path)
