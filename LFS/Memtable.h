@@ -5,13 +5,8 @@
 #ifndef LISSANDRA_MEMTABLE_H
 #define LISSANDRA_MEMTABLE_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "Malloc.h"
-#include "Lissandra.h"
-#include "Logger.h"
-#include "vector.h"
+#include <stdint.h>
+#include <vector.h>
 
 typedef struct
 {

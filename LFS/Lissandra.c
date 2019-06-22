@@ -20,6 +20,8 @@ atomic_bool ProcessRunning = true;
 static Appender* consoleLog;
 static Appender* fileLog;
 
+t_config_FS* confLFS = NULL;
+
 static void IniciarLogger(void)
 {
     Logger_Init(LOG_LEVEL_TRACE);

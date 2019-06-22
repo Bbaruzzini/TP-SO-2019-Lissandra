@@ -3,6 +3,11 @@
 //
 
 #include "Memtable.h"
+#include <libcommons/string.h>
+#include <Logger.h>
+#include <Malloc.h>
+
+static Vector memtable;
 
 static void _delete_memtable_table(void* elem)
 {
@@ -64,7 +69,7 @@ void insert_new_in_registros(char const* nombreTabla, t_registro* registro)
             Vector_push_back(&elemento->registros, registro);
             return;
         }
-        i++;
+        ++i;
     }
 
     LISSANDRA_LOG_ERROR("No existe la tabla en la memtable");

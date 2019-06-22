@@ -26,7 +26,8 @@
 #include <signal.h>
 
 
-typedef struct{
+typedef struct
+{
     char* PUERTO_ESCUCHA;
     char* PUNTO_MONTAJE;
     int RETARDO;
@@ -34,11 +35,8 @@ typedef struct{
     int TIEMPO_DUMP;
     int TAMANIO_BLOQUES;
     int CANTIDAD_BLOQUES;
+} t_config_FS;
 
-}t_config_FS;
-
-t_config_FS * confLFS;
-
-Vector memtable;
+extern t_config_FS* confLFS;
 
 #endif //LISSANDRA_LISSANDRA_H
