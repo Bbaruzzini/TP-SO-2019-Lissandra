@@ -55,13 +55,12 @@ bool HandleSelect(Vector const* args)
     char* const table = tokens[1];
     char* const key = tokens[2];
 
-    // todo: para probar
-    CriteriaType ct = CRITERIA_SC;
-    /*if (!Metadata_Get(table, &ct))
+    CriteriaType ct;
+    if (!Metadata_Get(table, &ct))
     {
         LISSANDRA_LOG_ERROR("SELECT: Tabla %s no encontrada en metadata", table);
         return false;
-    }*/
+    }
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -133,13 +132,12 @@ bool HandleInsert(Vector const* args)
     char* const key = tokens[2];
     char* const value = tokens[3];
 
-    // todo: para probar
-    CriteriaType ct = CRITERIA_SC;
-    /*if (!Metadata_Get(table, &ct))
+    CriteriaType ct;
+    if (!Metadata_Get(table, &ct))
     {
         LISSANDRA_LOG_ERROR("INSERT: Tabla %s no encontrada en metadata", table);
         return false;
-    }*/
+    }
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -277,21 +275,14 @@ bool HandleDescribe(Vector const* args)
     DBRequest dbr;
     dbr.TableName = table;
 
-    // para el global se utiliza cualquiera de los disponibles
-    CriteriaType ct = CRITERIA_ANY;
-    /*if (table && !Metadata_Get(table, &ct)) todo descomentar cuando tenga describe
-    {
-        LISSANDRA_LOG_ERROR("DESCRIBE: Tabla %s no encontrada en metadata", table);
-        return false;
-    }*/
-
     // el global actualiza metadatos
     if (!table)
         Metadata_Clear();
     else // el local borra la de la tabla pedida ya que puede que se haya DROPeado
         Metadata_Del(table);
 
-    Memory* mem = Criteria_GetMemoryFor(ct, OP_DESCRIBE, &dbr);
+    // para el describe se utiliza cualquier memoria
+    Memory* mem = Criteria_GetMemoryFor(CRITERIA_ANY, OP_DESCRIBE, &dbr);
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 

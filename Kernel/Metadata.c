@@ -2,6 +2,7 @@
 #include "Metadata.h"
 #include <libcommons/dictionary.h>
 #include <Malloc.h>
+#include <pthread.h>
 
 typedef struct
 {
@@ -9,6 +10,7 @@ typedef struct
 } MDEntry;
 
 static t_dictionary* Metadata;
+static pthread_rwlock_t MetadataLock = PTHREAD_RWLOCK_INITIALIZER;
 
 void Metadata_Init(void)
 {
@@ -17,21 +19,29 @@ void Metadata_Init(void)
 
 void Metadata_Add(char const* name, CriteriaType ct)
 {
+    pthread_rwlock_wrlock(&MetadataLock);
+
     MDEntry* entry = dictionary_get(Metadata, name);
     if (entry)
-    {
         entry->ct = ct;
-        return;
+    else
+    {
+        entry = Malloc(sizeof(MDEntry));
+        entry->ct = ct;
+        dictionary_put(Metadata, name, entry);
     }
 
-    entry = Malloc(sizeof(MDEntry));
-    entry->ct = ct;
-    dictionary_put(Metadata, name, entry);
+    pthread_rwlock_unlock(&MetadataLock);
 }
 
 bool Metadata_Get(char const* name, CriteriaType* ct)
 {
-    MDEntry* entry = dictionary_get(Metadata, name);
+    MDEntry* entry;
+
+    pthread_rwlock_rdlock(&MetadataLock);
+    entry = dictionary_get(Metadata, name);
+    pthread_rwlock_unlock(&MetadataLock);
+
     if (!entry)
         return false;
 
@@ -42,12 +52,20 @@ bool Metadata_Get(char const* name, CriteriaType* ct)
 
 void Metadata_Del(char const* name)
 {
+    pthread_rwlock_wrlock(&MetadataLock);
+
     dictionary_remove_and_destroy(Metadata, name, Free);
+
+    pthread_rwlock_unlock(&MetadataLock);
 }
 
 void Metadata_Clear(void)
 {
+    pthread_rwlock_wrlock(&MetadataLock);
+
     dictionary_clean_and_destroy_elements(Metadata, Free);
+
+    pthread_rwlock_unlock(&MetadataLock);
 }
 
 void Metadata_Destroy(void)
