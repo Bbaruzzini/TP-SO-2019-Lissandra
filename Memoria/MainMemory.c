@@ -57,7 +57,7 @@ bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
 
     PageTable* pt = SegmentTable_GetPageTable(tableName);
     if (!pt)
-        pt = SegmentTable_CreateSegment(tableName);
+        pt = SegmentTable_CreateSegment(tableName, NumPages);
 
     PageTable_AddPage(pt, key, freeFrame);
     WriteFrame(freeFrame, key, value);
@@ -75,7 +75,7 @@ bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
 
         pt = SegmentTable_GetPageTable(tableName);
         if (!pt)
-            pt = SegmentTable_CreateSegment(tableName);
+            pt = SegmentTable_CreateSegment(tableName, NumPages);
 
         PageTable_AddPage(pt, key, frame);
     }
@@ -92,11 +92,6 @@ void Memory_CleanFrame(size_t frameNumber)
 
 void Memory_EvictPages(char const* tableName)
 {
-    PageTable* pt = SegmentTable_GetPageTable(tableName);
-    if (!pt)
-        return;
-
-    PageTable_Clean(pt);
     SegmentTable_DeleteSegment(tableName);
 }
 

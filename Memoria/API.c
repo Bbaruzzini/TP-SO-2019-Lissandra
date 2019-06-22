@@ -8,9 +8,22 @@
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <Timer.h>
+
+#define LOG_INVALID_OPCODE(fn) \
+do { \
+    LISSANDRA_LOG_FATAL(fn ": recibido opcode no esperado %hu", Packet_GetOpcode(p)); \
+    Packet_Destroy(p); \
+} while(false)
+
+static void _ungratefulExit(void)
+{
+    LISSANDRA_LOG_FATAL("Se desconectó el FileSystem!! Saliendo...");
+    exit(EXIT_FAILURE);
+}
 
 SelectResult API_Select(char const* tableName, uint16_t key, char* value)
 {
@@ -37,6 +50,9 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
+    if (!p)
+        _ungratefulExit();
+
     switch (Packet_GetOpcode(p))
     {
         case MSG_SELECT:
@@ -46,15 +62,13 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
             return KeyNotFound;
         default:
             // deberia ser otra cosa pero para no confundir al llamante con un estado de "otro error"
-            LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-            Packet_Destroy(p);
+            LOG_INVALID_OPCODE("SELECT");
             return Ok;
     }
 
     char* fs_value;
     Packet_Read(p, &fs_value);
-    *value = '\0';
-    strncat(value, fs_value, maxValueLength);
+    snprintf(value, maxValueLength, "%s", fs_value);
     Free(fs_value);
     Packet_Destroy(p);
 
@@ -89,8 +103,14 @@ bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partit
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
-    if (!p || Packet_GetOpcode(p) != MSG_CREATE_RESPUESTA) // todo
-        ;
+    if (!p)
+        _ungratefulExit();
+
+    if (Packet_GetOpcode(p) != MSG_CREATE_RESPUESTA)
+    {
+        LOG_INVALID_OPCODE("CREATE");
+        return false;
+    }
 
     uint8_t createRes;
     Packet_Read(p, &createRes);
@@ -112,6 +132,9 @@ bool API_Describe(char const* tableName, Vector* results)
 
     uint32_t numTables;
     p = Socket_RecvPacket(FileSystemSocket);
+    if (!p) // todo
+        _ungratefulExit();
+
     switch (Packet_GetOpcode(p))
     {
         case MSG_ERR_TABLE_NOT_EXISTS:
@@ -127,9 +150,8 @@ bool API_Describe(char const* tableName, Vector* results)
             Packet_Read(p, &numTables);
             break;
         default:
-            LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-            Packet_Destroy(p);
-            return true; // para no complicar la interfaz
+            LOG_INVALID_OPCODE("DESCRIBE");
+            return true; /* si devuelvo false es que no encontre tabla */
     }
 
     Vector_reserve(results, numTables);
@@ -158,8 +180,14 @@ bool API_Drop(char const* tableName)
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
-    if (!p || Packet_GetOpcode(p) != MSG_DROP_RESPUESTA) // todo
-        ;
+    if (!p)
+        _ungratefulExit();
+
+    if (Packet_GetOpcode(p) != MSG_DROP_RESPUESTA)
+    {
+        LOG_INVALID_OPCODE("DROP");
+        return false;
+    }
 
     uint8_t dropRes;
     Packet_Read(p, &dropRes);
@@ -190,10 +218,14 @@ static void Journal_Register(void* dirtyFrame)
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
-    if (!p) // todo que hacer en estos casos?
-        ;
+    if (!p)
+        _ungratefulExit();
+
     if (Packet_GetOpcode(p) != MSG_INSERT_RESPUESTA)
-        ;
+    {
+        LOG_INVALID_OPCODE("JOURNAL_INSERT");
+        return;
+    }
 
     Packet_Destroy(p);
 }

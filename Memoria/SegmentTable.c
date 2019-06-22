@@ -1,7 +1,7 @@
 
 #include "SegmentTable.h"
 #include "MainMemory.h"
-#include <libcommons/list.h>
+#include <libcommons/dictionary.h>
 #include <linux/limits.h>
 #include <Malloc.h>
 #include <stdio.h>
@@ -13,75 +13,54 @@ typedef struct
     PageTable Pages;
 } Segment;
 
-static t_list* SegmentTable = NULL;
-static char* TablePath = NULL;
+static t_dictionary* SegmentTable = NULL;
+static char TablePath[PATH_MAX] = { 0 };
 
 static void _segmentDestroy(void* segment);
 
-static bool FindSegmentPred(void* segment, void* tablePath)
+typedef struct
 {
-    Segment* const s = segment;
-    return !strcmp(s->Table, (char*) tablePath);
-}
+    size_t* minCounter;
+    size_t* minFrame;
+    Segment** minPageSegment;
+} SLRUPageParameters;
+static void _saveLRUPage(char const* qualifiedPath, void* segment, void* param);
 
 void SegmentTable_Initialize(char const* tablePath)
 {
-    SegmentTable = list_create();
-    TablePath = strdup(tablePath);
+    SegmentTable = dictionary_create();
+
+    snprintf(TablePath, PATH_MAX, "%s", tablePath);
 }
 
-PageTable* SegmentTable_CreateSegment(char const* tableName)
+PageTable* SegmentTable_CreateSegment(char const* tableName, size_t totalFrames)
 {
-    char tablePath[PATH_MAX];
-    snprintf(tablePath, PATH_MAX, "%s%s", TablePath, tableName);
-
     Segment* s = Malloc(sizeof(Segment));
-    s->Table = strdup(tablePath);
-    PageTable_Construct(&s->Pages);
+    s->Table = strdup(tableName);
+    PageTable_Construct(&s->Pages, totalFrames);
 
-    list_add(SegmentTable, s);
+    char qualifiedPath[PATH_MAX];
+    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
+    dictionary_put(SegmentTable, qualifiedPath, s);
+
     return &s->Pages;
 }
 
 PageTable* SegmentTable_GetPageTable(char const* tableName)
 {
-    char tablePath[PATH_MAX];
-    snprintf(tablePath, PATH_MAX, "%s%s", TablePath, tableName);
+    char qualifiedPath[PATH_MAX];
+    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
 
-    Segment* s = list_find(SegmentTable, FindSegmentPred, tablePath);
+    Segment* s = dictionary_get(SegmentTable, qualifiedPath);
     if (!s)
         return NULL;
 
     return &s->Pages;
 }
 
-struct Param
-{
-    size_t* minCounter;
-    size_t* minFrame;
-    Segment** minPageSegment;
-};
-
-static void SaveLRUPage(void* segment, void* param)
-{
-    Segment* const s = segment;
-
-    size_t lruFrame;
-    size_t timestamp;
-    bool hasLRU = PageTable_GetLRUFrame(&s->Pages, &lruFrame, &timestamp);
-
-    struct Param* const p = param;
-    if (hasLRU && (!*p->minPageSegment || timestamp < *p->minCounter))
-    {
-        *p->minCounter = timestamp;
-        *p->minFrame = lruFrame;
-        *p->minPageSegment = s;
-    }
-}
-
 bool SegmentTable_GetLRUFrame(size_t* frame)
 {
-    if (list_is_empty(SegmentTable))
+    if (dictionary_is_empty(SegmentTable))
         return false;
 
     // entre los segmentos busco la pagina con menor timestamp
@@ -89,13 +68,13 @@ bool SegmentTable_GetLRUFrame(size_t* frame)
     size_t minFrame = 0;
     Segment* minPageSegment = NULL;
 
-    struct Param p =
+    SLRUPageParameters p =
     {
         .minCounter = &minCounter,
         .minFrame = &minFrame,
         .minPageSegment = &minPageSegment
     };
-    list_iterate_with_data(SegmentTable, SaveLRUPage, &p);
+    dictionary_iterator_with_data(SegmentTable, _saveLRUPage, &p);
 
     if (!minPageSegment)
         return false;
@@ -106,23 +85,47 @@ bool SegmentTable_GetLRUFrame(size_t* frame)
     if (PageTable_PreemptPage(&minPageSegment->Pages, f->Key))
     {
         // era la ultima pagina de este segmento, borrarlo
-        list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, minPageSegment->Table, _segmentDestroy);
+        char qualifiedPath[PATH_MAX];
+        snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, minPageSegment->Table);
+
+        dictionary_remove_and_destroy(SegmentTable, qualifiedPath, _segmentDestroy);
     }
 
     return true;
 }
 
-static void GetDirtyFrames(void* segment, void* vec)
+static void GetDirtyFrames(char const* qualifiedPath, void* segment, void* vec)
 {
+    (void) qualifiedPath;
+
     Segment* const s = segment;
     PageTable_GetDirtyFrames(&s->Pages, s->Table, (Vector*) vec);
 }
 
 void SegmentTable_GetDirtyFrames(Vector* dirtyFrames)
 {
-    list_iterate_with_data(SegmentTable, GetDirtyFrames, dirtyFrames);
+    dictionary_iterator_with_data(SegmentTable, GetDirtyFrames, dirtyFrames);
 }
 
+void SegmentTable_DeleteSegment(char const* tableName)
+{
+    char qualifiedPath[PATH_MAX];
+    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
+
+    dictionary_remove_and_destroy(SegmentTable, qualifiedPath, _segmentDestroy);
+}
+
+void SegmentTable_Clean(void)
+{
+    dictionary_clean_and_destroy_elements(SegmentTable, _segmentDestroy);
+}
+
+void SegmentTable_Destroy(void)
+{
+    dictionary_destroy_and_destroy_elements(SegmentTable, _segmentDestroy);
+}
+
+/* PRIVATE */
 static void _segmentDestroy(void* segment)
 {
     Segment* const s = segment;
@@ -131,18 +134,21 @@ static void _segmentDestroy(void* segment)
     Free(s);
 }
 
-void SegmentTable_DeleteSegment(char const* tableName)
+static void _saveLRUPage(char const* qualifiedPath, void* segment, void* param)
 {
-    list_remove_and_destroy_by_condition(SegmentTable, FindSegmentPred, (void*) tableName, _segmentDestroy);
-}
+    (void) qualifiedPath;
 
-void SegmentTable_Clean(void)
-{
-    list_clean_and_destroy_elements(SegmentTable, _segmentDestroy);
-}
+    Segment* const s = segment;
 
-void SegmentTable_Destroy(void)
-{
-    Free(TablePath);
-    list_destroy_and_destroy_elements(SegmentTable, _segmentDestroy);
+    size_t lruFrame;
+    size_t timestamp;
+    bool hasLRU = PageTable_GetLRUFrame(&s->Pages, &lruFrame, &timestamp);
+
+    SLRUPageParameters* const p = param;
+    if (hasLRU && (!*p->minPageSegment || timestamp < *p->minCounter))
+    {
+        *p->minCounter = timestamp;
+        *p->minFrame = lruFrame;
+        *p->minPageSegment = s;
+    }
 }

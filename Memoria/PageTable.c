@@ -12,48 +12,143 @@ typedef struct
     size_t Counter;
     size_t Frame;
     bool Dirty;
+    bool Valid;
 } Page;
 
-struct KeyWrap
-{
-    uint16_t key;
-};
+static Page* _findPageByKey(PageTable const* pt, uint16_t key);
 
-static bool FindPagePred(void* page, void* kw)
+typedef struct
 {
-    Page* const p = page;
-    struct KeyWrap* const k = kw;
+    size_t* minCounter;
+    Page** minPage;
+}  SLRUPageParameters;
+static void _saveLRUPage(void* page, void* param);
 
-    return p->Key == k->key;
-}
-
-void PageTable_Construct(PageTable* pt)
+typedef struct
 {
-    pt->Frames = list_create();
+    char const* tableName;
+    Vector* dirtyFrames;
+} GDFrameParameters;
+static void _addDirtyFrame(void* page, void* param);
+
+static void _cleanPage(void* page);
+
+void PageTable_Construct(PageTable* pt, size_t totalFrames)
+{
+    pt->UsedPages = 0;
+    Vector_Construct(&pt->PageEntries, sizeof(Page), _cleanPage, totalFrames);
+    Vector_resize_zero(&pt->PageEntries, totalFrames);
 }
 
 void PageTable_AddPage(PageTable* pt, uint16_t key, size_t frame)
 {
-    Page* p = Malloc(sizeof(Page));
+    Page* p = Vector_at(&pt->PageEntries, frame);
     p->Key = key;
     p->Counter = ++MonotonicCounter;
     p->Frame = frame;
     p->Dirty = false;
+    p->Valid = true;
 
-    list_add(pt->Frames, p);
+    ++pt->UsedPages;
 }
 
-struct ParamLRU
+bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp)
 {
-    size_t* minCounter;
-    Page** minPage;
-};
+    size_t minCounter = 0;
+    Page* minPage = NULL;
 
-static void SaveLRUPage(void* page, void* param)
+    SLRUPageParameters p =
+    {
+        .minCounter = &minCounter,
+        .minPage = &minPage
+    };
+    Vector_iterate_with_data(&pt->PageEntries, _saveLRUPage, &p);
+
+    if (!minPage)
+        return false;
+
+    *timestamp = minPage->Counter;
+    *frame = minPage->Frame;
+
+    return true;
+}
+
+void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector* dirtyFrames)
+{
+    GDFrameParameters p =
+    {
+        .tableName = tableName,
+        .dirtyFrames = dirtyFrames
+    };
+
+    Vector_iterate_with_data(&pt->PageEntries, _addDirtyFrame, &p);
+}
+
+bool PageTable_PreemptPage(PageTable* pt, uint16_t key)
+{
+    Page* p = _findPageByKey(pt, key);
+    if (p)
+    {
+        _cleanPage(p);
+        --pt->UsedPages;
+    }
+
+    return pt->UsedPages == 0;
+}
+
+bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page)
+{
+    Page* p = _findPageByKey(pt, key);
+    if (!p)
+        return false;
+
+    p->Counter = ++MonotonicCounter;
+    *page = p->Frame;
+    return true;
+}
+
+void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
+{
+    Page* p = _findPageByKey(pt, key);
+    if (!p)
+        return;
+
+    p->Dirty = true;
+}
+
+void PageTable_Destruct(PageTable* pt)
+{
+    Vector_Destruct(&pt->PageEntries);
+}
+
+/* PRIVATE */
+static Page* _findPageByKey(PageTable const* pt, uint16_t key)
+{
+    Page* pages = Vector_data(&pt->PageEntries);
+    Page* res = NULL;
+
+    for (size_t i = 0; i < Vector_size(&pt->PageEntries); ++i)
+    {
+        if (!pages[i].Valid)
+            continue;
+
+        if (pages[i].Key == key)
+        {
+            res = pages + i;
+            break;
+        }
+    }
+
+    return res;
+}
+
+static void _saveLRUPage(void* page, void* param)
 {
     Page* const p = page;
+    if (!p->Valid)
+        return;
 
-    struct ParamLRU* const data = param;
+    SLRUPageParameters* const data = param;
     if (!p->Dirty && (!*data->minPage || p->Counter < *data->minCounter))
     {
         *data->minCounter = p->Counter;
@@ -61,44 +156,14 @@ static void SaveLRUPage(void* page, void* param)
     }
 }
 
-bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp)
-{
-    if (list_is_empty(pt->Frames))
-        return false;
-
-    size_t minCounter = 0;
-    Page* minPage = NULL;
-
-    struct ParamLRU p =
-    {
-        .minCounter = &minCounter,
-        .minPage = &minPage
-    };
-    list_iterate_with_data(pt->Frames, SaveLRUPage, &p);
-
-    if (!minPage)
-        return false;
-
-    *timestamp = minPage->Counter;
-    *frame = minPage->Counter;
-
-    return true;
-}
-
-struct ParamDF
-{
-    char const* tableName;
-    Vector* dirtyFrames;
-};
-
-void AddDirtyFrame(void* page, void* param)
+static void _addDirtyFrame(void* page, void* param)
 {
     Page* const p = page;
-    if (!p->Dirty)
+    if (!p->Valid || !p->Dirty)
         return;
 
     Frame* f = Memory_Read(p->Frame);
-    struct ParamDF* const data = param;
+    GDFrameParameters* const data = param;
     DirtyFrame df =
     {
         .TableName = data->tableName,
@@ -110,59 +175,9 @@ void AddDirtyFrame(void* page, void* param)
     Vector_push_back(data->dirtyFrames, &df);
 }
 
-void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector* dirtyFrames)
-{
-    struct ParamDF p =
-    {
-        .tableName = tableName,
-        .dirtyFrames = dirtyFrames
-    };
-
-    list_iterate_with_data(pt->Frames, AddDirtyFrame, &p);
-}
-
-bool PageTable_PreemptPage(PageTable* pt, uint16_t key)
-{
-    struct KeyWrap kw = { key };
-    list_remove_and_destroy_by_condition(pt->Frames, FindPagePred, &kw, Free);
-    return list_is_empty(pt->Frames);
-}
-
-bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page)
-{
-    struct KeyWrap kw = { key };
-    Page* p = list_find(pt->Frames, FindPagePred, &kw);
-    if (!p)
-        return false;
-
-    p->Counter = ++MonotonicCounter;
-    *page = p->Frame;
-    return true;
-}
-
-void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
-{
-    struct KeyWrap kw = { key };
-    Page* p = list_find(pt->Frames, FindPagePred, &kw);
-    if (!p)
-        return;
-
-    p->Dirty = true;
-}
-
-static void CleanPage(void* page)
+static void _cleanPage(void* page)
 {
     Page* const p = page;
     Memory_CleanFrame(p->Frame);
-    Free(p);
-}
-
-void PageTable_Clean(PageTable* pt)
-{
-    list_clean_and_destroy_elements(pt->Frames, CleanPage);
-}
-
-void PageTable_Destruct(PageTable* pt)
-{
-    list_destroy_and_destroy_elements(pt->Frames, Free);
+    p->Valid = false;
 }

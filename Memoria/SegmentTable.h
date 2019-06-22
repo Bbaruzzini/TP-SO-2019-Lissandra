@@ -6,7 +6,7 @@
 
 void SegmentTable_Initialize(char const* tablePath);
 
-PageTable* SegmentTable_CreateSegment(char const* tableName);
+PageTable* SegmentTable_CreateSegment(char const* tableName, size_t totalFrames);
 
 PageTable* SegmentTable_GetPageTable(char const* tableName);
 
