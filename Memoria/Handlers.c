@@ -147,12 +147,10 @@ void HandleCreateOpcode(Socket* s, Packet* p)
 static void AddToPacket(void* md, void* packet)
 {
     TableMD* const p = md;
-    Packet* const resp = packet;
-
-    Packet_Append(resp, p->tableName);
-    Packet_Append(resp, p->ct);
-    Packet_Append(resp, p->parts);
-    Packet_Append(resp, p->compTime);
+    Packet_Append(packet, p->tableName);
+    Packet_Append(packet, p->ct);
+    Packet_Append(packet, p->parts);
+    Packet_Append(packet, p->compTime);
 }
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
@@ -184,7 +182,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
     Packet* resp = Packet_Create(opcode, 100);
     if (opcode == MSG_DESCRIBE_GLOBAL)
-        Packet_Append(p, Vector_size(&v));
+        Packet_Append(resp, (uint32_t) Vector_size(&v));
 
     Vector_iterate_with_data(&v, AddToPacket, resp);
     Vector_Destruct(&v);
