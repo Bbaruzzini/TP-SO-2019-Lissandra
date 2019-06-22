@@ -25,7 +25,7 @@
 #include "Malloc.h"
 #include <string.h>
 
-static unsigned int dictionary_hash(char const* key, int key_len);
+static unsigned int dictionary_hash(char const* key);
 static void dictionary_resize(t_dictionary*, int new_max_size);
 
 static t_hash_element* dictionary_create_element(char* key, unsigned int key_hash, void* data);
@@ -44,19 +44,18 @@ t_dictionary* dictionary_create()
     return self;
 }
 
-static unsigned int dictionary_hash(char const* key, int key_len)
+static unsigned int dictionary_hash(char const* key)
 {
     unsigned int hash = 0;
-    for (int index = 0; index < key_len; ++index)
+    for (unsigned char c; (c = *key); ++key)
     {
-        unsigned char c = key[index];
         hash += c;
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
+        hash += (hash << 10U);
+        hash ^= (hash >> 6U);
     }
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
+    hash += (hash << 3U);
+    hash ^= (hash >> 11U);
+    hash += (hash << 15U);
 
     return hash;
 }
@@ -71,7 +70,7 @@ void dictionary_put(t_dictionary* self, char const* key, void* data)
         return;
     }
 
-    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    unsigned int key_hash = dictionary_hash(key);
     int index = key_hash % self->table_max_size;
     t_hash_element* new_element = dictionary_create_element(strdup(key), key_hash, data);
 
@@ -273,7 +272,7 @@ static t_hash_element* dictionary_create_element(char* key, unsigned int key_has
 
 static t_hash_element* dictionary_get_element(t_dictionary* self, char const* key)
 {
-    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    unsigned int key_hash = dictionary_hash(key);
     int index = key_hash % self->table_max_size;
 
     t_hash_element* element = self->elements[index];
@@ -292,7 +291,7 @@ static t_hash_element* dictionary_get_element(t_dictionary* self, char const* ke
 
 static void* dictionary_remove_element(t_dictionary* self, char const* key)
 {
-    unsigned int key_hash = dictionary_hash(key, strlen(key));
+    unsigned int key_hash = dictionary_hash(key);
     int index = key_hash % self->table_max_size;
 
     t_hash_element* element = self->elements[index];
