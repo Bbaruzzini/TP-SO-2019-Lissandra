@@ -50,11 +50,6 @@ uint8_t insert(char const* nombreTabla, uint16_t key, char const* value, uint64_
 
 uint8_t create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
-    //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
-    char nomTabla[NAME_MAX + 1];
-    snprintf(nomTabla, NAME_MAX + 1, "%s", nombreTabla);
-    string_to_upper(nomTabla);
-
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
 

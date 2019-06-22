@@ -236,9 +236,12 @@ bool existeDir(char const* pathDir)
     return stat(pathDir, &st) != -1;
 }
 
-void generarPathTabla(char const* nombreTabla, char* buf)
+void generarPathTabla(char* nombreTabla, char* buf)
 {
     LISSANDRA_LOG_INFO("Generando el path de la tabla");
+
+    //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
+    string_to_upper(nombreTabla);
     snprintf(buf, PATH_MAX, "%sTables/%s", confLFS->PUNTO_MONTAJE, nombreTabla);
 }
 
