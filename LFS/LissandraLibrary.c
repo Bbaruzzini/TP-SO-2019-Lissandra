@@ -4,8 +4,24 @@
 
 //Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
+#include "FileSystem.h"
+#include "Lissandra.h"
+#include "Memtable.h"
 #include <Consistency.h>
+#include <Console.h>
+#include <dirent.h>
+#include <EventDispatcher.h>
 #include <File.h>
+#include <libcommons/config.h>
+#include <libcommons/string.h>
+#include <LockedQueue.h>
+#include <Opcodes.h>
+#include <Packet.h>
+#include <semaphore.h>
+#include <Socket.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 
 //Variables
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
@@ -56,9 +72,9 @@ void* atender_pedidos(void* arg)
                 break;
         }
 
-        free(pedido->path);
+        Free(pedido->path);
 */
-        free(pedido);
+        Free(pedido);
     }
 
     return NULL;
@@ -282,7 +298,7 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     int compaction_time = config_get_int_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
 
-    t_describe* infoMetadata = malloc(sizeof(t_describe));
+    t_describe* infoMetadata = Malloc(sizeof(t_describe));
     snprintf(infoMetadata->table, NAME_MAX + 1, "%s", tabla);
     infoMetadata->consistency = (uint8_t) ct;
     infoMetadata->partitions = partitions;
@@ -421,13 +437,13 @@ void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
     {
         elemento = Vector_at(&bloques, j);
         escribirValorBitarray(false, atoi(elemento->path));
-        j++;
+        ++j;
     }
 
     unlink(pathAbsoluto);
     config_destroy(data);
     //config_destroy(elemento);
-    free(pathAbsoluto);
+    Free(pathAbsoluto);
 }
 
 int traverse_to_drop(char const* fn, char const* nombreTabla)

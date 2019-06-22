@@ -2,7 +2,11 @@
 #include "FileSystem.h"
 #include "Lissandra.h"
 #include "LissandraLibrary.h"
-#include "Logger.h"
+#include <libcommons/config.h>
+#include <Logger.h>
+#include <Malloc.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
 char pathMetadataBitarray[PATH_MAX] = { 0 };
 
@@ -65,7 +69,7 @@ void iniciarFileSystem(void)
         fstat(fileno(bitmap), &stats);
 
         sizeBitArray = stats.st_size;
-        data = malloc(stats.st_size);
+        data = Malloc(stats.st_size);
         fread(data, stats.st_size, 1, bitmap);
 
         fclose(bitmap);

@@ -1,11 +1,13 @@
 
 #include "Handlers.h"
+#include "API.h"
 #include "Lissandra.h"
 #include <Consistency.h>
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
 #include <Socket.h>
+#include <stdlib.h>
 #include <Timer.h>
 
 OpcodeHandler const opcodeTable[NUM_OPCODES] =
@@ -84,7 +86,7 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     //Packet_Read(p, &timestamp);
 
     //resultadoInsert es EXIT_SUCCESS o EXIT_FAILURE
-    uint8_t resultadoInsert = insert(nombreTabla, key, value, timestamp);
+    uint8_t resultadoInsert = api_insert(nombreTabla, key, value, timestamp);
     if (resultadoInsert == EXIT_FAILURE)
         LISSANDRA_LOG_ERROR("No se pudo realizar el insert de: %s", nombreTabla);
 
@@ -109,7 +111,7 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Packet_Read(p, &numeroParticiones);
     Packet_Read(p, &compactionTime);
 
-    uint8_t resultadoCreate = create(nombreTabla, tipoConsistencia, numeroParticiones, compactionTime);
+    uint8_t resultadoCreate = api_create(nombreTabla, tipoConsistencia, numeroParticiones, compactionTime);
     if (resultadoCreate == EXIT_FAILURE)
         LISSANDRA_LOG_ERROR("No se pudo crear la tabla: %s", nombreTabla);
 
@@ -135,7 +137,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
     if (!nombreTabla)
     {
-        t_list* resDescribe = describe(nombreTabla);
+        t_list* resDescribe = api_describe(nombreTabla);
         size_t const tam = list_size(resDescribe) * (sizeof(t_describe));
         resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
         Packet_Append(resp, list_size(resDescribe));
@@ -154,7 +156,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
     }
     else
     {
-        t_describe* elemento = describe(nombreTabla);
+        t_describe* elemento = api_describe(nombreTabla);
         size_t const tam = sizeof(t_describe);
         resp = Packet_Create(MSG_DESCRIBE, tam);
         Packet_Append(resp, nombreTabla);
@@ -175,7 +177,7 @@ void HandleDropOpcode(Socket* s, Packet* p)
 
     Packet_Read(p, &nombreTabla);
 
-    uint8_t resultadoDrop = drop(nombreTabla);
+    uint8_t resultadoDrop = api_drop(nombreTabla);
     if (resultadoDrop == EXIT_FAILURE)
         LISSANDRA_LOG_ERROR("No se pudo hacer drop de la tabla: %s", nombreTabla);
 

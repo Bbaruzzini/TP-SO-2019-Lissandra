@@ -5,6 +5,8 @@
 #include "CLIHandlers.h"
 #include "API.h"
 #include <Consistency.h>
+#include <Malloc.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <Timer.h>
 
@@ -44,7 +46,7 @@ void HandleSelect(Vector const* args)
         return;
 
     //TODO: completar con lo que falta desde aca
-    select_api(table, k);
+    api_select(table, k);
 }
 
 void HandleInsert(Vector const* args)
@@ -77,7 +79,7 @@ void HandleInsert(Vector const* args)
     if (timestamp != NULL)
         ts = strtoull(timestamp, NULL, 10);
 
-    uint8_t resultadoInsert = insert(table, k, value, ts);
+    uint8_t resultadoInsert = api_insert(table, k, value, ts);
     if (resultadoInsert == EXIT_SUCCESS)
     {
         LISSANDRA_LOG_INFO("Se completo INSERT a la tabla: %s", table);
@@ -114,7 +116,7 @@ void HandleCreate(Vector const* args)
     uint32_t const parts = strtoul(partitions, NULL, 10);
     uint32_t const compTime = strtoul(compaction_time, NULL, 10);
 
-    uint8_t resultadoCreate = create(table, ct, parts, compTime);
+    uint8_t resultadoCreate = api_create(table, ct, parts, compTime);
     if (resultadoCreate == EXIT_SUCCESS)
     {
         printf("La tabla %s se creo con exito\n", table);
@@ -147,7 +149,7 @@ void HandleDescribe(Vector const* args)
     if (table == NULL)
     {
         size_t i = 0;
-        t_list* resultadoDescribeNull = describe(NULL);
+        t_list* resultadoDescribeNull = api_describe(NULL);
         while (i < list_size(resultadoDescribeNull))
         {
             t_describe* elemento = list_get(resultadoDescribeNull, i);
@@ -162,7 +164,7 @@ void HandleDescribe(Vector const* args)
     }
     else
     {
-        t_describe* resultadoDescribe = describe(table);
+        t_describe* resultadoDescribe = api_describe(table);
         if (resultadoDescribe != NULL)
         {
             printf("Tabla: %s\n", resultadoDescribe->table);
@@ -193,7 +195,7 @@ void HandleDrop(Vector const* args)
 
     char* const table = tokens[1];
 
-    uint8_t resultado = drop(table);
+    uint8_t resultado = api_drop(table);
 
     if (resultado == EXIT_SUCCESS)
     {

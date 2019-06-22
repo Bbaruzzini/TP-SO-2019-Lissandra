@@ -2,30 +2,6 @@
 #ifndef LISSANDRA_LISSANDRA_H
 #define LISSANDRA_LISSANDRA_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <libcommons/config.h>
-#include <libcommons/string.h>
-#include "Appender.h"
-#include "AppenderConsole.h"
-#include "AppenderFile.h"
-#include "Console.h"
-#include <Config.h>
-#include <Console.h>
-#include "API.h"
-#include "EventDispatcher.h"
-#include "FileWatcher.h"
-#include "Logger.h"
-#include "LissandraLibrary.h"
-#include "FileSystem.h"
-#include "Memtable.h"
-
-#include <signal.h>
-
-
 typedef struct
 {
     char* PUERTO_ESCUCHA;

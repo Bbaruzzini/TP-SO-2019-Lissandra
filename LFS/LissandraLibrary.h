@@ -6,15 +6,9 @@
 #define LISSANDRA_LISSANDRALIBRARY_H
 
 #include <libcommons/list.h>
-#include "Lissandra.h"
-#include <LockedQueue.h>
-#include <semaphore.h>
-#include <Socket.h>
-#include <dirent.h>
-#include <Packet.h>
-#include <Opcodes.h>
-#include "Handlers.h"
-
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 typedef struct
 {

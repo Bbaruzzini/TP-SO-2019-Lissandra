@@ -2,6 +2,16 @@
 #include "Lissandra.h"
 #include "API.h"
 #include "CLIHandlers.h"
+#include "Memtable.h"
+#include <Appender.h>
+#include <AppenderConsole.h>
+#include <AppenderFile.h>
+#include <Config.h>
+#include <EventDispatcher.h>
+#include <FileWatcher.h>
+#include <Logger.h>
+#include <Malloc.h>
+#include <stdio.h>
 
 CLICommand const CLICommands[] =
 {
@@ -158,12 +168,12 @@ int main(void)
 */
     //Pruebas Brenda/Denise desde ACA
 
-    //create("Tabla3", "SC", 5, 2000);
-    //create("Tabla2", "SC", 4, 1000);
+    //api_create("Tabla3", "SC", 5, 2000);
+    //api_create("Tabla2", "SC", 4, 1000);
 
     //t_list* prueba = malloc(sizeof(t_list));
 
-    //prueba = describe("");
+    //prueba = api_describe("");
 
     //size_t tamanio = list_size(prueba);
 
@@ -171,7 +181,7 @@ int main(void)
 
     //t_describe* prueba2 = Malloc(sizeof(t_describe));
 
-    //prueba2 = describe("TABLA2");
+    //prueba2 = api_describe("TABLA2");
 
     //printf("Tabla: %s\n", prueba2->table);
     //printf("Consistencia: %d\n", prueba2->consistency);
@@ -180,7 +190,7 @@ int main(void)
 
     //HASTA ACA
 
-    //drop("TABLA3");
+    //api_drop("TABLA3");
 
     //printf("hora ariel: %d\n", GetMSEpoch());
     //printf("hora denise: %d\n", time(NULL));

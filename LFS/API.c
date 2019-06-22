@@ -1,13 +1,18 @@
 
 #include "API.h"
+#include "Lissandra.h"
+#include "Memtable.h"
 #include <Consistency.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 
-void select_api(char const* nombreTabla, uint16_t key)
+void api_select(char* nombreTabla, uint16_t key)
 {
     /// todo
 }
 
-uint8_t insert(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
+uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
     //Verifica si la tabla existe en el File System
     char path[PATH_MAX];
@@ -48,7 +53,7 @@ uint8_t insert(char const* nombreTabla, uint16_t key, char const* value, uint64_
     return EXIT_SUCCESS;
 }
 
-uint8_t create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
+uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
@@ -86,14 +91,14 @@ uint8_t create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numer
                     LISSANDRA_LOG_ERROR("No hay espacio en el File System");
                     printf("ERROR: No hay espacio en el File System\n");
 
-                    //TODO: Aca haría un drop(nombreTabla), porque si no puede crear todas las particiones
+                    //TODO: Aca haría un api_drop(nombreTabla), porque si no puede crear todas las particiones
                     // para una tabla nueva, no tiene sentido que la tabla exista en si.
                     // La otra opción es modificar el codigo de create() para que primero analice si hay
                     // suficientes bloques libres para crear la tabla, pero como el proceso FS en si va a atender
                     // peticiones de create en paralelo, lo que puede pasar es que dos peticiones pregunten si hay espacio libre
                     // reciban un si como rta y luego alguna o ninguna obtenga todos los bloques que necesita porque se los uso
                     // la otra peticion...
-                    uint8_t resDrop = drop(nombreTabla);
+                    uint8_t resDrop = api_drop(nombreTabla);
                     if (resDrop == EXIT_FAILURE)
                         LISSANDRA_LOG_ERROR("Se produjo un error intentado borrar la tabla %s", nombreTabla);
 
@@ -128,7 +133,7 @@ uint8_t create(char const* nombreTabla, uint8_t tipoConsistencia, uint16_t numer
 //Verificar que la tabla exista en el file system.
 //Eliminar directorio y todos los archivos de dicha tabla.
 
-uint8_t drop(char const* nombreTabla)
+uint8_t api_drop(char* nombreTabla)
 {
     LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
 
@@ -172,7 +177,7 @@ uint8_t drop(char const* nombreTabla)
 }
 
 
-void* describe(char const* nombreTabla)
+void* api_describe(char* nombreTabla)
 {
     //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (nombreTabla == NULL)
