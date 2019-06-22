@@ -9,6 +9,9 @@
 
 void api_select(char* nombreTabla, uint16_t key)
 {
+    char path[PATH_MAX];
+    generarPathTabla(nombreTabla, path);
+
     /// todo
 }
 
@@ -135,10 +138,10 @@ uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroP
 
 uint8_t api_drop(char* nombreTabla)
 {
-    LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
-
     char pathAbsoluto[PATH_MAX];
     generarPathTabla(nombreTabla, pathAbsoluto);
+
+    LISSANDRA_LOG_INFO("Se esta borrando la tabla...%s", nombreTabla);
 
     if (!existeDir(pathAbsoluto))
     {
@@ -195,7 +198,8 @@ void* api_describe(char* nombreTabla)
     }
 
     char pathTableMeta[PATH_MAX];
-    snprintf(pathTableMeta, PATH_MAX, "%sTables/%s/Metadata.bin", confLFS->PUNTO_MONTAJE, nombreTabla);
+    generarPathTabla(nombreTabla, pathTableMeta);
+    strcat(pathTableMeta, "/Metadata.bin");
 
     if (!existeArchivo(pathTableMeta))
     {
