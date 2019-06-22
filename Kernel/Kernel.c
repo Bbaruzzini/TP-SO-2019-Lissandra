@@ -1,4 +1,5 @@
 
+#include "Commands.h"
 #include "Criteria.h"
 #include "Metadata.h"
 #include "Runner.h"
@@ -176,14 +177,9 @@ int main(void)
 static void PeriodicDescribe(void)
 {
     // hago un describe global
-    static DBRequest const dbr =
-    {
-        .TableName = NULL,
-        .Data = {{ 0 }}
-    };
+    Vector args = string_n_split("DESCRIBE", 1, NULL);
 
-    // todo y que hacemos con el valor recibido?
-    Memory* m = Criteria_GetMemoryFor(CRITERIA_ANY, OP_DESCRIBE, &dbr);
-    Packet* p = Memory_SendRequestWithAnswer(m, OP_DESCRIBE, &dbr);
+    HandleDescribe(&args);
 
+    Vector_Destruct(&args);
 }
