@@ -36,10 +36,8 @@ uint8_t insert(char const* nombreTabla, uint16_t key, char const* value, uint64_
     //Verifica si hay datos a dumpear, y si no existen aloca memoria
     if (!hayDump(nombreTabla))
     {
-
         t_elem_memtable* newElem = new_elem_memtable(nombreTabla);
         insert_new_in_memtable(newElem);
-
     }
 
     t_registro* newReg = new_elem_registro(key, value, timestamp);

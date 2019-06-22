@@ -53,9 +53,8 @@ void iniciarFileSystem(void)
         fclose(metadata);
     }
 
-    int sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
-    if ((sizeBitArray % 8) != 0)
-        sizeBitArray++;
+    size_t sizeBitArray;
+    char* data;
 
     snprintf(pathMetadataBitarray, PATH_MAX, "%s/Bitmap.bin", pathMetadata);
     if (existeArchivo(pathMetadataBitarray))
@@ -65,22 +64,26 @@ void iniciarFileSystem(void)
         struct stat stats;
         fstat(fileno(bitmap), &stats);
 
-        char* data = malloc(stats.st_size);
+        sizeBitArray = stats.st_size;
+        data = malloc(stats.st_size);
         fread(data, stats.st_size, 1, bitmap);
 
         fclose(bitmap);
-
-        bitArray = bitarray_create_with_mode(data, stats.st_size, LSB_FIRST);
-
     }
     else
     {
-        bitArray = bitarray_create_with_mode(string_repeat('\0', sizeBitArray), sizeBitArray, LSB_FIRST);
+        sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
+        if (sizeBitArray % 8)
+            ++sizeBitArray;
+
+        data = Calloc(sizeBitArray, 1);
 
         FILE* bitmap = fopen(pathMetadataBitarray, "w");
-        fwrite(bitArray->bitarray, sizeBitArray, 1, bitmap);
+        fwrite(data, sizeBitArray, 1, bitmap);
         fclose(bitmap);
     }
+
+    bitArray = bitarray_create_with_mode(data, sizeBitArray, LSB_FIRST);
 
     if (dirIsEmpty(pathBloques))
     {
@@ -89,12 +92,14 @@ void iniciarFileSystem(void)
             char pathBloque[PATH_MAX];
             snprintf(pathBloque, PATH_MAX, "%s/%d.bin", pathBloques, j);
 
+            char* emptyArray = Calloc(confLFS->TAMANIO_BLOQUES, 1);
             if (!existeArchivo(pathBloque))
             {
                 FILE* bloque = fopen(pathBloque, "w");
-                fwrite(string_repeat('\0', confLFS->TAMANIO_BLOQUES), confLFS->TAMANIO_BLOQUES, 1, bloque);
+                fwrite(emptyArray, confLFS->TAMANIO_BLOQUES, 1, bloque);
                 fclose(bloque);
             }
+            Free(emptyArray);
         }
     }
     else
