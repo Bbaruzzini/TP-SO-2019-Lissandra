@@ -135,7 +135,7 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     Packet_Read(p, &parts);
     Packet_Read(p, &compactionTime);
 
-    bool createResult = API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
+    uint8_t createResult = API_Create(tableName, (CriteriaType) ct, parts, compactionTime);
     Free(tableName);
 
     Packet* res = Packet_Create(MSG_CREATE_RESPUESTA, 1);
@@ -202,7 +202,7 @@ void HandleDropOpcode(Socket* s, Packet* p)
     char* tableName;
     Packet_Read(p, &tableName);
 
-    bool dropResult = API_Drop(tableName);
+    uint8_t dropResult = API_Drop(tableName);
     Free(tableName);
 
     Packet* res = Packet_Create(MSG_DROP_RESPUESTA, 1);

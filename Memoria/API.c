@@ -91,7 +91,7 @@ bool API_Insert(char const* tableName, uint16_t key, char const* value)
     return true;
 }
 
-bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)
+uint8_t API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)
 {
     Packet* p = Packet_Create(LQL_CREATE, 16 + 3 + 4 + 4); // adivinar tamaño
     Packet_Append(p, tableName);
@@ -116,7 +116,7 @@ bool API_Create(char const* tableName, CriteriaType consistency, uint16_t partit
     Packet_Read(p, &createRes);
     Packet_Destroy(p);
 
-    return createRes == EXIT_SUCCESS;
+    return createRes;
 }
 
 bool API_Describe(char const* tableName, Vector* results)
@@ -132,7 +132,7 @@ bool API_Describe(char const* tableName, Vector* results)
 
     uint32_t numTables;
     p = Socket_RecvPacket(FileSystemSocket);
-    if (!p) // todo
+    if (!p)
         _ungratefulExit();
 
     switch (Packet_GetOpcode(p))
@@ -170,7 +170,7 @@ bool API_Describe(char const* tableName, Vector* results)
     return result;
 }
 
-bool API_Drop(char const* tableName)
+uint8_t API_Drop(char const* tableName)
 {
     Memory_EvictPages(tableName);
 
@@ -193,7 +193,7 @@ bool API_Drop(char const* tableName)
     Packet_Read(p, &dropRes);
     Packet_Destroy(p);
 
-    return dropRes == EXIT_SUCCESS;
+    return dropRes;
 }
 
 static void Journal_Register(void* dirtyFrame)

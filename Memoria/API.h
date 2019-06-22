@@ -38,15 +38,16 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value);
 // devuelve false si la memoria está llena
 bool API_Insert(char const* tableName, uint16_t key, char const* value);
 
-// devuelve false si la tabla ya existe en el FS
-bool API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uint32_t compactionTime);
+// devuelve EXIT_FAILURE si la tabla ya existe en el FS
+uint8_t API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uint32_t compactionTime);
 
 // solicita al FS directamente
 // results se encuentra construido con sizeof(struct MD)
 // devuelve false si la tabla no existe en FS
 bool API_Describe(char const* tableName, Vector* results);
 
-bool API_Drop(char const* tableName);
+// devuelve EXIT_FAILURE si la tabla no existe en el FS
+uint8_t API_Drop(char const* tableName);
 
 void API_Journal(void);
 
