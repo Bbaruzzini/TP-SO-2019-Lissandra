@@ -294,8 +294,8 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     if (!CriteriaFromString(consistency, &ct)) // error!
         return NULL;
 
-    int partitions = config_get_int_value(contenido, "PARTITIONS");
-    int compaction_time = config_get_int_value(contenido, "COMPACTION_TIME");
+    uint16_t partitions = config_get_int_value(contenido, "PARTITIONS");
+    uint32_t compaction_time = config_get_long_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
 
     t_describe* infoMetadata = Malloc(sizeof(t_describe));

@@ -128,6 +128,15 @@ void HandleCreate(Vector const* args)
 
 }
 
+static void _printDescribe(void* elem)
+{
+    t_describe* elemento = elem;
+    printf("Tabla: %s\n", elemento->table);
+    printf("Consistencia: %s\n", CriteriaString[elemento->consistency].String);
+    printf("Particiones: %u\n", elemento->partitions);
+    printf("Tiempo: %u\n", elemento->compaction_time);
+}
+
 void HandleDescribe(Vector const* args)
 {
     //           cmd args
@@ -148,18 +157,8 @@ void HandleDescribe(Vector const* args)
 
     if (table == NULL)
     {
-        size_t i = 0;
         t_list* resultadoDescribeNull = api_describe(NULL);
-        while (i < list_size(resultadoDescribeNull))
-        {
-            t_describe* elemento = list_get(resultadoDescribeNull, i);
-            printf("Tabla: %s\n", elemento->table);
-            printf("Consistencia: %s\n", CriteriaString[elemento->consistency].String);
-            printf("Particiones: %d\n", elemento->partitions);
-            printf("Tiempo: %d\n", elemento->compaction_time);
-            ++i;
-        }
-
+        list_iterate(resultadoDescribeNull, _printDescribe);
         list_destroy_and_destroy_elements(resultadoDescribeNull, Free);
     }
     else
@@ -167,11 +166,7 @@ void HandleDescribe(Vector const* args)
         t_describe* resultadoDescribe = api_describe(table);
         if (resultadoDescribe != NULL)
         {
-            printf("Tabla: %s\n", resultadoDescribe->table);
-            printf("Consistencia: %s\n", CriteriaString[resultadoDescribe->consistency].String);
-            printf("Particiones: %d\n", resultadoDescribe->partitions);
-            printf("Tiempo: %d\n", resultadoDescribe->compaction_time);
-
+            _printDescribe(resultadoDescribe);
             Free(resultadoDescribe);
         }
         else

@@ -14,8 +14,8 @@ typedef struct
 {
     char table[NAME_MAX + 1];
     uint8_t consistency;
-    int partitions;
-    int compaction_time;
+    uint16_t partitions;
+    uint32_t compaction_time;
 } t_describe;
 
 void iniciar_servidor(void);

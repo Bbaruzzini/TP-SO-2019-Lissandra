@@ -124,6 +124,14 @@ void HandleCreateOpcode(Socket* s, Packet* p)
     free(nombreTabla);
 }
 
+void _addToPacket(void* elem, void* packet)
+{
+    t_describe* const elemento = elem;
+    Packet_Append(packet, elemento->table);
+    Packet_Append(packet, elemento->consistency);
+    Packet_Append(packet, elemento->partitions);
+    Packet_Append(packet, elemento->compaction_time);
+}
 
 void HandleDescribeOpcode(Socket* s, Packet* p)
 {
@@ -132,38 +140,29 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
 
     char* nombreTabla = NULL;
     if (tablePresent)
-        Packet_Read(p, &nombreTabla);;
+        Packet_Read(p, &nombreTabla);
     Packet* resp;
 
     if (!nombreTabla)
     {
         t_list* resDescribe = api_describe(nombreTabla);
-        size_t const tam = list_size(resDescribe) * (sizeof(t_describe));
-        resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
-        Packet_Append(resp, list_size(resDescribe));
-        size_t i = 0;
-        while (i < list_size(resDescribe))
-        {
-            t_describe* elemento = list_get(resDescribe, i);
-            Packet_Append(resp, elemento->table);
-            Packet_Append(resp, elemento->consistency);
-            Packet_Append(resp, elemento->partitions);
-            Packet_Append(resp, elemento->compaction_time);
-            ++i;
-        }
+        uint32_t elementos = list_size(resDescribe);
 
+        size_t const tam = 4 + elementos * sizeof(t_describe);
+        resp = Packet_Create(MSG_DESCRIBE_GLOBAL, tam);
+
+        Packet_Append(resp, elementos);
+        list_iterate_with_data(resDescribe, _addToPacket, resp);
         list_destroy_and_destroy_elements(resDescribe, Free);
     }
     else
     {
         t_describe* elemento = api_describe(nombreTabla);
+
         size_t const tam = sizeof(t_describe);
         resp = Packet_Create(MSG_DESCRIBE, tam);
-        Packet_Append(resp, nombreTabla);
-        Packet_Append(resp, elemento->consistency);
-        Packet_Append(resp, elemento->partitions);
-        Packet_Append(resp, elemento->compaction_time);
 
+        _addToPacket(elemento, resp);
         Free(elemento);
     }
 
