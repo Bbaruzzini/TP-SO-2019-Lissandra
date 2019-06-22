@@ -2,8 +2,7 @@
 #ifndef PageTable_h__
 #define PageTable_h__
 
-#include "Frame.h"
-#include <libcommons/bitarray.h>
+#include <stdint.h>
 #include <vector.h>
 
 typedef struct

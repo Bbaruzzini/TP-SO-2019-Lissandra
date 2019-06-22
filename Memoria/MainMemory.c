@@ -37,14 +37,14 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
     FrameSize = sizeof(Frame) + maxValueLength;
     NumPages = allocSize / FrameSize;
 
-    SegmentTable_Initialize(mountPoint);
-
     size_t bitmapBytes = NumPages / 8;
     if (NumPages % 8)
         ++bitmapBytes;
 
     FrameBitmap = Calloc(bitmapBytes, 1);
     FrameStatus = bitarray_create_with_mode((char*) FrameBitmap, bitmapBytes, MSB_FIRST);
+
+    SegmentTable_Initialize(mountPoint);
 
     LISSANDRA_LOG_INFO("Memoria inicializada. Tamaño: %d bytes (%d páginas). Tamaño de página: %d", allocSize, NumPages, FrameSize);
 }
@@ -135,9 +135,9 @@ void Memory_DoJournal(void(*insertFn)(void*))
 
 void Memory_Destroy(void)
 {
+    SegmentTable_Destroy();
     bitarray_destroy(FrameStatus);
     Free(FrameBitmap);
-    SegmentTable_Destroy();
     Vector_Destruct(&Memory);
 }
 
