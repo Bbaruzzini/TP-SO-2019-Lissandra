@@ -10,30 +10,30 @@
 #include <stdlib.h>
 #include <Timer.h>
 
-OpcodeHandler const opcodeTable[NUM_OPCODES] =
+OpcodeHandlerFnType* const OpcodeTable[NUM_OPCODES] =
 {
-    { "MSG_HANDSHAKE",       NULL },
+    NULL,
 
-    { "LQL_SELECT",          HandleSelectOpcode },
-    { "LQL_INSERT",          HandleInsertOpcode },
-    { "LQL_CREATE",          HandleCreateOpcode },
-    { "LQL_DESCRIBE",        HandleDescribeOpcode },
-    { "LQL_DROP",            HandleDropOpcode },
+    HandleSelectOpcode,
+    HandleInsertOpcode,
+    HandleCreateOpcode,
+    HandleDescribeOpcode,
+    HandleDropOpcode,
 
     // mensajes que nosotros enviamos, ignoramos
-    { "MSG_SELECT",          NULL },
-    { "MSG_DESCRIBE",        NULL },
-    { "MSG_DESCRIBE_GLOBAL", NULL },
+    NULL,
+    NULL,
+    NULL,
 
     // mensaje a memoria, ignoramos
-    { "LQL_JOURNAL",         NULL },
+    NULL,
 
-    { "MSG_HANDSHAKE_RESPUESTA", NULL },
-    { "MSG_MEMORY_ID",           NULL },
+    NULL,
+    NULL,
 
-    { "MSG_ERR_NOT_FOUND",        NULL },
-    { "MSG_ERR_MEM_FULL",         NULL },
-    { "MSG_ERR_TABLE_NOT_EXISTS", NULL }
+    NULL,
+    NULL,
+    NULL
 };
 
 /// TODO: Implementar logica funciones

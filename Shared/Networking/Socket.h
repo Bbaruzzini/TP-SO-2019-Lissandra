@@ -61,7 +61,7 @@ Packet* Socket_RecvPacket(Socket* s);
 
 /*
  * Socket_HandlePacket: recibe un paquete serializado y además llama al manejador correspondiente,
- * registrado en opcodeTable
+ * registrado en OpcodeTable
  *
  * Devuelve false si hubo algun error
  */

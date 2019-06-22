@@ -83,8 +83,7 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
         .size = EndianConvert(packetSize)
     };
 
-    LISSANDRA_LOG_TRACE("Enviando paquete a %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, opcodeTable[opcode].Name,
-                        opcode, packetSize);
+    LISSANDRA_LOG_TRACE("Enviando paquete a %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, OpcodeNames[opcode], opcode, packetSize);
 
     // Enviar header+paquete en un solo write
     struct iovec iovecs[2] =
@@ -154,7 +153,7 @@ bool Socket_HandlePacket(void* socket)
     if (!p)
         return false;
 
-    OpcodeHandlerFnType* handler = opcodeTable[Packet_GetOpcode(p)].HandlerFunction;
+    OpcodeHandlerFnType* handler = OpcodeTable[Packet_GetOpcode(p)];
     if (!handler)
     {
         LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", Packet_GetOpcode(p));

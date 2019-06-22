@@ -7,10 +7,4 @@ typedef struct Packet Packet;
 
 typedef void OpcodeHandlerFnType(Socket* s, Packet* p);
 
-typedef struct
-{
-    char const* Name;
-    OpcodeHandlerFnType* HandlerFunction;
-} OpcodeHandler;
-
 #endif //Handlers_h__
