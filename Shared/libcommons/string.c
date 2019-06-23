@@ -29,7 +29,6 @@ static void _string_append_with_format_list(const char* format, char** original,
 static bool _is_last_token(char const* next, size_t index, size_t _);
 static bool _is_last_n_token(char const* next, size_t index, size_t n);
 static Vector _string_split(char const* text, char const* separator, bool(*condition)(char const*, size_t, size_t), size_t);
-static void _string_free_fn(void* pstr);
 
 char* string_repeat(char character, int count)
 {
@@ -175,8 +174,7 @@ Vector string_split(char const* text, char const* separator)
 Vector string_q_split(char const* src, char sep)
 {
     // hay que parsear manualmente
-    Vector substrings;
-    Vector_Construct(&substrings, sizeof(char*), _string_free_fn, 0);
+    Vector substrings = VECTOR_OF_STRINGS_INITIALIZER;
 
     bool insideQuotationMarks = false;
     char const* posold = src;
@@ -353,16 +351,9 @@ static bool _is_last_n_token(char const* next, size_t index, size_t n)
     return !!*next && index + 1 < n;
 }
 
-static void _string_free_fn(void* pstr)
-{
-    char** string = pstr;
-    Free(*string);
-}
-
 static Vector _string_split(char const* text, char const* separator, bool(*condition)(char const*, size_t, size_t), size_t n)
 {
-    Vector substrings;
-    Vector_Construct(&substrings, sizeof(char*), _string_free_fn, 0);
+    Vector substrings = VECTOR_OF_STRINGS_INITIALIZER;
 
     char* text_to_iterate = string_duplicate(text);
 

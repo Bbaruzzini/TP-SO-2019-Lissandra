@@ -74,6 +74,25 @@ Vector file_getlines(File const* file)
     return lines;
 }
 
+int file_writelines(File const* file, Vector const* lines)
+{
+    // pre: file opened for write/append
+    char* contents = string_new();
+    size_t strLen = 0;
+
+    for (size_t i = 0; i < Vector_size(lines); ++i)
+    {
+        char** const line = Vector_at(lines, i);
+        strLen += snprintf(NULL, 0, "%s\n", *line);
+        string_append_with_format(&contents, "%s\n", *line);
+    }
+
+    int res = fwrite(contents, strLen, 1, file->_imp);
+    Free(contents);
+
+    return res;
+}
+
 void file_for_each_line(File const* file, FilterFn fn)
 {
     char* buf = Malloc(MAX_STRING);

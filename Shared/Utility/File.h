@@ -21,6 +21,7 @@ File* file_open(char const* fileName, Mode mode);
 bool file_is_open(File const* file);
 char* file_readline(File const* file, uint32_t line);
 Vector file_getlines(File const* file);
+int file_writelines(File const* file, Vector const* lines);
 void file_for_each_line(File const* file, FilterFn fn);
 void file_close(File* file);
 

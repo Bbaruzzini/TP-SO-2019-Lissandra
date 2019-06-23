@@ -12,6 +12,8 @@ typedef void (*VectorFreeFn)(void* element);
 typedef void (*VectorClosureFn)(void* element);
 typedef void (*VectorClosureExtraFn)(void* element, void* extraData);
 
+void vector_of_string_free_fn(void* pstr);
+
 typedef struct
 {
     void* Elements;
@@ -20,6 +22,9 @@ typedef struct
     size_t Capacity;
     VectorFreeFn FreeFn;
 } Vector;
+
+#define VECTOR_OF_STRINGS_INITIALIZER \
+    { NULL, sizeof(char*), 0, 0, vector_of_string_free_fn }
 
 void Vector_Construct(Vector* v, size_t elementSize, VectorFreeFn freeFn, size_t initialCapacity);
 

@@ -4,6 +4,12 @@
 #include <assert.h>
 #include <string.h>
 
+void vector_of_string_free_fn(void* pstr)
+{
+    char** string = pstr;
+    Free(*string);
+}
+
 inline static void* _calculateOffset(void* array, size_t pos, size_t elemSize)
 {
     return ((char*) array) + pos * elemSize;

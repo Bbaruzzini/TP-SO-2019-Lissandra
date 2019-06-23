@@ -121,3 +121,32 @@ void config_remove_key(t_config* self, char const* key)
     if (dictionary_has_key(dictionary, key))
         dictionary_remove_and_destroy(dictionary, key, Free);
 }
+
+int config_save(t_config* self)
+{
+    return config_save_in_file(self, self->path);
+}
+
+static void _addLine(char const* key, void* val, void* vec)
+{
+    char* line = string_from_format("%s=%s", key, val);
+    Vector_push_back(vec, &line);
+}
+
+int config_save_in_file(t_config* self, char const* path)
+{
+    File* file = file_open(path, F_OPEN_WRITE);
+    if (!file_is_open(file))
+    {
+        file_close(file);
+        return -1;
+    }
+
+    Vector lines = VECTOR_OF_STRINGS_INITIALIZER;
+    dictionary_iterator_with_data(self->properties, _addLine, &lines);
+
+    int result = file_writelines(file, &lines);
+    file_close(file);
+    Vector_Destruct(&lines);
+    return result;
+}
