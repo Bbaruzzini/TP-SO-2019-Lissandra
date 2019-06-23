@@ -70,6 +70,8 @@ static void LoadConfig(char const* fileName)
 
 static void SetupConfigInitial(char const* fileName)
 {
+    static uint32_t const METRICS_INTERVAL = 30 * 1000;
+
     DescribeTimer = PeriodicTimer_Create(0, PeriodicDescribe);
     LoadConfig(fileName);
 
@@ -82,13 +84,7 @@ static void SetupConfigInitial(char const* fileName)
     EventDispatcher_AddFDI(DescribeTimer);
 
     // cada 30 segundos debe mostrar las metricas por consola
-    EventDispatcher_AddFDI(PeriodicTimer_Create(30 * 1000, Criterias_Report));
-}
-
-static void InitConsole(void)
-{
-    // subimos el nivel a errores para no entorpecer la consola
-    //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
+    EventDispatcher_AddFDI(PeriodicTimer_Create(METRICS_INTERVAL, Criterias_Report));
 }
 
 static void InitMemorySubsystem(void)
@@ -164,8 +160,6 @@ int main(void)
     IniciarDispatch();
     SigintSetup();
     SetupConfigInitial(configFileName);
-
-    InitConsole();
 
     InitMemorySubsystem();
 

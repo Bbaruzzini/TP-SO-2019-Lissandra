@@ -95,12 +95,6 @@ static void SetupConfigInitial(char const* fileName)
     EventDispatcher_AddFDI(GossipTimer);
 }
 
-static void InitConsole(void)
-{
-    // subimos el nivel a debug
-    Appender_SetLogLevel(consoleLog, LOG_LEVEL_DEBUG);
-}
-
 static void MainLoop(void)
 {
     // el kokoro
@@ -200,8 +194,6 @@ int main(void)
     IniciarDispatch();
     SigintSetup();
     SetupConfigInitial(configFileName);
-
-    InitConsole();
 
     StartMemory();
     StartGossip();

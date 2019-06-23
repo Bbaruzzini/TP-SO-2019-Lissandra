@@ -489,10 +489,7 @@ static void _sc_report(void const* criteria, ReportType report)
     Criteria_SC const* const sc = criteria;
     Memory* const mem = sc->SCMem;
     if (!mem)
-    {
-        LISSANDRA_LOG_ERROR("SC: memoria no asociada!");
         return;
-    }
 
     _report_one(mem, report);
 }

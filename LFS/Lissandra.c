@@ -83,13 +83,6 @@ static void LoadConfig(char const* fileName)
     sConfig = NULL;
 }
 
-
-static void InitConsole(void)
-{
-    // subimos el nivel a errores para no entorpecer la consola
-    //Appender_SetLogLevel(consoleLog, LOG_LEVEL_ERROR);
-}
-
 static void pruebaConsola(void)
 {
     // el kokoro
@@ -116,8 +109,6 @@ int main(void)
     confLFS = Malloc(sizeof(t_config_FS));
 
     LoadConfig(configFileName);
-
-    InitConsole();
 
     EventDispatcher_Init();
 

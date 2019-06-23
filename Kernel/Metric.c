@@ -104,9 +104,7 @@ void Metrics_Report(Metrics const* m, ReportType report)
     };
 
     struct ListIterator const* const itr = ListIterators + report;
-    double res = itr->Iterator(m);
-
-    LISSANDRA_LOG_INFO(itr->Format, res);
+    LISSANDRA_LOG_INFO(itr->Format, itr->Iterator(m));
 }
 
 void Metrics_Destroy(Metrics* m)
