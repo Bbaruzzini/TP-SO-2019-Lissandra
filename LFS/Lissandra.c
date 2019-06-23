@@ -72,9 +72,9 @@ static void LoadConfig(char const* fileName)
 
     confLFS->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
 
-    confLFS->TAMANIO_BLOQUES = config_get_int_value(sConfig,"TAMANIO_BLOQUES");
+    confLFS->TAMANIO_BLOQUES = config_get_int_value(sConfig,"BLOCK_SIZE");
 
-    confLFS->CANTIDAD_BLOQUES = config_get_int_value(sConfig,"CANTIDAD_BLOQUES");
+    confLFS->CANTIDAD_BLOQUES = config_get_int_value(sConfig,"BLOCKS");
 
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");

@@ -7,6 +7,7 @@
 #include <Malloc.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 char pathMetadataBitarray[PATH_MAX] = { 0 };
 
@@ -38,27 +39,27 @@ void iniciarFileSystem(void)
     if (existeArchivo(metadataFile))
     {
         t_config* configAux = config_create(metadataFile);
-        int bloques = config_get_int_value(configAux, "CANTIDAD_BLOQUES");
-        int size = config_get_int_value(configAux, "TAMANIO_BLOQUES");
+        int size = config_get_int_value(configAux, "BLOCK_SIZE");
+        int bloques = config_get_int_value(configAux, "BLOCKS");
         LISSANDRA_LOG_INFO("Ya Existe un FS en ese punto de montaje con %d bloques de %d bytes de tamanio", bloques, size);
-        if (bloques != confLFS->CANTIDAD_BLOQUES || size != confLFS->TAMANIO_BLOQUES)
+        if (size != confLFS->TAMANIO_BLOQUES || bloques != confLFS->CANTIDAD_BLOQUES)
         {
-            confLFS->CANTIDAD_BLOQUES = bloques;
             confLFS->TAMANIO_BLOQUES = size;
+            confLFS->CANTIDAD_BLOQUES = bloques;
         }
         config_destroy(configAux);
     }
     else
     {
         FILE* metadata = fopen(metadataFile, "w");
-        fprintf(metadata, "TAMANIO_BLOQUES=%d\n", confLFS->TAMANIO_BLOQUES);
-        fprintf(metadata, "CANTIDAD_BLOQUES=%d\n", confLFS->CANTIDAD_BLOQUES);
+        fprintf(metadata, "BLOCK_SIZE=%d\n", confLFS->TAMANIO_BLOQUES);
+        fprintf(metadata, "BLOCKS=%d\n", confLFS->CANTIDAD_BLOQUES);
         fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
         fclose(metadata);
     }
 
     size_t sizeBitArray;
-    char* data;
+    uint8_t* data;
 
     snprintf(pathMetadataBitarray, PATH_MAX, "%s/Bitmap.bin", pathMetadata);
     if (existeArchivo(pathMetadataBitarray))
@@ -70,7 +71,7 @@ void iniciarFileSystem(void)
 
         sizeBitArray = stats.st_size;
         data = Malloc(stats.st_size);
-        fread(data, stats.st_size, 1, bitmap);
+        fread(data, 1, stats.st_size, bitmap);
 
         fclose(bitmap);
     }
@@ -83,7 +84,7 @@ void iniciarFileSystem(void)
         data = Calloc(sizeBitArray, 1);
 
         FILE* bitmap = fopen(pathMetadataBitarray, "w");
-        fwrite(data, sizeBitArray, 1, bitmap);
+        fwrite(data, 1, sizeBitArray, bitmap);
         fclose(bitmap);
     }
 
@@ -96,14 +97,13 @@ void iniciarFileSystem(void)
             char pathBloque[PATH_MAX];
             snprintf(pathBloque, PATH_MAX, "%s/%d.bin", pathBloques, j);
 
-            char* emptyArray = Calloc(confLFS->TAMANIO_BLOQUES, 1);
             if (!existeArchivo(pathBloque))
             {
                 FILE* bloque = fopen(pathBloque, "w");
-                fwrite(emptyArray, confLFS->TAMANIO_BLOQUES, 1, bloque);
+                if (ftruncate(fileno(bloque), confLFS->TAMANIO_BLOQUES) < 0)
+                    LISSANDRA_LOG_SYSERROR("truncate");
                 fclose(bloque);
             }
-            Free(emptyArray);
         }
     }
     else
@@ -113,21 +113,6 @@ void iniciarFileSystem(void)
 
     LISSANDRA_LOG_TRACE("Se finalizo la creacion del File System");
 }
-
-/*
-void escribirValorBitarray(bool valor, int pos){
-    if(valor)
-        bitarray_set_bit(bitArray, pos);
-    else
-        bitarray_clean_bit(bitArray, pos);
-
-    FILE *bitmap = fopen(pathMetadataBitarray, "w");
-
-    fwrite(bitArray->bitarray, bitArray->size, 1, bitmap);
-    fclose(bitmap);
-    return;
-}
-*/
 
 /*
 char* generarPathBloque(int num_bloque){

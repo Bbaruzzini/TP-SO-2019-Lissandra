@@ -42,7 +42,7 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
         ++bitmapBytes;
 
     FrameBitmap = Calloc(bitmapBytes, 1);
-    FrameStatus = bitarray_create_with_mode((char*) FrameBitmap, bitmapBytes, MSB_FIRST);
+    FrameStatus = bitarray_create_with_mode(FrameBitmap, bitmapBytes, MSB_FIRST);
 
     SegmentTable_Initialize(mountPoint);
 

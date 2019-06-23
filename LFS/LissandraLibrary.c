@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 //Variables
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
@@ -281,7 +282,7 @@ void escribirValorBitarray(bool valor, int pos)
         bitarray_clean_bit(bitArray, pos);
 
     FILE* bitmap = fopen(pathMetadataBitarray, "w");
-    fwrite(bitArray->bitarray, bitArray->size, 1, bitmap);
+    fwrite(bitArray->bitarray, 1, bitArray->size, bitmap);
     fclose(bitmap);
 
 }

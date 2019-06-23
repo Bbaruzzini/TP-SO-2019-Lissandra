@@ -87,7 +87,7 @@ int file_writelines(File const* file, Vector const* lines)
         string_append_with_format(&contents, "%s\n", *line);
     }
 
-    int res = fwrite(contents, strLen, 1, file->_imp);
+    int res = fwrite(contents, 1, strLen, file->_imp);
     Free(contents);
 
     return res;
