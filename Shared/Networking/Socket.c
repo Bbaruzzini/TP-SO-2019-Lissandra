@@ -153,10 +153,17 @@ bool Socket_HandlePacket(void* socket)
     if (!p)
         return false;
 
-    OpcodeHandlerFnType* handler = OpcodeTable[Packet_GetOpcode(p)];
+    uint16_t opc = Packet_GetOpcode(p);
+    if (opc >= NUM_HANDLED_OPCODES)
+    {
+        LISSANDRA_LOG_ERROR("Socket_HandlePacket: recibido opcode no soportado (%hu)", opc);
+        return false;
+    }
+
+    OpcodeHandlerFnType* handler = OpcodeTable[opc];
     if (!handler)
     {
-        LISSANDRA_LOG_ERROR("Socket _recvCb: recibido paquete no soportado! (cmd: %u)", Packet_GetOpcode(p));
+        LISSANDRA_LOG_ERROR("Socket_HandlePacket: recibido paquete no soportado! (cmd: %hu)", opc);
         return false;
     }
 

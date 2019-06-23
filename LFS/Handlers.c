@@ -10,30 +10,20 @@
 #include <stdlib.h>
 #include <Timer.h>
 
-OpcodeHandlerFnType* const OpcodeTable[NUM_OPCODES] =
+OpcodeHandlerFnType* const OpcodeTable[NUM_HANDLED_OPCODES] =
 {
-    NULL,
+    // handshake memoria manejado en memoria_conectar
+    NULL,                   // MSG_HANDSHAKE
 
-    HandleSelectOpcode,
-    HandleInsertOpcode,
-    HandleCreateOpcode,
-    HandleDescribeOpcode,
-    HandleDropOpcode,
-
-    // mensajes que nosotros enviamos, ignoramos
-    NULL,
-    NULL,
-    NULL,
+    // 5 comandos basicos
+    HandleSelectOpcode,     // LQL_SELECT
+    HandleInsertOpcode,     // LQL_INSERT
+    HandleCreateOpcode,     // LQL_CREATE
+    HandleDescribeOpcode,   // LQL_DESCRIBE
+    HandleDropOpcode,       // LQL_DROP
 
     // mensaje a memoria, ignoramos
-    NULL,
-
-    NULL,
-    NULL,
-
-    NULL,
-    NULL,
-    NULL
+    NULL                    // LQL_JOURNAL
 };
 
 /// TODO: Implementar logica funciones

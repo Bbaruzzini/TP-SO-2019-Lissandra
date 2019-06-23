@@ -8,33 +8,20 @@
 #include <Packet.h>
 #include <Socket.h>
 
-OpcodeHandlerFnType* const OpcodeTable[NUM_OPCODES] =
+OpcodeHandlerFnType* const OpcodeTable[NUM_HANDLED_OPCODES] =
 {
     // se conecta el kernel
-    HandleHandshakeOpcode,
+    HandleHandshakeOpcode,  // MSG_HANDSHAKE
 
     // 5 comandos basicos
-    HandleSelectOpcode,
-    HandleInsertOpcode,
-    HandleCreateOpcode,
-    HandleDescribeOpcode,
-    HandleDropOpcode,
-
-    // respuesta de un SELECT, no se recibe sino que se envia
-    NULL,
-
-    // respuesta del DESCRIBE, se envia
-    NULL,
-    NULL,
+    HandleSelectOpcode,     // LQL_SELECT
+    HandleInsertOpcode,     // LQL_INSERT
+    HandleCreateOpcode,     // LQL_CREATE
+    HandleDescribeOpcode,   // LQL_DESCRIBE
+    HandleDropOpcode,       // LQL_DROP
 
     // el kernel envia este query
-    HandleJournalOpcode,
-
-    NULL,
-    NULL,
-
-    NULL,
-    NULL
+    HandleJournalOpcode     // LQL_JOURNAL
 };
 
 void HandleHandshakeOpcode(Socket* s, Packet* p)

@@ -14,7 +14,7 @@ enum
     LFS = 3
 };
 
-#define OPCODES(OPC) \
+#define OPCODES_SENT(OPC) \
     /* Mensajes que entienden los 3 modulos */                                 \
     OPC(MSG_HANDSHAKE) /* mensaje enviado al conectar                          \
                         *                                                      \
@@ -50,6 +50,10 @@ enum
                                                                                \
     OPC(LQL_DROP)     /* char*: nombre tabla */                                \
                                                                                \
+    /* Mensajes a memoria */                                                   \
+    OPC(LQL_JOURNAL)        /* nada */                                         \
+
+#define OPCODES_RECV(OPC)                                                      \
     /* Mensajes que entienden los 3 modulos                                    \
        (Respuestas a queries) */                                               \
     OPC(MSG_SELECT)  /* char*: value                                           \
@@ -65,8 +69,6 @@ enum
                               * cada una se deserializa igual que MSG_DESCRIBE \
                               */                                               \
                                                                                \
-    /* Mensajes a memoria */                                                   \
-    OPC(LQL_JOURNAL)        /* nada */                                         \
                                                                                \
     OPC(MSG_HANDSHAKE_RESPUESTA) /* uint32_t: tamanioValue                     \
                                   * char*: puntoMontaje                        \
@@ -96,18 +98,20 @@ enum
     OPC(MSG_ERR_TABLE_NOT_EXISTS) /* tabla no existe (ejemplo DROP, DESCRIBE)  \
                                    */                                          \
 
-
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(ENUM) #ENUM,
 
 typedef enum
 {
-    OPCODES(GENERATE_ENUM)
+    OPCODES_SENT(GENERATE_ENUM)
+    OPCODES_RECV(GENERATE_ENUM)
     NUM_OPCODES
 } Opcodes;
 
+#define NUM_HANDLED_OPCODES LQL_JOURNAL + 1
+
 extern char const* OpcodeNames[NUM_OPCODES];
 
-extern OpcodeHandlerFnType* const OpcodeTable[NUM_OPCODES];
+extern OpcodeHandlerFnType* const OpcodeTable[NUM_HANDLED_OPCODES];
 
 #endif //Opcodes_h__
