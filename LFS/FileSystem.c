@@ -101,7 +101,7 @@ void iniciarFileSystem(void)
             {
                 FILE* bloque = fopen(pathBloque, "w");
                 if (ftruncate(fileno(bloque), confLFS->TAMANIO_BLOQUES) < 0)
-                    LISSANDRA_LOG_SYSERROR("truncate");
+                    LISSANDRA_LOG_SYSERROR("ftruncate");
                 fclose(bloque);
             }
         }
