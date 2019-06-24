@@ -5,24 +5,10 @@
 #include "CLIHandlers.h"
 #include "API.h"
 #include <Consistency.h>
+#include <ConsoleInput.h>
 #include <Malloc.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <Timer.h>
-
-bool ValidateKey(char const* keyString, uint16_t* result)
-{
-    errno = 0;
-    uint32_t k = strtoul(keyString, NULL, 10);
-    if (errno || k > UINT16_MAX)
-    {
-        LISSANDRA_LOG_ERROR("Key %s invalida", keyString);
-        return false;
-    }
-
-    *result = (uint16_t) k;
-    return true;
-}
 
 void HandleSelect(Vector const* args)
 {
@@ -40,6 +26,9 @@ void HandleSelect(Vector const* args)
 
     char* const table = tokens[1];
     char* const key = tokens[2];
+
+    if (!ValidateTableName(table))
+        return;
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -70,6 +59,9 @@ void HandleInsert(Vector const* args)
     char* timestamp = NULL;
     if (Vector_size(args) == 5)
         timestamp = tokens[4];
+
+    if (!ValidateTableName(table))
+        return;
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -108,6 +100,9 @@ void HandleCreate(Vector const* args)
     char* const consistency = tokens[2];
     char* const partitions = tokens[3];
     char* const compaction_time = tokens[4];
+
+    if (!ValidateTableName(table))
+        return;
 
     CriteriaType ct; // ya se loguea el error
     if (!CriteriaFromString(consistency, &ct))
@@ -153,7 +148,11 @@ void HandleDescribe(Vector const* args)
 
     char* table = NULL;
     if (Vector_size(args) == 2)
+    {
         table = tokens[1];
+        if (!ValidateTableName(table))
+            return;
+    }
 
     if (table == NULL)
     {
@@ -189,6 +188,8 @@ void HandleDrop(Vector const* args)
     char** const tokens = Vector_data(args);
 
     char* const table = tokens[1];
+    if (!ValidateTableName(table))
+        return;
 
     uint8_t resultado = api_drop(table);
 

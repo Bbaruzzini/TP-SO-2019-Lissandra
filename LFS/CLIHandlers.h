@@ -6,9 +6,6 @@
 #define LISSANDRA_CLIHANDLERS_H
 
 #include <Console.h>
-#include <stdint.h>
-
-bool ValidateKey(char const* keyString, uint16_t* result);
 
 CLICommandHandlerFn HandleSelect;
 CLICommandHandlerFn HandleInsert;

@@ -2,24 +2,9 @@
 #include "CLIHandlers.h"
 #include "API.h"
 #include "MainMemory.h"
+#include <ConsoleInput.h>
 #include <Consistency.h>
-#include <Logger.h>
 #include <stddef.h>
-#include <stdlib.h>
-
-static inline bool ValidateKey(char const* keyString, uint16_t* result)
-{
-    errno = 0;
-    uint32_t k = strtoul(keyString, NULL, 10);
-    if (errno || k > UINT16_MAX)
-    {
-        LISSANDRA_LOG_ERROR("Key %s invalida", keyString);
-        return false;
-    }
-
-    *result = (uint16_t) k;
-    return true;
-}
 
 void HandleSelect(Vector const* args)
 {
@@ -37,6 +22,9 @@ void HandleSelect(Vector const* args)
 
     char* const table = tokens[1];
     char* const key = tokens[2];
+
+    if (!ValidateTableName(table))
+        return;
 
     uint16_t k;
     if (!ValidateKey(key, &k))
@@ -82,6 +70,9 @@ void HandleInsert(Vector const* args)
     char* const key = tokens[2];
     char* const value = tokens[3];
 
+    if (!ValidateTableName(table))
+        return;
+
     uint16_t k;
     if (!ValidateKey(key, &k))
         return;
@@ -108,6 +99,9 @@ void HandleCreate(Vector const* args)
     char* const criteria = tokens[2];
     char* const partitions = tokens[3];
     char* const compaction_time = tokens[4];
+
+    if (!ValidateTableName(table))
+        return;
 
     uint16_t parts = strtoul(partitions, NULL, 10);
     uint32_t compactTime = strtoul(compaction_time, NULL, 10);
@@ -144,7 +138,11 @@ void HandleDescribe(Vector const* args)
 
     char* table = NULL;
     if (Vector_size(args) == 2)
+    {
         table = tokens[1];
+        if (!ValidateTableName(table))
+            return;
+    }
 
     Vector v;
     Vector_Construct(&v, sizeof(TableMD), FreeMD, 0);
@@ -172,6 +170,8 @@ void HandleDrop(Vector const* args)
     char** const tokens = Vector_data(args);
 
     char* const table = tokens[1];
+    if (!ValidateTableName(table))
+        return;
 
     API_Drop(table);
 }

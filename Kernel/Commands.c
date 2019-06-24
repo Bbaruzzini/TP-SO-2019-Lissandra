@@ -3,12 +3,10 @@
 #include "Metadata.h"
 #include "PacketBuilders.h"
 #include "Runner.h"
+#include <ConsoleInput.h>
 #include <File.h>
-#include <Logger.h>
 #include <Socket.h>
-#include <stdlib.h>
 #include <Timer.h>
-#include <vector.h>
 
 ScriptCommand const ScriptCommands[] =
 {
@@ -23,20 +21,6 @@ ScriptCommand const ScriptCommands[] =
     { "METRICS",  HandleMetrics  },
     { NULL,       NULL           }
 };
-
-static inline bool ValidateKey(char const* keyString, uint16_t* result)
-{
-    errno = 0;
-    uint32_t k = strtoul(keyString, NULL, 10);
-    if (errno || k > UINT16_MAX)
-    {
-        LISSANDRA_LOG_ERROR("Key %s invalida", keyString);
-        return false;
-    }
-
-    *result = (uint16_t) k;
-    return true;
-}
 
 bool HandleSelect(Vector const* args)
 {
@@ -54,6 +38,9 @@ bool HandleSelect(Vector const* args)
 
     char* const table = tokens[1];
     char* const key = tokens[2];
+
+    if (!ValidateTableName(table))
+        return false;
 
     CriteriaType ct;
     if (!Metadata_Get(table, &ct))
@@ -132,6 +119,9 @@ bool HandleInsert(Vector const* args)
     char* const key = tokens[2];
     char* const value = tokens[3];
 
+    if (!ValidateTableName(table))
+        return false;
+
     CriteriaType ct;
     if (!Metadata_Get(table, &ct))
     {
@@ -208,6 +198,9 @@ bool HandleCreate(Vector const* args)
     char* const partitions = tokens[3];
     char* const compaction_time = tokens[4];
 
+    if (!ValidateTableName(table))
+        return false;
+
     if (Metadata_Get(table, NULL))
     {
         LISSANDRA_LOG_ERROR("CREATE: Tabla %s ya existe en metadata!", table);
@@ -270,7 +263,11 @@ bool HandleDescribe(Vector const* args)
 
     char* table = NULL;
     if (Vector_size(args) == 2)
+    {
         table = tokens[1];
+        if (!ValidateTableName(table))
+            return false;
+    }
 
     DBRequest dbr;
     dbr.TableName = table;
@@ -344,6 +341,8 @@ bool HandleDrop(Vector const* args)
     char** const tokens = Vector_data(args);
 
     char* const table = tokens[1];
+    if (!ValidateTableName(table))
+        return false;
 
     CriteriaType ct;
     if (!Metadata_Get(table, &ct))
