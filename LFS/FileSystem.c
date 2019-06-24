@@ -78,7 +78,7 @@ void iniciarFileSystem(void)
     else
     {
         sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
-        if (sizeBitArray % 8)
+        if (confLFS->CANTIDAD_BLOQUES % 8)
             ++sizeBitArray;
 
         data = Calloc(sizeBitArray, 1);
