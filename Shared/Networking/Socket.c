@@ -217,6 +217,68 @@ static bool _acceptCb(void* socket)
     return true;
 }
 
+static int _connectTimeout(int fd, struct sockaddr const* addr, socklen_t addrLen)
+{
+    static uint32_t const TIMEOUT_SECONDS = 5;
+
+    // set non-blocking I/O
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0)
+        return -1;
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+
+    if (connect(fd, addr, addrLen) < 0)
+    {
+        // wait for the socket to connect, but up to a max of TIMEOUT_SECONDS
+        if (errno == EINPROGRESS)
+        {
+            struct timeval tv =
+            {
+                .tv_sec = TIMEOUT_SECONDS,
+                .tv_usec = 0
+            };
+
+            fd_set wait_set;
+            FD_ZERO(&wait_set);
+            FD_SET(fd, &wait_set);
+
+            // when the socket is connected it shows as writable
+            int res = select(fd + 1, NULL, &wait_set, NULL, &tv);
+            if (res < 0)
+                return -1;
+            else if (res > 0)
+            {
+                int error;
+                socklen_t len = sizeof(int);
+                if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+                    return -1;
+
+                if (error)
+                {
+                    errno = error;
+                    return -1;
+                }
+            }
+            else
+            {
+                // timeout
+                errno = ETIMEDOUT;
+                return -1;
+            }
+        }
+        else
+            return -1;
+    }
+
+    // restore blocking I/O
+    if (fcntl(fd, F_SETFL, flags) < 0)
+        return -1;
+
+    return 0;
+}
+
 static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode mode)
 {
     for (struct addrinfo* i = ai; i != NULL; i = i->ai_next)
@@ -247,7 +309,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
             }
         }
 
-        int(*tryFn)(int, struct sockaddr const*, socklen_t) = (mode == SOCKET_CLIENT ? connect : bind);
+        int(*tryFn)(int, struct sockaddr const*, socklen_t) = (mode == SOCKET_CLIENT ? _connectTimeout : bind);
         if (tryFn(fd, (struct sockaddr const*) &ip->IP, ip->SockAddrLen) < 0)
         {
             close(fd);
