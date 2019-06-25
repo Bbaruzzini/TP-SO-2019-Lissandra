@@ -68,7 +68,7 @@ static void IniciarLogger(void)
     Logger_Init(LOG_LEVEL_TRACE);
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "198EDC");
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LMAGENTA, LCYAN, WHITE, YELLOW, LRED, RED);
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;

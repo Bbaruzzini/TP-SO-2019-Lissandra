@@ -38,7 +38,7 @@ static void IniciarLogger(void)
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
     //Cambiamos el color "198EDC por "EA899A""
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, "EA899A");
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LGREEN, LRED, LRED, YELLOW, LGREEN, WHITE);
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags;

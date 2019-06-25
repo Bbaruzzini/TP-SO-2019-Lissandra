@@ -26,6 +26,8 @@ typedef enum
 
 typedef struct Appender Appender;
 
-Appender* AppenderConsole_Create(LogLevel level, AppenderFlags flags, char const* colorStr);
+Appender* AppenderConsole_Create(LogLevel level, AppenderFlags flags, ColorTypes traceColor, ColorTypes debugColor,
+                                 ColorTypes infoColor, ColorTypes warnColor, ColorTypes errColor,
+                                 ColorTypes fatalColor);
 
 #endif //AppenderConsole_h__
