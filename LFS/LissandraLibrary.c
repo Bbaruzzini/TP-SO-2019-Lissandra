@@ -238,15 +238,16 @@ void generarPathTabla(char* nombreTabla, char* buf)
     snprintf(buf, PATH_MAX, "%sTables/%s", confLFS->PUNTO_MONTAJE, nombreTabla);
 }
 
-int buscarBloqueLibre(void)
+bool buscarBloqueLibre(size_t* bloqueLibre)
 {
-    int bloqueLibre = 0;
-    for (; bitarray_test_bit(bitArray, bloqueLibre) && bloqueLibre < confLFS->CANTIDAD_BLOQUES; ++bloqueLibre);
+    size_t i = 0;
+    for (; bitarray_test_bit(bitArray, i) && i < confLFS.CANTIDAD_BLOQUES; ++i);
 
-    if (bloqueLibre >= confLFS->CANTIDAD_BLOQUES)
-        return -1;
+    if (i >= confLFS.CANTIDAD_BLOQUES)
+        return false;
 
-    return bloqueLibre;
+    *bloqueLibre = i;
+    return true;
 }
 
 void escribirValorBitarray(bool valor, int pos)
@@ -386,22 +387,15 @@ bool is_any(char const* nombreArchivo)
     return res;
 }
 
-char* generarPathArchivo(char const* nombreTabla, char const* nombreArchivo)
+void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char* buf)
 {
-    char* path = string_new();
-    string_append(&path, confLFS->PUNTO_MONTAJE);
-    string_append(&path, "Tables");
-    string_append(&path, "/");
-    string_append(&path, nombreTabla);
-    string_append(&path, "/");
-    string_append(&path, nombreArchivo);
-
-    return path;
+    snprintf(buf, PATH_MAX, "%sTables/%s/%s", confLFS.PUNTO_MONTAJE, nombreTabla, nombreArchivo);
 }
 
 void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
 {
-    char* pathAbsoluto = generarPathArchivo(nombreTabla, nombreArchivo);
+    char pathAbsoluto[PATH_MAX];
+    generarPathArchivo(nombreTabla, nombreArchivo, pathAbsoluto);
 
     t_config* data = config_create(pathAbsoluto);
     Vector bloques = config_get_array_value(data, "BLOCKS");
@@ -462,7 +456,8 @@ int traverse_to_drop(char const* fn, char const* nombreTabla)
                         {
                             if (strcmp(entry->d_name, "Metadata.bin") == 0)
                             {
-                                char* path_metadata = generarPathArchivo(nombreTabla, entry->d_name);
+                                char path_metadata[PATH_MAX];
+                                generarPathArchivo(nombreTabla, entry->d_name, path_metadata);
                                 unlink(path_metadata);
                             }
                         }

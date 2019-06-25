@@ -28,7 +28,7 @@ bool existeDir(char const* pathDir);
 
 void generarPathTabla(char* nombreTabla, char* buf);
 
-int buscarBloqueLibre(void);
+bool buscarBloqueLibre(size_t* bloqueLibre);
 
 void escribirValorBitarray(bool valor, int pos);
 
@@ -42,7 +42,7 @@ bool hayDump(char const* nombreTabla);
 
 bool is_any(char const* nombreArchivo);
 
-char* generarPathArchivo(char const* nombreTabla, char const* nombreArchivo);
+void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char* buf);
 
 void borrarArchivo(char const* nombreTabla, char const* nombreArchivo);
 

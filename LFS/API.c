@@ -88,8 +88,8 @@ uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroP
 
             if (!existeArchivo(pathParticion))
             {
-                int bloqueLibre = buscarBloqueLibre();
-                if (bloqueLibre == -1)
+                size_t bloqueLibre;
+                if (!buscarBloqueLibre(&bloqueLibre))
                 {
                     LISSANDRA_LOG_ERROR("No hay espacio en el File System");
                     printf("ERROR: No hay espacio en el File System\n");
