@@ -183,6 +183,7 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
     if (!s)
     {
         LISSANDRA_LOG_ERROR("Criteria_AddMemory: Error al crear socket para memoria %u!", memId);
+        Criteria_DisconnectMemory(memId);
         return;
     }
 
