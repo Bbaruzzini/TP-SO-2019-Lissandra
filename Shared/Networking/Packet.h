@@ -216,7 +216,7 @@ define_append_numeric_value(double)
 
 static inline void Packet_Append_str(Packet* p, char const* str)
 {
-    size_t len = str ? strlen(str) : 0;
+    uint32_t len = str ? strlen(str) : 0;
     Packet_Append(p, len);
     if (len)
         append_to_packet(str, len);
@@ -267,7 +267,7 @@ static inline void Packet_Read_double(Packet* p, double* res)
 
 static inline void Packet_Read_str(Packet* p, char** res)
 {
-    size_t strLen;
+    uint32_t strLen;
     Packet_Read(p, &strLen);
 
     char* str = Malloc(strLen + 1);
