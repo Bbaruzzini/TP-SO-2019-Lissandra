@@ -7,8 +7,8 @@
 #include <libcommons/queue.h>
 #include <Logger.h>
 #include <Malloc.h>
-#include <pthread.h>
 #include <string.h>
+#include <Threads.h>
 #include <Timer.h>
 
 typedef struct
@@ -42,35 +42,8 @@ void Runner_Init(void)
     size_t multiprocessing = config_get_int_value(sConfig, "MULTIPROCESAMIENTO");
     pthread_rwlock_unlock(&sConfigLock);
 
-    pthread_attr_t attr;
-    int r = pthread_attr_init(&attr);
-    if (r < 0)
-    {
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_init");
-        return;
-    }
-
-    r = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (r < 0)
-    {
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_setdetachstate");
-        return;
-    }
-
     for (size_t i = 0; i < multiprocessing; ++i)
-    {
-        pthread_t tid;
-        r = pthread_create(&tid, &attr, _workerThread, NULL);
-        if (r < 0)
-        {
-            LISSANDRA_LOG_SYSERR(r, "pthread_create");
-            continue;
-        }
-    }
-
-    r = pthread_attr_destroy(&attr);
-    if (r < 0)
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_destroy");
+        Threads_CreateDetached(_workerThread, NULL);
 }
 
 void Runner_AddScript(File* sc)

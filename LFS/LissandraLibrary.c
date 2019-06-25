@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <Threads.h>
 #include <unistd.h>
 
 //Variables
@@ -161,32 +162,7 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     Packet_Destroy(p);
 
     //----Creo un hilo para cada memoria que se me conecta
-    pthread_attr_t attr;
-    int r = pthread_attr_init(&attr);
-    if (r < 0)
-    {
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_init");
-        return;
-    }
-
-    r = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (r < 0)
-    {
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_setdetachstate");
-        return;
-    }
-
-    pthread_t hilo_atender_memoria;
-    r = pthread_create(&hilo_atender_memoria, &attr, atender_memoria, memoriaNueva);
-    if (r < 0)
-    {
-        LISSANDRA_LOG_SYSERR(r, "pthread_create");
-        return;
-    }
-
-    r = pthread_attr_destroy(&attr);
-    if (r < 0)
-        LISSANDRA_LOG_SYSERR(r, "pthread_attr_destroy");
+    Threads_CreateDetached(atender_memoria, memoriaNueva);
 }
 
 void iniciar_servidor(void)
