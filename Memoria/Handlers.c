@@ -163,9 +163,9 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
         return;
     }
 
-    Opcodes opcode = MSG_DESCRIBE;
-    if (Vector_size(&v) > 1)
-        opcode = MSG_DESCRIBE_GLOBAL;
+    Opcodes opcode = MSG_DESCRIBE_GLOBAL;
+    if (tableName)
+        opcode = MSG_DESCRIBE;
 
     Packet* resp = Packet_Create(opcode, 100);
     if (opcode == MSG_DESCRIBE_GLOBAL)
