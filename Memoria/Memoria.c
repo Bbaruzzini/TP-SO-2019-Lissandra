@@ -2,6 +2,7 @@
 #include "API.h"
 #include "CLIHandlers.h"
 #include "FileSystemSocket.h"
+#include "Gossip.h"
 #include "MainMemory.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
@@ -41,7 +42,6 @@ static Socket* ListeningSocket = NULL;
 
 static PeriodicTimer* JournalTimer = NULL;
 static PeriodicTimer* GossipTimer = NULL;
-static void PeriodicGossip(void);
 
 Socket* FileSystemSocket = NULL;
 
@@ -81,7 +81,7 @@ static void LoadConfig(char const* fileName)
 static void SetupConfigInitial(char const* fileName)
 {
     JournalTimer = PeriodicTimer_Create(0, API_Journal);
-    GossipTimer = PeriodicTimer_Create(0, PeriodicGossip);
+    GossipTimer = PeriodicTimer_Create(0, Gossip_Do);
 
     LoadConfig(fileName);
 
@@ -152,7 +152,7 @@ static void StartMemory(void)
     Memory_Initialize(maxValueLength, mountPoint);
     Free(mountPoint);
 
-    char* const listen_port = config_get_string_value(sConfig, "PUERTO");
+    char const* const listen_port = config_get_string_value(sConfig, "PUERTO");
 
     SocketOpts const so =
     {
@@ -174,13 +174,21 @@ static void StartMemory(void)
 
 static void StartGossip(void)
 {
-    //todo
-    //?
-    //profit
+    Vector ips = config_get_array_value(sConfig, "IP_SEEDS");
+    Vector ports = config_get_array_value(sConfig, "PUERTO_SEEDS");
+
+    uint32_t id = config_get_long_value(sConfig, "MEMORY_NUMBER");
+    char const* const listen_port = config_get_string_value(sConfig, "PUERTO");
+
+    Gossip_Init(&ips, &ports, id, listen_port);
+
+    Vector_Destruct(&ports);
+    Vector_Destruct(&ips);
 }
 
 static void Cleanup(void)
 {
+    Gossip_Terminate();
     Memory_Destroy();
     EventDispatcher_Terminate();
     Logger_Terminate();
@@ -201,9 +209,4 @@ int main(void)
     MainLoop();
 
     Cleanup();
-}
-
-static void PeriodicGossip(void)
-{
-    //todo
 }

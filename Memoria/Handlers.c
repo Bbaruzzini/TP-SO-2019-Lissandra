@@ -1,6 +1,7 @@
 
 #include "Handlers.h"
 #include "API.h"
+#include "Gossip.h"
 #include "MainMemory.h"
 #include <Config.h>
 #include <Logger.h>
@@ -10,7 +11,7 @@
 
 OpcodeHandlerFnType* const OpcodeTable[NUM_HANDLED_OPCODES] =
 {
-    // se conecta el kernel
+    // se conecta el kernel/otra memoria (gossip)
     HandleHandshakeOpcode,  // MSG_HANDSHAKE
 
     // 5 comandos basicos
@@ -29,20 +30,60 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
     uint8_t id;
     Packet_Read(p, &id);
 
-    //----Recibo un handshake del cliente para ver si es el kernel
-    if (id != KERNEL)
+    uint32_t const memId = config_get_long_value(sConfig, "MEMORY_NUMBER");
+    char const* const myPort = config_get_string_value(sConfig, "PUERTO");
+
+    switch (id)
     {
-        LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
-        return;
+        case KERNEL:
+        {
+            LISSANDRA_LOG_INFO("Se conecto el kernel!");
+
+            // protocolo kernel only
+            char* myIP;
+            Packet_Read(p, &myIP);
+
+            // me agrego a mi mismo
+            Gossip_AddMemory(memId, myIP, myPort);
+
+            Free(myIP);
+            break;
+        }
+        case MEMORIA:
+        {
+            LISSANDRA_LOG_INFO("Se conecto una memoria");
+
+            // protocolo memoria only
+            uint32_t peerMemId;
+            Packet_Read(p, &peerMemId);
+
+            char* peerPort;
+            Packet_Read(p, &peerPort);
+
+            char* myIP;
+            Packet_Read(p, &myIP);
+
+            uint32_t numItems;
+            Packet_Read(p, &numItems);
+
+            // me agrego a mi mismo
+            Gossip_AddMemory(memId, myIP, myPort);
+
+            // el remoto me da su ip al conectar :)
+            char const* const peerIP = s->Address.HostIP;
+            Gossip_AddMemory(peerMemId, peerIP, peerPort);
+
+            Free(peerPort);
+            Free(myIP);
+            break;
+        }
+        default:
+            LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
+            return;
     }
 
-    LISSANDRA_LOG_INFO("Se conecto el kernel en el fd: %d\n", s->_impl.Handle);
-
-    uint32_t memId = config_get_long_value(sConfig, "MEMORY_NUMBER");
-    Packet* resp = Packet_Create(MSG_MEMORY_ID, 4);
-    Packet_Append(resp, memId);
-    Socket_SendPacket(s, resp);
-    Packet_Destroy(resp);
+    // como respuesta, envio mi tabla actualizada
+    Gossip_SendTable(s);
 }
 
 void HandleSelectOpcode(Socket* s, Packet* p)

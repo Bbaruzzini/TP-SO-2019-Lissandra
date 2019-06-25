@@ -18,10 +18,17 @@ enum
     /* Mensajes que entienden los 3 modulos */                                 \
     OPC(MSG_HANDSHAKE) /* mensaje enviado al conectar                          \
                         *                                                      \
-                        * uint8_t: module id (ver enum)                        \
+                        * uint8: module id (ver enum)                          \
+                        * -- solo kernel->mem --                               \
+                        * char* ip remota                                      \
+                        * -- solo entre memorias --                            \
+                        * uint32_t: id memoria                                 \
+                        * char*: puerto escucha                                \
+                        * char*: ip remota                                     \
+                        * sigue igual que MSG_GOSSIP_LIST                      \
                         *                                                      \
                         * Responde: MSG_HANDSHAKE_RESPUESTA (LFS->Memoria)     \
-                        *           MSG_MEMORY_ID (Memoria->Kernel)            \
+                        *           MSG_GOSSIP_LIST (Memoria->Kernel/Mem)      \
                         */                                                     \
                                                                                \
     /* requests */                                                             \
@@ -70,22 +77,18 @@ enum
                               */                                               \
                                                                                \
                                                                                \
-    OPC(MSG_HANDSHAKE_RESPUESTA) /* uint32_t: tamanioValue                     \
+    OPC(MSG_HANDSHAKE_RESPUESTA) /* uint32: tamanioValue                       \
                                   * char*: puntoMontaje                        \
                                   */                                           \
                                                                                \
-    OPC(MSG_CREATE_RESPUESTA)   /*uint8: EXIT_SUCCESS o EXIT_FAILURE           \
+    OPC(MSG_CREATE_RESPUESTA)   /* uint8: EXIT_SUCCESS o EXIT_FAILURE          \
                                  */                                            \
                                                                                \
-    OPC(MSG_DROP_RESPUESTA) /*uint8: EXIT_SUCCESS o EXIT_FAILURE               \
+    OPC(MSG_DROP_RESPUESTA) /* uint8: EXIT_SUCCESS o EXIT_FAILURE              \
                              */                                                \
                                                                                \
-    OPC(MSG_INSERT_RESPUESTA)   /*uint8: EXIT_SUCCESS o EXIT_FAILURE           \
+    OPC(MSG_INSERT_RESPUESTA)   /* uint8: EXIT_SUCCESS o EXIT_FAILURE          \
                                  */                                            \
-                                                                               \
-    OPC(MSG_MEMORY_ID)           /* uint32_t: memoryId                         \
-                                  */                                           \
-                                                                               \
                                                                                \
     /* erores */                                                               \
     OPC(MSG_ERR_NOT_FOUND) /* key no encontrado */                             \
@@ -97,6 +100,14 @@ enum
                                                                                \
     OPC(MSG_ERR_TABLE_NOT_EXISTS) /* tabla no existe (ejemplo DROP, DESCRIBE)  \
                                    */                                          \
+                                                                               \
+    /* gossiping */                                                            \
+    OPC(MSG_GOSSIP_LIST)  /* uint32: cantidad de entradas                      \
+                           *                                                   \
+                           * uint32: id memoria                                \
+                           * char*: ip memoria                                 \
+                           * char*: puerto memoria                             \
+                           */                                                  \
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(ENUM) #ENUM,

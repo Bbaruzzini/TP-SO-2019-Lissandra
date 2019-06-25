@@ -106,9 +106,17 @@ static inline size_t Packet_Size(Packet const* p)
 /*
  * Packet_Contents: devuelve un puntero a la primera posición del buffer
  */
-static inline uint8_t* Packet_Contents(Packet const* s)
+static inline uint8_t* Packet_Contents(Packet const* p)
 {
-    return Vector_data(&s->data);
+    return Vector_data(&p->data);
+}
+
+// limpia el contenido del paquete
+static inline void Packet_Clear(Packet* p)
+{
+    Vector_clear(&p->data);
+    p->rpos = 0;
+    p->wpos = 0;
 }
 
 /*
