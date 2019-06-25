@@ -8,6 +8,7 @@
 #include <AppenderFile.h>
 #include <Config.h>
 #include <Console.h>
+#include <Defines.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
 #include <libcommons/config.h>
@@ -33,8 +34,6 @@ static PeriodicTimer* DescribeTimer = NULL;
 static void PeriodicDescribe(void);
 
 // feo copypaste de Memoria/Gossip.c pero we
-// los ports son uint16, espacio requerido para almacenar "65535" y el null terminator
-#define PORT_STRLEN 5 + 1
 
 typedef struct
 {

@@ -1,5 +1,6 @@
 
 #include "Gossip.h"
+#include <Defines.h>
 #include <libcommons/dictionary.h>
 #include <libcommons/hashmap.h>
 #include <Opcodes.h>
@@ -9,9 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Threads.h>
-
-// los ports son uint16, espacio requerido para almacenar "65535" y el null terminator
-#define PORT_STRLEN 5 + 1
 
 typedef struct
 {
