@@ -50,7 +50,7 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     ///    return;
     ///}
 
-    Packet* respuesta = Packet_Create(MSG_SELECT, confLFS->TAMANIO_VALUE);
+    Packet* respuesta = Packet_Create(MSG_SELECT, confLFS.TAMANIO_VALUE);
     Packet_Append(respuesta, valor);
     Socket_SendPacket(s, respuesta);
     Packet_Destroy(respuesta);

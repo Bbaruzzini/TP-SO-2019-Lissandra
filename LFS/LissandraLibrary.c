@@ -146,8 +146,8 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     //Le envia a la memoria el TAMANIO_VALUE
     //Ariel: para paquetes conviene que usen los tipos de tamaño fijo (stdint.h)
     // en este caso al ser un tamaño yo uso un entero no signado de 32 bits
-    /*int*/ uint32_t tamanioValue = confLFS->TAMANIO_VALUE;
-    char* puntoMontaje = confLFS->PUNTO_MONTAJE;
+    uint32_t const tamanioValue = confLFS.TAMANIO_VALUE;
+    char const* const puntoMontaje = confLFS.PUNTO_MONTAJE;
     //A este Packet_Create en vez de un 2 habría que pasarle un opcode, pero como no se cual ponerle
     //le pase cualquiera para ver como funcionaba. Creo que hay que agregar uno nuevo en Opcodes.h
     //que se podría llamar "MSG_TAM_VALUE"
@@ -172,7 +172,7 @@ void iniciar_servidor(void)
     SocketOpts opts =
     {
         .SocketMode = SOCKET_SERVER,
-        .ServiceOrPort = confLFS->PUERTO_ESCUCHA,
+        .ServiceOrPort = confLFS.PUERTO_ESCUCHA,
         .HostName = NULL,
 
         // cuando una memoria conecte, llamar a memoria_conectar
@@ -235,7 +235,7 @@ void generarPathTabla(char* nombreTabla, char* buf)
 
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     string_to_upper(nombreTabla);
-    snprintf(buf, PATH_MAX, "%sTables/%s", confLFS->PUNTO_MONTAJE, nombreTabla);
+    snprintf(buf, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, nombreTabla);
 }
 
 bool buscarBloqueLibre(size_t* bloqueLibre)

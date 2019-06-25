@@ -2,17 +2,22 @@
 #ifndef LISSANDRA_LISSANDRA_H
 #define LISSANDRA_LISSANDRA_H
 
+#include <Defines.h>
+#include <linux/limits.h>
+#include <stddef.h>
+#include <stdint.h>
+
 typedef struct
 {
-    char* PUERTO_ESCUCHA;
-    char* PUNTO_MONTAJE;
-    int RETARDO;
-    int TAMANIO_VALUE;
-    int TIEMPO_DUMP;
-    int TAMANIO_BLOQUES;
-    int CANTIDAD_BLOQUES;
+    char PUERTO_ESCUCHA[PORT_STRLEN];
+    char PUNTO_MONTAJE[PATH_MAX];
+    uint32_t RETARDO;
+    uint32_t TAMANIO_VALUE;
+    uint32_t TIEMPO_DUMP;
+    size_t TAMANIO_BLOQUES;
+    size_t CANTIDAD_BLOQUES;
 } t_config_FS;
 
-extern t_config_FS* confLFS;
+extern t_config_FS confLFS;
 
 #endif //LISSANDRA_LISSANDRA_H

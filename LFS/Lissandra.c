@@ -12,6 +12,7 @@
 #include <Logger.h>
 #include <Malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 CLICommand const CLICommands[] =
 {
@@ -30,7 +31,7 @@ atomic_bool ProcessRunning = true;
 static Appender* consoleLog;
 static Appender* fileLog;
 
-t_config_FS* confLFS = NULL;
+t_config_FS confLFS = { 0 };
 
 static void IniciarLogger(void)
 {
@@ -51,34 +52,55 @@ static void IniciarLogger(void)
 static void LoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+    bool initial = true;
     if (sConfig)
+    {
+        initial = false;
         config_destroy(sConfig);
+    }
 
     //Esto estaba
     sConfig = config_create(fileName);
+    if (!sConfig)
+    {
+        if (initial)
+        {
+            LISSANDRA_LOG_FATAL("No se pudo cargar archivo de configuracion %s!", fileName);
+            exit(EXIT_FAILURE);
+        }
+        return;
+    }
 
     //Esto agregamos nosotras
-    confLFS->PUERTO_ESCUCHA = string_duplicate(config_get_string_value(sConfig, "PUERTO_ESCUCHA"));
+    if (initial)
+    {
+        snprintf(confLFS.PUERTO_ESCUCHA, PORT_STRLEN, "%s", config_get_string_value(sConfig, "PUERTO_ESCUCHA"));
 
-    confLFS->PUNTO_MONTAJE = string_duplicate(config_get_string_value(sConfig,"PUNTO_MONTAJE"));
-    if(!string_ends_with(confLFS->PUNTO_MONTAJE, "/"))
-        string_append(&confLFS->PUNTO_MONTAJE, "/");
+        char const* mountPoint = config_get_string_value(sConfig, "PUNTO_MONTAJE");
+        if (!string_ends_with(mountPoint, "/"))
+        {
+            // agregar un '/' al final
+            snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s/", mountPoint);
+        }
+        else
+            snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s", mountPoint);
 
-    //printf("configTamValue %s\n",confLFS->PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
+        //printf("configTamValue %s\n",confLFS.PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
 
-    confLFS->RETARDO = config_get_int_value(sConfig,"RETARDO");
+        confLFS.TAMANIO_VALUE = config_get_long_value(sConfig, "TAMANIO_VALUE");
 
-    confLFS->TAMANIO_VALUE = config_get_int_value(sConfig,"TAMANIO_VALUE");
+        confLFS.TAMANIO_BLOQUES = config_get_long_value(sConfig, "BLOCK_SIZE");
 
-    confLFS->TIEMPO_DUMP = config_get_int_value(sConfig,"TIEMPO_DUMP");
+        confLFS.CANTIDAD_BLOQUES = config_get_long_value(sConfig, "BLOCKS");
+    }
 
-    confLFS->TAMANIO_BLOQUES = config_get_int_value(sConfig,"BLOCK_SIZE");
+    // solo los campos recargables en tiempo ejecucion
+    confLFS.RETARDO = config_get_long_value(sConfig, "RETARDO");
 
-    confLFS->CANTIDAD_BLOQUES = config_get_int_value(sConfig,"BLOCKS");
-
+    confLFS.TIEMPO_DUMP = config_get_long_value(sConfig, "TIEMPO_DUMP");
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
-    //printf("configTamValue %d\n",confLFS->TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
+    //printf("configTamValue %d\n",confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
     config_destroy(sConfig);
     sConfig = NULL;
 }
@@ -95,8 +117,6 @@ static void pruebaConsola(void)
     pthread_join(consoleTid, NULL);
 }
 
-
-
 int main(void)
 {
     static char const configFileName[] = "lissandra.conf";
@@ -104,9 +124,6 @@ int main(void)
     //pthread_t hiloIniciarServidor;
 
     IniciarLogger();
-
-    //Esto agregamos nosotras, esta aca xq sino en su lugar original genera un memory leak
-    confLFS = Malloc(sizeof(t_config_FS));
 
     LoadConfig(configFileName);
 
@@ -193,8 +210,5 @@ int main(void)
 
     //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
-    Free(confLFS->PUNTO_MONTAJE);
-    Free(confLFS->PUERTO_ESCUCHA);
-    Free(confLFS);
     EventDispatcher_Terminate();
 }

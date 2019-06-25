@@ -186,7 +186,7 @@ void* api_describe(char* nombreTabla)
     if (nombreTabla == NULL)
     {
         char dirTablas[PATH_MAX];
-        snprintf(dirTablas, PATH_MAX, "%sTables", confLFS->PUNTO_MONTAJE);
+        snprintf(dirTablas, PATH_MAX, "%sTables", confLFS.PUNTO_MONTAJE);
 
         t_list* listTableMetadata = list_create();
         int resultado = traverse(dirTablas, listTableMetadata, NULL);

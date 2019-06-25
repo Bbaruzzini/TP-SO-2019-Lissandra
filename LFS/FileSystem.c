@@ -16,18 +16,18 @@ t_bitarray* bitArray = NULL;
 void iniciarFileSystem(void)
 {
     char pathMetadata[PATH_MAX];
-    snprintf(pathMetadata, PATH_MAX, "%sMetadata", confLFS->PUNTO_MONTAJE);
+    snprintf(pathMetadata, PATH_MAX, "%sMetadata", confLFS.PUNTO_MONTAJE);
     LISSANDRA_LOG_INFO("Path Metadata %s...", pathMetadata);
 
     char pathBloques[PATH_MAX];
-    snprintf(pathBloques, PATH_MAX, "%sBloques", confLFS->PUNTO_MONTAJE);
+    snprintf(pathBloques, PATH_MAX, "%sBloques", confLFS.PUNTO_MONTAJE);
     LISSANDRA_LOG_INFO("Path Bloques %s...", pathBloques);
 
     char pathTablas[PATH_MAX];
-    snprintf(pathTablas, PATH_MAX, "%sTables", confLFS->PUNTO_MONTAJE);
+    snprintf(pathTablas, PATH_MAX, "%sTables", confLFS.PUNTO_MONTAJE);
     LISSANDRA_LOG_INFO("Path Tables %s...", pathTablas);
 
-    mkdirRecursivo(confLFS->PUNTO_MONTAJE);
+    mkdirRecursivo(confLFS.PUNTO_MONTAJE);
 
     mkdir(pathMetadata, 0700);
     mkdir(pathBloques, 0700);
@@ -39,21 +39,21 @@ void iniciarFileSystem(void)
     if (existeArchivo(metadataFile))
     {
         t_config* configAux = config_create(metadataFile);
-        int size = config_get_int_value(configAux, "BLOCK_SIZE");
-        int bloques = config_get_int_value(configAux, "BLOCKS");
+        size_t size = config_get_long_value(configAux, "BLOCK_SIZE");
+        size_t bloques = config_get_long_value(configAux, "BLOCKS");
         LISSANDRA_LOG_INFO("Ya Existe un FS en ese punto de montaje con %d bloques de %d bytes de tamanio", bloques, size);
-        if (size != confLFS->TAMANIO_BLOQUES || bloques != confLFS->CANTIDAD_BLOQUES)
+        if (size != confLFS.TAMANIO_BLOQUES || bloques != confLFS.CANTIDAD_BLOQUES)
         {
-            confLFS->TAMANIO_BLOQUES = size;
-            confLFS->CANTIDAD_BLOQUES = bloques;
+            confLFS.TAMANIO_BLOQUES = size;
+            confLFS.CANTIDAD_BLOQUES = bloques;
         }
         config_destroy(configAux);
     }
     else
     {
         FILE* metadata = fopen(metadataFile, "w");
-        fprintf(metadata, "BLOCK_SIZE=%d\n", confLFS->TAMANIO_BLOQUES);
-        fprintf(metadata, "BLOCKS=%d\n", confLFS->CANTIDAD_BLOQUES);
+        fprintf(metadata, "BLOCK_SIZE=%d\n", confLFS.TAMANIO_BLOQUES);
+        fprintf(metadata, "BLOCKS=%d\n", confLFS.CANTIDAD_BLOQUES);
         fprintf(metadata, "MAGIC_NUMBER=LISSANDRA\n");
         fclose(metadata);
     }
@@ -77,8 +77,8 @@ void iniciarFileSystem(void)
     }
     else
     {
-        sizeBitArray = confLFS->CANTIDAD_BLOQUES / 8;
-        if (confLFS->CANTIDAD_BLOQUES % 8)
+        sizeBitArray = confLFS.CANTIDAD_BLOQUES / 8;
+        if (confLFS.CANTIDAD_BLOQUES % 8)
             ++sizeBitArray;
 
         data = Calloc(sizeBitArray, 1);
@@ -92,7 +92,7 @@ void iniciarFileSystem(void)
 
     if (dirIsEmpty(pathBloques))
     {
-        for (int j = 0; j < confLFS->CANTIDAD_BLOQUES; ++j)
+        for (size_t j = 0; j < confLFS.CANTIDAD_BLOQUES; ++j)
         {
             char pathBloque[PATH_MAX];
             snprintf(pathBloque, PATH_MAX, "%s/%d.bin", pathBloques, j);
@@ -100,7 +100,7 @@ void iniciarFileSystem(void)
             if (!existeArchivo(pathBloque))
             {
                 FILE* bloque = fopen(pathBloque, "w");
-                if (ftruncate(fileno(bloque), confLFS->TAMANIO_BLOQUES) < 0)
+                if (ftruncate(fileno(bloque), confLFS.TAMANIO_BLOQUES) < 0)
                     LISSANDRA_LOG_SYSERROR("ftruncate");
                 fclose(bloque);
             }
@@ -117,7 +117,7 @@ void iniciarFileSystem(void)
 /*
 char* generarPathBloque(int num_bloque){
     char* path_bloque = string_new();
-    string_append(&path_bloque, confLFS->PUNTO_MONTAJE);
+    string_append(&path_bloque, confLFS.PUNTO_MONTAJE);
     string_append(&path_bloque, "Bloques/");
     string_append(&path_bloque, string_itoa(num_bloque));
     string_append(&path_bloque, ".bin");
