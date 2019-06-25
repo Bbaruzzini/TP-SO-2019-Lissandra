@@ -46,17 +46,19 @@ static void add_configuration(char* line, void* cfg)
 
 t_config* config_create(char const* path)
 {
+    t_config* config = NULL;
+
     File* file = file_open(path, F_OPEN_READ);
-    if (!file_is_open(file))
-        return NULL;
+    if (file_is_open(file))
+    {
+        config = Malloc(sizeof(t_config));
+        config->path = string_duplicate(path);
+        config->properties = dictionary_create();
 
-    t_config* config = Malloc(sizeof(t_config));
-    config->path = string_duplicate(path);
-    config->properties = dictionary_create();
-
-    Vector lines = file_getlines(file);
-    string_iterate_lines_with_data(&lines, add_configuration, config);
-    Vector_Destruct(&lines);
+        Vector lines = file_getlines(file);
+        string_iterate_lines_with_data(&lines, add_configuration, config);
+        Vector_Destruct(&lines);
+    }
 
     file_close(file);
     return config;
