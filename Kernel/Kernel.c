@@ -1,4 +1,5 @@
 
+#include "Config.h"
 #include "Commands.h"
 #include "Criteria.h"
 #include "Metadata.h"
@@ -6,7 +7,6 @@
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
-#include <Config.h>
 #include <Console.h>
 #include <Defines.h>
 #include <EventDispatcher.h>
@@ -27,6 +27,8 @@ char const* CLIPrompt = "KRNL_LISSANDRA> ";
 
 atomic_bool ProcessRunning = true;
 
+KernelConfig ConfigKernel = { 0 };
+
 static Appender* consoleLog = NULL;
 static Appender* fileLog = NULL;
 
@@ -34,14 +36,12 @@ static PeriodicTimer* DescribeTimer = NULL;
 static void PeriodicDescribe(void);
 
 // feo copypaste de Memoria/Gossip.c pero we
-
 typedef struct
 {
     uint32_t MemId;
     char IP[INET6_ADDRSTRLEN];
     char Port[PORT_STRLEN];
 } GossipPeer;
-static GossipPeer SeedMemory = { 0 };
 static t_dictionary* GossipPeers = NULL;
 
 static inline void _addToIPPortDict(t_dictionary* dict, uint32_t memId, char const* IP, char const* Port)
@@ -59,7 +59,6 @@ static inline void _addToIPPortDict(t_dictionary* dict, uint32_t memId, char con
 
     dictionary_put(dict, key, gp);
 }
-
 static void DiscoverMemories(void);
 
 static void IniciarLogger(void)
@@ -81,39 +80,58 @@ static void IniciarDispatch(void)
         exit(EXIT_FAILURE);
 }
 
-static void LoadConfig(char const* fileName)
+static void _reLoadConfig(char const* fileName)
 {
-    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
-    pthread_rwlock_wrlock(&sConfigLock);
-    if (sConfig)
-        config_destroy(sConfig);
+    LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
+    t_config* config = config_create(fileName);
+    if (!config)
+    {
+        LISSANDRA_LOG_ERROR("No se pudo abrir archivo de configuracion %s!", fileName);
+        return;
+    }
 
-    sConfig = config_create(fileName);
-    pthread_rwlock_unlock(&sConfigLock);
+    // solo los campos recargables en tiempo ejecucion
+    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
+    ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
+    ConfigKernel.QUANTUM = config_get_long_value(config, "QUANTUM");
+
+    config_destroy(config);
 
     // recargo el intervalo de metadata
-    pthread_rwlock_rdlock(&sConfigLock);
-    uint32_t metadataRefreshTimer = config_get_long_value(sConfig, "METADATA_REFRESH");
-    pthread_rwlock_unlock(&sConfigLock);
-
-    PeriodicTimer_ReSetTimer(DescribeTimer, metadataRefreshTimer);
+    PeriodicTimer_ReSetTimer(DescribeTimer, ConfigKernel.METADATA_REFRESH);
 }
 
 static void SetupConfigInitial(char const* fileName)
 {
     static uint32_t const METRICS_INTERVAL = 30 * 1000;
-
     static uint32_t const DISCOVERY_INTERVAL = 10 * 1000;
 
-    DescribeTimer = PeriodicTimer_Create(0, PeriodicDescribe);
-    LoadConfig(fileName);
+    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+
+    t_config* config = config_create(fileName);
+    if (!config)
+    {
+        LISSANDRA_LOG_FATAL("No se pudo abrir archivo de configuracion %s!", fileName);
+        exit(EXIT_FAILURE);
+    }
+
+    snprintf(ConfigKernel.IP_MEMORIA, INET6_ADDRSTRLEN, "%s", config_get_string_value(config, "IP_MEMORIA"));
+    snprintf(ConfigKernel.PUERTO_MEMORIA, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO_MEMORIA"));
+    ConfigKernel.MULTIPROCESAMIENTO = config_get_long_value(config, "MULTIPROCESAMIENTO");
+
+    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
+    ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
+    ConfigKernel.QUANTUM = config_get_long_value(config, "QUANTUM");
+
+    config_destroy(config);
 
     // notificarme si hay cambios en la config
     FileWatcher* fw = FileWatcher_Create();
-    FileWatcher_AddWatch(fw, fileName, LoadConfig);
+    FileWatcher_AddWatch(fw, fileName, _reLoadConfig);
     EventDispatcher_AddFDI(fw);
 
-    // agregar timer al dispatch
+    // timers
+    DescribeTimer = PeriodicTimer_Create(ConfigKernel.METADATA_REFRESH, PeriodicDescribe);
     EventDispatcher_AddFDI(DescribeTimer);
 
     // cada 30 segundos debe mostrar las metricas por consola
@@ -129,13 +147,7 @@ static void InitMemorySubsystem(void)
     Criterias_Init();
     Metadata_Init();
 
-    char* const seed_ip = config_get_string_value(sConfig, "IP_MEMORIA");
-    char* const seed_port = config_get_string_value(sConfig, "PUERTO_MEMORIA");
-
     GossipPeers = dictionary_create();
-
-    snprintf(SeedMemory.IP, INET6_ADDRSTRLEN, "%s", seed_ip);
-    snprintf(SeedMemory.Port, PORT_STRLEN, "%s", seed_port);
 
     DiscoverMemories();
 }
@@ -291,9 +303,9 @@ static void DiscoverMemories(void)
     {
         // si la seed no esta porque se desconecto o es el gossip inicial o whatever, la agregamos a manopla
         char seed[INET6_ADDRSTRLEN + PORT_STRLEN];
-        snprintf(seed, INET6_ADDRSTRLEN + PORT_STRLEN, "%s:%s", SeedMemory.IP, SeedMemory.Port);
+        snprintf(seed, INET6_ADDRSTRLEN + PORT_STRLEN, "%s:%s", ConfigKernel.IP_MEMORIA, ConfigKernel.PUERTO_MEMORIA);
         if (!dictionary_has_key(GossipPeers, seed))
-            _addToIPPortDict(GossipPeers, 0, SeedMemory.IP, SeedMemory.Port);
+            _addToIPPortDict(GossipPeers, 0, ConfigKernel.IP_MEMORIA, ConfigKernel.PUERTO_MEMORIA);
     }
 
     t_dictionary* diff = dictionary_create();

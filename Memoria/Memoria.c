@@ -1,5 +1,6 @@
 
 #include "API.h"
+#include "Config.h"
 #include "CLIHandlers.h"
 #include "FileSystemSocket.h"
 #include "Gossip.h"
@@ -7,7 +8,6 @@
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
-#include <Config.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
 #include <libcommons/config.h>
@@ -17,6 +17,7 @@
 #include <Packet.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <Timer.h>
 
@@ -34,6 +35,8 @@ CLICommand const CLICommands[] =
 char const* CLIPrompt = "MEM_LISSANDRA> ";
 
 atomic_bool ProcessRunning = true;
+
+MemConfig ConfigMemoria = { 0 };
 
 static Appender* consoleLog = NULL;
 static Appender* fileLog = NULL;
@@ -64,33 +67,65 @@ static void IniciarDispatch(void)
         exit(EXIT_FAILURE);
 }
 
-static void LoadConfig(char const* fileName)
+static void _reLoadConfig(char const* fileName)
 {
-    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
-    if (sConfig)
-        config_destroy(sConfig);
+    LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
+    t_config* config = config_create(fileName);
+    if (!config)
+    {
+        LISSANDRA_LOG_ERROR("No se pudo abrir archivo de configuracion %s!", fileName);
+        return;
+    }
 
-    sConfig = config_create(fileName);
+    // solo los campos recargables en tiempo ejecucion
+    ConfigMemoria.RETARDO_MEM = config_get_long_value(config, "RETARDO_MEM");
+    ConfigMemoria.RETARDO_FS = config_get_long_value(config, "RETARDO_FS");
+    ConfigMemoria.RETARDO_JOURNAL = config_get_long_value(config, "RETARDO_JOURNAL");
+    ConfigMemoria.RETARDO_GOSSIPING = config_get_long_value(config, "RETARDO_GOSSIPING");
+
+    config_destroy(config);
 
     // recargar los timers
-    PeriodicTimer_ReSetTimer(JournalTimer, config_get_long_value(sConfig, "RETARDO_JOURNAL"));
-    PeriodicTimer_ReSetTimer(GossipTimer, config_get_long_value(sConfig, "RETARDO_GOSSIPING"));
+    PeriodicTimer_ReSetTimer(JournalTimer, ConfigMemoria.RETARDO_JOURNAL);
+    PeriodicTimer_ReSetTimer(GossipTimer, ConfigMemoria.RETARDO_GOSSIPING);
 }
 
 static void SetupConfigInitial(char const* fileName)
 {
-    JournalTimer = PeriodicTimer_Create(0, API_Journal);
-    GossipTimer = PeriodicTimer_Create(0, Gossip_Do);
+    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
 
-    LoadConfig(fileName);
+    t_config* config = config_create(fileName);
+    if (!config)
+    {
+        LISSANDRA_LOG_FATAL("No se pudo abrir archivo de configuracion %s!", fileName);
+        exit(EXIT_FAILURE);
+    }
+
+    snprintf(ConfigMemoria.PUERTO, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO"));
+    snprintf(ConfigMemoria.IP_FS, INET6_ADDRSTRLEN, "%s", config_get_string_value(config, "IP_FS"));
+    snprintf(ConfigMemoria.PUERTO_FS, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO_FS"));
+    ConfigMemoria.IP_SEEDS = config_get_array_value(config, "IP_SEEDS");
+    ConfigMemoria.PUERTO_SEEDS = config_get_array_value(config, "PUERTO_SEEDS");
+    ConfigMemoria.TAM_MEM = config_get_long_value(config, "TAM_MEM");
+    ConfigMemoria.MEMORY_NUMBER = config_get_long_value(config, "MEMORY_NUMBER");
+
+    ConfigMemoria.RETARDO_MEM = config_get_long_value(config, "RETARDO_MEM");
+    ConfigMemoria.RETARDO_FS = config_get_long_value(config, "RETARDO_FS");
+    ConfigMemoria.RETARDO_JOURNAL = config_get_long_value(config, "RETARDO_JOURNAL");
+    ConfigMemoria.RETARDO_GOSSIPING = config_get_long_value(config, "RETARDO_GOSSIPING");
+
+    config_destroy(config);
 
     // notificarme si hay cambios en la config
     FileWatcher* fw = FileWatcher_Create();
-    FileWatcher_AddWatch(fw, fileName, LoadConfig);
+    FileWatcher_AddWatch(fw, fileName, _reLoadConfig);
     EventDispatcher_AddFDI(fw);
 
-    // agregar timers asi tengo notificaciones
+    // timers
+    JournalTimer = PeriodicTimer_Create(ConfigMemoria.RETARDO_JOURNAL, API_Journal);
     EventDispatcher_AddFDI(JournalTimer);
+
+    GossipTimer = PeriodicTimer_Create(ConfigMemoria.RETARDO_GOSSIPING, Gossip_Do);
     EventDispatcher_AddFDI(GossipTimer);
 }
 
@@ -107,13 +142,10 @@ static void MainLoop(void)
 
 static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
 {
-    char* const fs_ip = config_get_string_value(sConfig, "IP_FS");
-    char* const fs_port = config_get_string_value(sConfig, "PUERTO_FS");
-
     SocketOpts const so =
     {
-        .HostName = fs_ip,
-        .ServiceOrPort = fs_port,
+        .HostName = ConfigMemoria.IP_FS,
+        .ServiceOrPort = ConfigMemoria.PUERTO_FS,
         .SocketMode = SOCKET_CLIENT,
         .SocketOnAcceptClient = NULL
     };
@@ -151,12 +183,10 @@ static void StartMemory(void)
     Memory_Initialize(maxValueLength, mountPoint);
     Free(mountPoint);
 
-    char const* const listen_port = config_get_string_value(sConfig, "PUERTO");
-
     SocketOpts const so =
     {
         .HostName = NULL,
-        .ServiceOrPort = listen_port,
+        .ServiceOrPort = ConfigMemoria.PUERTO,
         .SocketMode = SOCKET_SERVER,
         .SocketOnAcceptClient = NULL
     };
@@ -171,22 +201,11 @@ static void StartMemory(void)
     EventDispatcher_AddFDI(ListeningSocket);
 }
 
-static void StartGossip(void)
-{
-    Vector ips = config_get_array_value(sConfig, "IP_SEEDS");
-    Vector ports = config_get_array_value(sConfig, "PUERTO_SEEDS");
-
-    uint32_t id = config_get_long_value(sConfig, "MEMORY_NUMBER");
-    char const* const listen_port = config_get_string_value(sConfig, "PUERTO");
-
-    Gossip_Init(&ips, &ports, id, listen_port);
-
-    Vector_Destruct(&ports);
-    Vector_Destruct(&ips);
-}
-
 static void Cleanup(void)
 {
+    Vector_Destruct(&ConfigMemoria.IP_SEEDS);
+    Vector_Destruct(&ConfigMemoria.PUERTO_SEEDS);
+
     Gossip_Terminate();
     Memory_Destroy();
     EventDispatcher_Terminate();
@@ -203,7 +222,7 @@ int main(void)
     SetupConfigInitial(configFileName);
 
     StartMemory();
-    StartGossip();
+    Gossip_Init();
 
     MainLoop();
 

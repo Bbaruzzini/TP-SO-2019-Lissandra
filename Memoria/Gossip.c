@@ -1,5 +1,6 @@
 
 #include "Gossip.h"
+#include "Config.h"
 #include <Defines.h>
 #include <libcommons/dictionary.h>
 #include <libcommons/hashmap.h>
@@ -27,10 +28,6 @@ static t_dictionary* GossipPeers = NULL;
 static t_hashmap* GossipingTable = NULL;
 // vamos a compartirla asi que necesito un mutex
 static pthread_rwlock_t GossipTableLock = PTHREAD_RWLOCK_INITIALIZER;
-
-// esto es para evitar usar mutex de config ya que estos datos no son recargables
-static uint32_t MyMemId = 0;
-static char MyListenPort[PORT_STRLEN] = { 0 };
 
 // funcion para iterar la tabla y agregarlas al paquete
 static void _addToPacket(int memId, void* elem, void* packet);
@@ -89,10 +86,10 @@ static inline void _removeAndBlock(t_hashmap* blacklist, uint32_t memId)
     LISSANDRA_LOG_INFO("GOSSIP: Memoria id %u se desconecto!", memId);
 }
 
-void Gossip_Init(Vector const* seedIPs, Vector const* seedPorts, uint32_t myId, char const* myPort)
+void Gossip_Init(void)
 {
-    size_t ipSize = Vector_size(seedIPs);
-    if (ipSize != Vector_size(seedPorts))
+    size_t ipSize = Vector_size(&ConfigMemoria.IP_SEEDS);
+    if (ipSize != Vector_size(&ConfigMemoria.PUERTO_SEEDS))
     {
         LISSANDRA_LOG_FATAL("Error en archivo de configuración: no coinciden cantidad de ips y puertos!");
         exit(EXIT_FAILURE);
@@ -101,13 +98,10 @@ void Gossip_Init(Vector const* seedIPs, Vector const* seedPorts, uint32_t myId, 
     GossipPeers = dictionary_create();
     GossipingTable = hashmap_create();
 
-    MyMemId = myId;
-    snprintf(MyListenPort, PORT_STRLEN, "%s", myPort);
-
     for (size_t i = 0; i < ipSize; ++i)
     {
-        char** const ips = Vector_data(seedIPs);
-        char** const ports = Vector_data(seedPorts);
+        char** const ips = Vector_data(&ConfigMemoria.IP_SEEDS);
+        char** const ports = Vector_data(&ConfigMemoria.PUERTO_SEEDS);
 
         // valor centinela: al inicio no conocemos que memId tienen los seeds
         _addToIPPortDict(GossipPeers, 0, ips[i], ports[i]);
@@ -204,8 +198,8 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
 
     static uint8_t const processId = MEMORIA;
     Packet_Append(p, processId);
-    Packet_Append(p, MyMemId);
-    Packet_Append(p, MyListenPort);
+    Packet_Append(p, ConfigMemoria.MEMORY_NUMBER);
+    Packet_Append(p, ConfigMemoria.PUERTO);
 
     char* const otherIp = gp->IP;
     Packet_Append(p, otherIp);

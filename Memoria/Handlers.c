@@ -1,9 +1,9 @@
 
 #include "Handlers.h"
 #include "API.h"
+#include "Config.h"
 #include "Gossip.h"
 #include "MainMemory.h"
-#include <Config.h>
 #include <Logger.h>
 #include <Opcodes.h>
 #include <Packet.h>
@@ -30,15 +30,13 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
     uint8_t id;
     Packet_Read(p, &id);
 
-    uint32_t const memId = config_get_long_value(sConfig, "MEMORY_NUMBER");
-    char const* const myPort = config_get_string_value(sConfig, "PUERTO");
+    uint32_t const memId = ConfigMemoria.MEMORY_NUMBER;
+    char const* const myPort = ConfigMemoria.PUERTO;
 
     switch (id)
     {
         case KERNEL:
         {
-            LISSANDRA_LOG_INFO("Se conecto el kernel!");
-
             // protocolo kernel only
             char* myIP;
             Packet_Read(p, &myIP);
@@ -51,8 +49,6 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
         }
         case MEMORIA:
         {
-            LISSANDRA_LOG_INFO("Se conecto una memoria");
-
             // protocolo memoria only
             uint32_t peerMemId;
             Packet_Read(p, &peerMemId);

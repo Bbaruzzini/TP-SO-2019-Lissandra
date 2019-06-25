@@ -3,11 +3,10 @@
 #define Gossip_h__
 
 #include <stdint.h>
-#include <vector.h>
 
 typedef struct Socket Socket;
 
-void Gossip_Init(Vector const* seedIPs, Vector const* seedPorts, uint32_t myId, char const* myPort);
+void Gossip_Init(void);
 
 void Gossip_AddMemory(uint32_t memId, char const* memIp, char const* memPort);
 

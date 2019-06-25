@@ -1,16 +1,17 @@
 
-#include "Lissandra.h"
 #include "API.h"
 #include "CLIHandlers.h"
+#include "Config.h"
 #include "Memtable.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
-#include <Config.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
+#include <libcommons/config.h>
 #include <Logger.h>
 #include <Malloc.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -48,61 +49,65 @@ static void IniciarLogger(void)
 
 }
 
-//Era "static void" y lo cambiamos por "void*"
-static void LoadConfig(char const* fileName)
+static void _reLoadConfig(char const* fileName)
 {
-    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
-    bool initial = true;
-    if (sConfig)
+    LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
+    t_config* config = config_create(fileName);
+    if (!config)
     {
-        initial = false;
-        config_destroy(sConfig);
-    }
-
-    //Esto estaba
-    sConfig = config_create(fileName);
-    if (!sConfig)
-    {
-        if (initial)
-        {
-            LISSANDRA_LOG_FATAL("No se pudo cargar archivo de configuracion %s!", fileName);
-            exit(EXIT_FAILURE);
-        }
+        LISSANDRA_LOG_ERROR("No se pudo abrir archivo de configuracion %s!", fileName);
         return;
     }
 
-    //Esto agregamos nosotras
-    if (initial)
+    // solo los campos recargables en tiempo ejecucion
+    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
+
+    confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
+
+    //printf("configTamValue %d\n",confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
+    config_destroy(config);
+}
+
+static void LoadConfigInitial(char const* fileName)
+{
+    LISSANDRA_LOG_INFO("Cargando archivo de configuracion %s...", fileName);
+
+    t_config* config = config_create(fileName);
+    if (!config)
     {
-        snprintf(confLFS.PUERTO_ESCUCHA, PORT_STRLEN, "%s", config_get_string_value(sConfig, "PUERTO_ESCUCHA"));
-
-        char const* mountPoint = config_get_string_value(sConfig, "PUNTO_MONTAJE");
-        if (!string_ends_with(mountPoint, "/"))
-        {
-            // agregar un '/' al final
-            snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s/", mountPoint);
-        }
-        else
-            snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s", mountPoint);
-
-        //printf("configTamValue %s\n",confLFS.PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
-
-        confLFS.TAMANIO_VALUE = config_get_long_value(sConfig, "TAMANIO_VALUE");
-
-        confLFS.TAMANIO_BLOQUES = config_get_long_value(sConfig, "BLOCK_SIZE");
-
-        confLFS.CANTIDAD_BLOQUES = config_get_long_value(sConfig, "BLOCKS");
+        LISSANDRA_LOG_FATAL("No se pudo abrir archivo de configuracion %s!", fileName);
+        exit(EXIT_FAILURE);
     }
 
-    // solo los campos recargables en tiempo ejecucion
-    confLFS.RETARDO = config_get_long_value(sConfig, "RETARDO");
+    //Esto agregamos nosotras
+    snprintf(confLFS.PUERTO_ESCUCHA, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO_ESCUCHA"));
 
-    confLFS.TIEMPO_DUMP = config_get_long_value(sConfig, "TIEMPO_DUMP");
+    char const* mountPoint = config_get_string_value(config, "PUNTO_MONTAJE");
+    if (!string_ends_with(mountPoint, "/"))
+    {
+        // agregar un '/' al final
+        snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s/", mountPoint);
+    }
+    else
+        snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s", mountPoint);
+
+    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
+
+    //printf("configTamValue %s\n",confLFS.PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
+
+    confLFS.TAMANIO_VALUE = config_get_long_value(config, "TAMANIO_VALUE");
+    confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
+    confLFS.TAMANIO_BLOQUES = config_get_long_value(config, "BLOCK_SIZE");
+    confLFS.CANTIDAD_BLOQUES = config_get_long_value(config, "BLOCKS");
+
+    config_destroy(config);
+
+    // notificarme si hay cambios en la config
+    FileWatcher* fw = FileWatcher_Create();
+    FileWatcher_AddWatch(fw, fileName, _reLoadConfig);
+    EventDispatcher_AddFDI(fw);
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
-    //printf("configTamValue %d\n",confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
-    config_destroy(sConfig);
-    sConfig = NULL;
 }
 
 static void pruebaConsola(void)
@@ -125,14 +130,9 @@ int main(void)
 
     IniciarLogger();
 
-    LoadConfig(configFileName);
-
     EventDispatcher_Init();
 
-    // notificarme si hay cambios en la config
-    FileWatcher* fw = FileWatcher_Create();
-    FileWatcher_AddWatch(fw, configFileName, LoadConfig);
-    EventDispatcher_AddFDI(fw);
+    LoadConfigInitial(configFileName);
 
     //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
 

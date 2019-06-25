@@ -1,7 +1,7 @@
 
 #include "Runner.h"
 #include "Commands.h"
-#include <Config.h>
+#include "Config.h"
 #include <Console.h>
 #include <libcommons/string.h>
 #include <libcommons/queue.h>
@@ -37,12 +37,7 @@ void Runner_Init(void)
     CommandParser = _addSingleLine;
 
     ReadyQueue = queue_create();
-
-    pthread_rwlock_rdlock(&sConfigLock);
-    size_t multiprocessing = config_get_int_value(sConfig, "MULTIPROCESAMIENTO");
-    pthread_rwlock_unlock(&sConfigLock);
-
-    for (size_t i = 0; i < multiprocessing; ++i)
+    for (uint32_t i = 0; i < ConfigKernel.MULTIPROCESAMIENTO; ++i)
         Threads_CreateDetached(_workerThread, NULL);
 }
 
@@ -125,10 +120,8 @@ static void* _workerThread(void* arg)
 
         // ahora tcb esta cargado con un script, proseguimos
         // campos recargables asi que consulto al atender una nueva tarea
-        pthread_rwlock_rdlock(&sConfigLock);
-        uint32_t q = config_get_long_value(sConfig, "QUANTUM");
-        uint32_t delayMS = config_get_long_value(sConfig, "SLEEP_EJECUCION");
-        pthread_rwlock_unlock(&sConfigLock);
+        uint32_t q = ConfigKernel.QUANTUM;
+        uint32_t delayMS = ConfigKernel.SLEEP_EJECUCION;
 
         bool abnormalTermination = false;
         uint32_t exec = 0;

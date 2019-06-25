@@ -1,6 +1,6 @@
 
-#ifndef LISSANDRA_LISSANDRA_H
-#define LISSANDRA_LISSANDRA_H
+#ifndef Config_h__
+#define Config_h__
 
 #include <Defines.h>
 #include <linux/limits.h>
@@ -20,4 +20,4 @@ typedef struct
 
 extern t_config_FS confLFS;
 
-#endif //LISSANDRA_LISSANDRA_H
+#endif //Config_h__

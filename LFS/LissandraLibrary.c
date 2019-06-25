@@ -4,8 +4,8 @@
 
 //Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
+#include "Config.h"
 #include "FileSystem.h"
-#include "Lissandra.h"
 #include "Memtable.h"
 #include <Consistency.h>
 #include <Console.h>

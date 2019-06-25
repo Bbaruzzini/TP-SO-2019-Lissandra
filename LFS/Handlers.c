@@ -1,7 +1,7 @@
 
 #include "Handlers.h"
 #include "API.h"
-#include "Lissandra.h"
+#include "Config.h"
 #include <Consistency.h>
 #include <Logger.h>
 #include <Opcodes.h>

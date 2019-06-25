@@ -1,10 +1,10 @@
 
 #include "MainMemory.h"
 #include "API.h"
+#include "Config.h"
 #include "PageTable.h"
 #include "SegmentTable.h"
 #include <libcommons/bitarray.h>
-#include <Config.h>
 #include <Logger.h>
 #include <Malloc.h>
 #include <stdint.h>
@@ -27,7 +27,7 @@ static bool GetFreeFrame(size_t* frame);
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
     // malloc de n bytes contiguos
-    size_t const allocSize = config_get_long_value(sConfig, "TAM_MEM");
+    size_t const allocSize = ConfigMemoria.TAM_MEM;
     Vector_adopt(&Memory, Malloc(allocSize), allocSize);
 
     MaxValueLength = maxValueLength;
