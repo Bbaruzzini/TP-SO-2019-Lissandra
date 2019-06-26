@@ -122,13 +122,13 @@ void Gossip_AddMemory(uint32_t memId, char const* memIp, char const* memPort)
 void Gossip_Do(void)
 {
     // un solo gossip deberia correr a la vez
-    if (GossipRunning)
+    if (atomic_load(&GossipRunning))
     {
         LISSANDRA_LOG_INFO("GOSSIP: Ya hay un gossip en progreso!");
         return;
     }
 
-    GossipRunning = true;
+    atomic_store(&GossipRunning, true);
 
     // llamar al worker thread, porque el connect bloquearia el main thread de otra forma
     Threads_CreateDetached(_gossipWorkerTh, NULL);
@@ -329,6 +329,6 @@ static void* _gossipWorkerTh(void* _)
     dictionary_destroy(newDiscoveries);
 
     // aviso que termine para que el siguiente pueda ejecutar
-    GossipRunning = false;
+    atomic_store(&GossipRunning, false);
     return NULL;
 }

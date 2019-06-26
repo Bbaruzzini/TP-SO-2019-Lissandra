@@ -91,9 +91,9 @@ static void _reLoadConfig(char const* fileName)
     }
 
     // solo los campos recargables en tiempo ejecucion
-    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
     ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
-    ConfigKernel.QUANTUM = config_get_long_value(config, "QUANTUM");
+    atomic_store(&ConfigKernel.SLEEP_EJECUCION, config_get_long_value(config, "SLEEP_EJECUCION"));
+    atomic_store(&ConfigKernel.QUANTUM, config_get_long_value(config, "QUANTUM"));
 
     config_destroy(config);
 
@@ -119,8 +119,8 @@ static void SetupConfigInitial(char const* fileName)
     snprintf(ConfigKernel.PUERTO_MEMORIA, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO_MEMORIA"));
     ConfigKernel.MULTIPROCESAMIENTO = config_get_long_value(config, "MULTIPROCESAMIENTO");
 
-    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
     ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
+    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
     ConfigKernel.QUANTUM = config_get_long_value(config, "QUANTUM");
 
     config_destroy(config);

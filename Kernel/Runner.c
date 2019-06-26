@@ -120,8 +120,8 @@ static void* _workerThread(void* arg)
 
         // ahora tcb esta cargado con un script, proseguimos
         // campos recargables asi que consulto al atender una nueva tarea
-        uint32_t q = ConfigKernel.QUANTUM;
-        uint32_t delayMS = ConfigKernel.SLEEP_EJECUCION;
+        uint32_t q = atomic_load(&ConfigKernel.QUANTUM);
+        uint32_t delayMS = atomic_load(&ConfigKernel.SLEEP_EJECUCION);
 
         bool abnormalTermination = false;
         uint32_t exec = 0;

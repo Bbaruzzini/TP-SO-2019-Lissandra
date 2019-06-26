@@ -14,9 +14,9 @@ typedef struct
     uint32_t MULTIPROCESAMIENTO;
 
     // Campos recargables en runtime
-    uint32_t SLEEP_EJECUCION;
     uint32_t METADATA_REFRESH;
-    uint32_t QUANTUM;
+    _Atomic uint32_t SLEEP_EJECUCION;
+    _Atomic uint32_t QUANTUM;
 } KernelConfig;
 
 extern KernelConfig ConfigKernel;

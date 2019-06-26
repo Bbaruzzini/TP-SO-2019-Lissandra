@@ -1,5 +1,6 @@
 
 #include "PacketBuilders.h"
+#include <Defines.h>
 #include <libcommons/hashmap.h>
 #include <libcommons/list.h>
 #include <Logger.h>
@@ -22,7 +23,7 @@ typedef struct Memory
 typedef struct
 {
     char Ip[INET6_ADDRSTRLEN];
-    char Port[10 + 1]; //10 digitos, deberia ser suficiente
+    char Port[PORT_STRLEN];
 } MemoryConnectionData;
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
@@ -151,7 +152,7 @@ void Criteria_ConnectMemory(uint32_t memId, char const* address, char const* ser
 
     MemoryConnectionData* mcd = Malloc(sizeof(MemoryConnectionData));
     snprintf(mcd->Ip, INET6_ADDRSTRLEN, "%s", address);
-    snprintf(mcd->Port, 10 + 1, "%s", serviceOrPort);
+    snprintf(mcd->Port, PORT_STRLEN, "%s", serviceOrPort);
 
     hashmap_put(MemoryIPMap, memId, mcd);
 }
