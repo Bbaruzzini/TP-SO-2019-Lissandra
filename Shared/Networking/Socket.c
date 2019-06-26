@@ -46,7 +46,7 @@ Socket* Socket_Create(SocketOpts const* opts)
     int res = getaddrinfo(opts->HostName, opts->ServiceOrPort, &hint, &ai);
     if (res != 0)
     {
-        LISSANDRA_LOG_ERROR("Socket_Create: getaddrinfo devolvió %i (%s)", res, gai_strerror(res));
+        LISSANDRA_LOG_DEBUG("Socket_Create: getaddrinfo devolvió %i (%s)", res, gai_strerror(res));
         return NULL;
     }
 
@@ -57,7 +57,7 @@ Socket* Socket_Create(SocketOpts const* opts)
 
     if (fd < 0)
     {
-        LISSANDRA_LOG_ERROR("Socket_Create: imposible conectar! HOST:SERVICIO = %s:%s", opts->HostName,
+        LISSANDRA_LOG_DEBUG("Socket_Create: imposible conectar! HOST:SERVICIO = %s:%s", opts->HostName,
                             opts->ServiceOrPort);
         return NULL;
     }
@@ -119,10 +119,12 @@ Packet* Socket_RecvPacket(Socket* s)
 
     if (header.size >= 10240 || header.cmd >= NUM_OPCODES)
     {
-        LISSANDRA_LOG_ERROR("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
+        LISSANDRA_LOG_DEBUG("_readHeaderHandler(): Cliente %s ha enviado paquete no válido (tam: %hu, opc: %u)",
                             s->Address.HostIP, header.size, header.cmd);
         return NULL;
     }
+
+    LISSANDRA_LOG_TRACE("Recibido paquete de %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, OpcodeNames[header.cmd], header.cmd, header.size);
 
     // manejo especial de paquetes vacios (recv se queda bloqueado con size == 0)
     if (!header.size)
@@ -157,14 +159,14 @@ bool Socket_HandlePacket(void* socket)
     uint16_t opc = Packet_GetOpcode(p);
     if (opc >= NUM_HANDLED_OPCODES)
     {
-        LISSANDRA_LOG_ERROR("Socket_HandlePacket: recibido opcode no soportado (%hu)", opc);
+        LISSANDRA_LOG_DEBUG("Socket_HandlePacket: recibido opcode no soportado (%hu)", opc);
         return false;
     }
 
     OpcodeHandlerFnType* handler = OpcodeTable[opc];
     if (!handler)
     {
-        LISSANDRA_LOG_ERROR("Socket_HandlePacket: recibido paquete no soportado! (cmd: %hu)", opc);
+        LISSANDRA_LOG_DEBUG("Socket_HandlePacket: recibido paquete no soportado! (cmd: %hu)", opc);
         return false;
     }
 
@@ -196,7 +198,7 @@ static bool _acceptCb(void* socket)
 
     IPAddress ip;
     IPAddress_Init(&ip, &peerAddress, saddr_len);
-    LISSANDRA_LOG_INFO("Conexión desde %s:%u", ip.HostIP, ip.Port);
+    LISSANDRA_LOG_TRACE("Conexión desde %s:%u", ip.HostIP, ip.Port);
 
     SockInit si =
     {
@@ -289,7 +291,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
         char const* address = ip->HostIP;
         uint16_t port = ip->Port;
         unsigned ipv = ip->Version;
-        LISSANDRA_LOG_INFO("Socket_Create: Intentado conectar a %s:%u (IPv%u)", address, port, ipv);
+        LISSANDRA_LOG_TRACE("Socket_Create: Intentado conectar a %s:%u (IPv%u)", address, port, ipv);
         int fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
         if (fd < 0)
         {
@@ -297,7 +299,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
             continue;
         }
         else
-            LISSANDRA_LOG_INFO("Socket_Create: Creado socket en %s:%u (IPv%u)", address, port, ipv);
+            LISSANDRA_LOG_TRACE("Socket_Create: Creado socket en %s:%u (IPv%u)", address, port, ipv);
 
         if (mode == SOCKET_SERVER)
         {
@@ -319,7 +321,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
         }
 
         char const* msg = mode == SOCKET_CLIENT ? "Conectado" : "Asociado";
-        LISSANDRA_LOG_INFO("Socket_Create: %s a %s:%u! (IPv%u)", msg, address, port, ipv);
+        LISSANDRA_LOG_TRACE("Socket_Create: %s a %s:%u! (IPv%u)", msg, address, port, ipv);
 
         if (mode == SOCKET_SERVER)
         {
@@ -330,7 +332,7 @@ static int _iterateAddrInfo(IPAddress* ip, struct addrinfo* ai, enum SocketMode 
                 continue;
             }
 
-            LISSANDRA_LOG_INFO("Socket_Create: Escuchando conexiones entrantes en %s:%u (IPv%u)", address, port, ipv);
+            LISSANDRA_LOG_TRACE("Socket_Create: Escuchando conexiones entrantes en %s:%u (IPv%u)", address, port, ipv);
         }
         return fd;
     }
