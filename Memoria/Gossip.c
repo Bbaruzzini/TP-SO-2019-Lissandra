@@ -91,7 +91,6 @@ static inline void _removeAndBlock(t_hashmap* blacklist, uint32_t memId)
     pthread_rwlock_unlock(&GossipTableLock);
 
     hashmap_put(blacklist, memId, NULL);
-    LISSANDRA_LOG_INFO("GOSSIP: Memoria id %u se desconecto!", memId);
 }
 
 void Gossip_Init(void)
@@ -176,7 +175,11 @@ static void _addToPacket(int memId, void* elem, void* packet)
 static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
 {
     (void) _;
+
+    // evito auto-hacerme gossip (voy a estar presente ya que estoy en la tabla distribuida)
     GossipPeer* const gp = value;
+    if (gp->MemId == ConfigMemoria.MEMORY_NUMBER)
+        return;
 
     IterateParams* const storages = param;
 
@@ -303,8 +306,7 @@ static void _addToKnownPeers(char const* key, void* value)
     else
         LISSANDRA_LOG_INFO("GOSSIP: Descubierta nueva memoria en %s:%s! (MemId: %u)", gp->IP, gp->Port, gp->MemId);
 
-    // el elemento es nuevo, lo robo
-    dictionary_put(GossipPeers, key, gp);
+    _addToIPPortDict(GossipPeers, gp->MemId, gp->IP, gp->Port);
 }
 
 static void _addNewGossipsToIterateList(int _, void* value)
@@ -351,8 +353,7 @@ static void* _gossipWorkerTh(void* _)
     // uso como set
     hashmap_destroy(blacklist);
 
-    // solo hago destroy porque GossipPeers recicla los mismos elementos y no construye nuevos
-    dictionary_destroy(newDiscoveries);
+    dictionary_destroy_and_destroy_elements(newDiscoveries, Free);
 
     // aviso que termine para que el siguiente pueda ejecutar
     atomic_store(&GossipRunning, false);

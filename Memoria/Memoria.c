@@ -150,7 +150,6 @@ static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
         .SocketOnAcceptClient = NULL
     };
     FileSystemSocket = Socket_Create(&so);
-
     if (!FileSystemSocket)
     {
         LISSANDRA_LOG_FATAL("No pude conectarme al FileSystem!!");
@@ -164,7 +163,7 @@ static void DoHandshake(uint32_t* maxValueLength, char** mountPoint)
     Packet_Destroy(p);
 
     p = Socket_RecvPacket(FileSystemSocket);
-    if (Packet_GetOpcode(p) != MSG_HANDSHAKE_RESPUESTA)
+    if (!p || Packet_GetOpcode(p) != MSG_HANDSHAKE_RESPUESTA)
     {
         LISSANDRA_LOG_FATAL("FileSystem envió respuesta inválida.");
         exit(1);
