@@ -48,19 +48,17 @@ typedef struct
 
 void Criterias_Init(void);
 
-void Criteria_ConnectMemory(uint32_t memId, char const* address, char const* serviceOrPort);
+void Criterias_Update(void);
 
 bool Criteria_MemoryExists(uint32_t memId);
 
 void Criteria_AddMemory(CriteriaType type, uint32_t memId);
 
-void Criteria_DisconnectMemory(uint32_t memId);
-
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value);
 
 void Criterias_Report(void);
 
-void Criteria_BroadcastJournal(void);
+void Criterias_BroadcastJournal(void);
 
 Memory* Criteria_GetMemoryFor(CriteriaType type, MemoryOps op, DBRequest const* dbr);
 

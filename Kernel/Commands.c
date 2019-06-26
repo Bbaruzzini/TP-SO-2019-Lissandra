@@ -395,7 +395,7 @@ bool HandleJournal(Vector const* args)
     }
 
     // broadcast a todos los criterios
-    Criteria_BroadcastJournal();
+    Criterias_BroadcastJournal();
     return true;
 }
 

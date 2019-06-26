@@ -1,4 +1,6 @@
 
+#include "Criteria.h"
+#include "Config.h"
 #include "PacketBuilders.h"
 #include <Defines.h>
 #include <libcommons/hashmap.h>
@@ -20,11 +22,31 @@ typedef struct Memory
     pthread_mutex_t MemLock;
 } Memory;
 
+// feo copypaste de Memoria/Gossip.c pero we
 typedef struct
 {
-    char Ip[INET6_ADDRSTRLEN];
+    char IP[INET6_ADDRSTRLEN];
     char Port[PORT_STRLEN];
 } MemoryConnectionData;
+
+static inline void _addToIPPortHmap(t_hashmap* hmap, uint32_t memId, char const* IP, char const* Port)
+{
+    MemoryConnectionData* mcd = hashmap_get(hmap, memId);
+    if (!mcd)
+        mcd = Malloc(sizeof(MemoryConnectionData));
+
+    snprintf(mcd->IP, INET6_ADDRSTRLEN, "%s", IP);
+    snprintf(mcd->Port, PORT_STRLEN, "%s", Port);
+
+    hashmap_put(hmap, memId, mcd);
+}
+
+static void _iteratePeer(int, void*, void*);
+static void _disconnectOldMemories(int, void*, void*);
+static void _compareEntry(int, void*);
+
+static void _connectMemory(uint32_t memId, char const* ip, char const* port);
+static void _disconnectMemory(uint32_t memId);
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
 typedef Memory* GetMemFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
@@ -140,21 +162,32 @@ void Criterias_Init(void)
     Criterias[CRITERIA_SC] = (Criteria*) sc;
     Criterias[CRITERIA_SHC] = (Criteria*) shc;
     Criterias[CRITERIA_EC] = (Criteria*) ec;
+
+    Criterias_Update();
 }
 
-void Criteria_ConnectMemory(uint32_t memId, char const* address, char const* serviceOrPort)
+void Criterias_Update(void)
 {
-    if (Criteria_MemoryExists(memId))
     {
-        LISSANDRA_LOG_ERROR("Intento de agregar memoria %u ya existente!", memId);
-        return;
+        // si la seed no esta porque se desconecto o es el gossip inicial o whatever, la agregamos a manopla
+        if (!hashmap_has_key(MemoryIPMap, 0))
+            _addToIPPortHmap(MemoryIPMap, 0, ConfigKernel.IP_MEMORIA, ConfigKernel.PUERTO_MEMORIA);
     }
 
-    MemoryConnectionData* mcd = Malloc(sizeof(MemoryConnectionData));
-    snprintf(mcd->Ip, INET6_ADDRSTRLEN, "%s", address);
-    snprintf(mcd->Port, PORT_STRLEN, "%s", serviceOrPort);
+    t_hashmap* diff = hashmap_create();
 
-    hashmap_put(MemoryIPMap, memId, mcd);
+    // descubre nuevas memorias y las agrego a diff
+    hashmap_iterate_with_data(MemoryIPMap, _iteratePeer, diff);
+
+    // quita las que tengo y no aparecen en el nuevo diff
+    hashmap_iterate_with_data(MemoryIPMap, _disconnectOldMemories, diff);
+
+    // agrega nuevas y actualiza datos
+    hashmap_iterate(diff, _compareEntry);
+
+    // por ultimo el diccionario queda actualizado con los nuevos items
+    hashmap_destroy_and_destroy_elements(MemoryIPMap, Free);
+    MemoryIPMap = diff;
 }
 
 bool Criteria_MemoryExists(uint32_t memId)
@@ -175,7 +208,7 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
 
     SocketOpts const so =
     {
-        .HostName = mcd->Ip,
+        .HostName = mcd->IP,
         .ServiceOrPort = mcd->Port,
         .SocketMode = SOCKET_CLIENT,
         .SocketOnAcceptClient = NULL
@@ -183,8 +216,9 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
     Socket* s = Socket_Create(&so);
     if (!s)
     {
-        LISSANDRA_LOG_ERROR("Criteria_AddMemory: Error al crear socket para memoria %u!", memId);
-        Criteria_DisconnectMemory(memId);
+        LISSANDRA_LOG_ERROR("Criteria_AddMemory: Memoria %u desconectada!", memId);
+        _disconnectMemory(memId);
+        hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
         return;
     }
 
@@ -200,38 +234,6 @@ static bool FindMemByIdPred(void* mem, void* id)
 {
     Memory* const m = mem;
     return m->MemId == (uint32_t) id;
-}
-
-void Criteria_DisconnectMemory(uint32_t memId)
-{
-    if (!Criteria_MemoryExists(memId))
-    {
-        LISSANDRA_LOG_ERROR("Intento de quitar memoria %u no existente!", memId);
-        return;
-    }
-
-    Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
-    if (sc->SCMem && sc->SCMem->MemId == memId)
-    {
-        _destroy_mem(sc->SCMem);
-        sc->SCMem = NULL;
-    }
-
-    Criteria_SHC* shc = (Criteria_SHC*) Criterias[CRITERIA_SHC];
-    Memory** data = Vector_data(&shc->MemoryArr);
-    for (size_t i = 0; i < Vector_size(&shc->MemoryArr); ++i)
-    {
-        if (data[i]->MemId == memId)
-        {
-            Vector_erase(&shc->MemoryArr, i);
-            break;
-        }
-    }
-
-    Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
-    list_remove_and_destroy_by_condition(ec->MemoryList, FindMemByIdPred, (void*) memId, _destroy_mem);
-
-    hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
 }
 
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value)
@@ -282,7 +284,7 @@ static void ECJournalize(void* elem)
     _send_one(mem, OP_JOURNAL, NULL);
 }
 
-void Criteria_BroadcastJournal(void)
+void Criterias_BroadcastJournal(void)
 {
     Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
     if (sc->SCMem)
@@ -319,7 +321,7 @@ Memory* Criteria_GetMemoryFor(CriteriaType type, MemoryOps op, DBRequest const* 
 
         if (!last)
         {
-            LISSANDRA_LOG_ERROR("Criteria: no hay memorias conectadas. Utilizar ADD priemero!");
+            LISSANDRA_LOG_ERROR("Criteria: no hay memorias conectadas. Utilizar ADD primero!");
             return NULL;
         }
 
@@ -351,7 +353,8 @@ Packet* Memory_SendRequestWithAnswer(Memory* mem, MemoryOps op, DBRequest const*
     if (!p)
     {
         LISSANDRA_LOG_ERROR("Se desconectó memoria %u mientras leia un request!!, quitando...", mem->MemId);
-        Criteria_DisconnectMemory(mem->MemId);
+        _disconnectMemory(mem->MemId);
+        hashmap_remove_and_destroy(MemoryIPMap, mem->MemId, Free);
     }
 
     return p;
@@ -366,6 +369,134 @@ void Criterias_Destroy(void)
 }
 
 /* PRIVATE */
+static void _iteratePeer(int _, void* val, void* diff)
+{
+    (void) _;
+    MemoryConnectionData* const mcd = val;
+
+    SocketOpts const so =
+    {
+        .HostName = mcd->IP,
+        .ServiceOrPort = mcd->Port,
+        .SocketMode = SOCKET_CLIENT,
+        .SocketOnAcceptClient = NULL
+    };
+    Socket* s = Socket_Create(&so);
+    if (!s)
+    {
+        LISSANDRA_LOG_ERROR("DISCOVER: No pude conectarme al par gossip (%s:%s)!!", mcd->IP, mcd->Port);
+        return;
+    }
+
+    static uint8_t const id = KERNEL;
+    Packet* p = Packet_Create(MSG_HANDSHAKE, 20);
+    Packet_Append(p, id);
+    Packet_Append(p, mcd->IP);
+    Socket_SendPacket(s, p);
+    Packet_Destroy(p);
+
+    p = Socket_RecvPacket(s);
+    if (!p)
+    {
+        LISSANDRA_LOG_ERROR("DISCOVER: Memoria (%s:%s) se desconectó durante handshake inicial!", mcd->IP, mcd->Port);
+        Socket_Destroy(s);
+        return;
+    }
+
+    if (Packet_GetOpcode(p) != MSG_GOSSIP_LIST)
+    {
+        LISSANDRA_LOG_ERROR("DISCOVER: Memoria (%s:%s) envió respuesta inválida %hu.", mcd->IP, mcd->Port, Packet_GetOpcode(p));
+        Packet_Destroy(p);
+        Socket_Destroy(s);
+        return;
+    }
+
+    uint32_t numMems;
+    Packet_Read(p, &numMems);
+    for (uint32_t i = 0; i < numMems; ++i)
+    {
+        uint32_t memId;
+        Packet_Read(p, &memId);
+
+        char* memIp;
+        Packet_Read(p, &memIp);
+
+        char* memPort;
+        Packet_Read(p, &memPort);
+
+        _addToIPPortHmap(diff, memId, memIp, memPort);
+
+        Free(memPort);
+        Free(memIp);
+    }
+
+    Packet_Destroy(p);
+    Socket_Destroy(s);
+}
+
+static void _compareEntry(int key, void* val)
+{
+    MemoryConnectionData* const mcd = val;
+
+    MemoryConnectionData* my = hashmap_get(MemoryIPMap, key);
+    if (my)
+        return;
+
+    LISSANDRA_LOG_INFO("DISCOVER: Descubierta nueva memoria en %s:%s! (MemId: %u)", mcd->IP, mcd->Port, (uint32_t) key);
+    _connectMemory(key, mcd->IP, mcd->Port);
+}
+
+static void _disconnectOldMemories(int key, void* val, void* diff)
+{
+    MemoryConnectionData* const mcd = val;
+    if (key /* la seed no cuenta */ && !hashmap_has_key(diff, key))
+    {
+        LISSANDRA_LOG_INFO("DISCOVER: Memoria id %u (%s:%s) se desconecto!", (uint32_t) key, mcd->IP, mcd->Port);
+        _disconnectMemory(key);
+    }
+}
+
+static void _connectMemory(uint32_t memId, char const* ip, char const* port)
+{
+    if (Criteria_MemoryExists(memId))
+    {
+        LISSANDRA_LOG_ERROR("Intento de agregar memoria %u ya existente!", memId);
+        return;
+    }
+
+    _addToIPPortHmap(MemoryIPMap, memId, ip, port);
+}
+
+static void _disconnectMemory(uint32_t memId)
+{
+    if (!Criteria_MemoryExists(memId))
+    {
+        LISSANDRA_LOG_ERROR("Intento de quitar memoria %u no existente!", memId);
+        return;
+    }
+
+    Criteria_SC* sc = (Criteria_SC*) Criterias[CRITERIA_SC];
+    if (sc->SCMem && sc->SCMem->MemId == memId)
+    {
+        _destroy_mem(sc->SCMem);
+        sc->SCMem = NULL;
+    }
+
+    Criteria_SHC* shc = (Criteria_SHC*) Criterias[CRITERIA_SHC];
+    Memory** data = Vector_data(&shc->MemoryArr);
+    for (size_t i = 0; i < Vector_size(&shc->MemoryArr); ++i)
+    {
+        if (data[i]->MemId == memId)
+        {
+            Vector_erase(&shc->MemoryArr, i);
+            break;
+        }
+    }
+
+    Criteria_EC* ec = (Criteria_EC*) Criterias[CRITERIA_EC];
+    list_remove_and_destroy_by_condition(ec->MemoryList, FindMemByIdPred, (void*) memId, _destroy_mem);
+}
+
 static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer)
 {
     Criteria* const c = criteria;
