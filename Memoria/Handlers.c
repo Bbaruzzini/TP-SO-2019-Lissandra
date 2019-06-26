@@ -33,49 +33,58 @@ void HandleHandshakeOpcode(Socket* s, Packet* p)
     uint32_t const memId = ConfigMemoria.MEMORY_NUMBER;
     char const* const myPort = ConfigMemoria.PUERTO;
 
-    switch (id)
+    if (id != KERNEL && id != MEMORIA)
     {
-        case KERNEL:
+        LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
+        return;
+    }
+
+    // protocolo compartido kernel y memoria
+    {
+        char* myIP;
+        Packet_Read(p, &myIP);
+
+        // me agrego a mi mismo
+        Gossip_AddMemory(memId, myIP, myPort);
+
+        Free(myIP);
+    }
+
+    // protocolo memoria only
+    if (id == MEMORIA)
+    {
         {
-            // protocolo kernel only
-            char* myIP;
-            Packet_Read(p, &myIP);
+            uint32_t otherId;
+            Packet_Read(p, &otherId);
 
-            // me agrego a mi mismo
-            Gossip_AddMemory(memId, myIP, myPort);
+            char* otherPort;
+            Packet_Read(p, &otherPort);
 
-            Free(myIP);
-            break;
+            // agrego a la otra memoria
+            Gossip_AddMemory(otherId, s->Address.HostIP, otherPort);
+
+            Free(otherPort);
         }
-        case MEMORIA:
+
+        // agrego otras memorias en la tabla de gossiping
+        uint32_t numItems;
+        Packet_Read(p, &numItems);
+        for (uint32_t i = 0; i < numItems; ++i)
         {
-            // protocolo memoria only
-            uint32_t peerMemId;
-            Packet_Read(p, &peerMemId);
+            uint32_t peerId;
+            Packet_Read(p, &peerId);
+
+            char* peerIP;
+            Packet_Read(p, &peerIP);
 
             char* peerPort;
             Packet_Read(p, &peerPort);
 
-            char* myIP;
-            Packet_Read(p, &myIP);
-
-            uint32_t numItems;
-            Packet_Read(p, &numItems);
-
-            // me agrego a mi mismo
-            Gossip_AddMemory(memId, myIP, myPort);
-
-            // el remoto me da su ip al conectar :)
-            char const* const peerIP = s->Address.HostIP;
-            Gossip_AddMemory(peerMemId, peerIP, peerPort);
+            Gossip_AddMemory(peerId, peerIP, peerPort);
 
             Free(peerPort);
-            Free(myIP);
-            break;
+            Free(peerIP);
         }
-        default:
-            LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
-            return;
     }
 
     // como respuesta, envio mi tabla actualizada

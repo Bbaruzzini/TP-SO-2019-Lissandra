@@ -19,12 +19,11 @@ enum
     OPC(MSG_HANDSHAKE) /* mensaje enviado al conectar                          \
                         *                                                      \
                         * uint8: module id (ver enum)                          \
-                        * -- solo kernel->mem --                               \
+                        * -- mem y kernel->mem --                              \
                         * char* ip remota                                      \
                         * -- solo entre memorias --                            \
                         * uint32_t: id memoria                                 \
                         * char*: puerto escucha                                \
-                        * char*: ip remota                                     \
                         * sigue igual que MSG_GOSSIP_LIST                      \
                         *                                                      \
                         * Responde: MSG_HANDSHAKE_RESPUESTA (LFS->Memoria)     \

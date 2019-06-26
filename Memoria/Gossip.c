@@ -61,6 +61,14 @@ static inline void _addToIPPortDict(t_dictionary* dict, uint32_t memId, char con
     dictionary_put(dict, key, gp);
 }
 
+static inline bool _IPPortDictHasKey(t_dictionary* dict, char const* IP, char const* Port)
+{
+    // suma + 1 de STR_LEN y + 1 de PORT_STRLEN pero está bien porque agrego el ':'
+    char key[INET6_ADDRSTRLEN + PORT_STRLEN];
+    snprintf(key, INET6_ADDRSTRLEN + PORT_STRLEN, "%s:%s", IP, Port);
+    return dictionary_has_key(dict, key);
+}
+
 // same pero con el gossiplist, debe tener el lock antes de llamar
 static inline void _addToGossipList(uint32_t memId, char const* IP, char const* Port)
 {
@@ -198,11 +206,12 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
 
     static uint8_t const processId = MEMORIA;
     Packet_Append(p, processId);
-    Packet_Append(p, ConfigMemoria.MEMORY_NUMBER);
-    Packet_Append(p, ConfigMemoria.PUERTO);
 
     char* const otherIp = gp->IP;
     Packet_Append(p, otherIp);
+
+    Packet_Append(p, ConfigMemoria.MEMORY_NUMBER);
+    Packet_Append(p, ConfigMemoria.PUERTO);
 
     {
         pthread_rwlock_rdlock(&GossipTableLock);
@@ -298,11 +307,28 @@ static void _addToKnownPeers(char const* key, void* value)
     dictionary_put(GossipPeers, key, gp);
 }
 
+static void _addNewGossipsToIterateList(int _, void* value)
+{
+    (void) _;
+
+    GossipPeer* peer = value;
+    if (_IPPortDictHasKey(GossipPeers, peer->IP, peer->Port))
+        return;
+
+    _addToIPPortDict(GossipPeers, peer->MemId, peer->IP, peer->Port);
+}
+
 static void* _gossipWorkerTh(void* _)
 {
     (void) _;
 
     LISSANDRA_LOG_INFO("GOSSIP: Iniciando gossiping...");
+
+    // primero cualquier memoria que hayamos descubierto antes del gossiping (porque otra memoria nos gossipeo primero)
+    // se agrega a la lista de pares conocidos
+    pthread_rwlock_rdlock(&GossipTableLock);
+    hashmap_iterate(GossipingTable, _addNewGossipsToIterateList);
+    pthread_rwlock_unlock(&GossipTableLock);
 
     // temporal, almacena todas las memorias obtenidas durante gossip
     t_dictionary* newDiscoveries = dictionary_create();
