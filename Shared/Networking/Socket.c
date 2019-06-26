@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #pragma pack(push, 1)

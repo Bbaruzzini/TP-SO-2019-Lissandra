@@ -5,7 +5,7 @@ project(Lissandra C)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 
 # para algunas funciones POSIX
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE")
 
 include_directories(.)
 include_directories(Shared)

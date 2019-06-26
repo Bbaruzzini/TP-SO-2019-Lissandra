@@ -37,6 +37,7 @@ void HandleSelect(Vector const* args)
     {
         case MemoryFull:
             LISSANDRA_LOG_ERROR("SELECT: Memoria llena. Hacer JOURNAL!");
+            // no hay break, devuelvo el valor pero no lo puedo almacenar en memoria
         case Ok:
             LISSANDRA_LOG_INFO("SELECT: %s", value);
             break;

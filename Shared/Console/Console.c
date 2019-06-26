@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include "Malloc.h"
 #include <libcommons/string.h>
+#include <stdio.h> // algunas versiones de readline requieren que stdio este incluido antes
 #include <readline/history.h>
 #include <readline/readline.h>
 #include <signal.h>
