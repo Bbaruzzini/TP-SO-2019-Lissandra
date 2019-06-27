@@ -6,7 +6,6 @@
 #include <time.h>
 
 // Una frame es la página en memoria (registro)
-// todo: empaquetar esta estructura?
 typedef struct
 {
     uint64_t Timestamp;
