@@ -250,36 +250,35 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
         return;
     }
 
-    // se actualiza la tabla gossip asi que lockeo
+    uint32_t num;
+    Packet_Read(p, &num);
+    for (uint32_t i = 0; i < num; ++i)
     {
-        pthread_rwlock_wrlock(&GossipTableLock);
+        uint32_t elemMemId;
+        Packet_Read(p, &elemMemId);
 
-        uint32_t num;
-        Packet_Read(p, &num);
-        for (uint32_t i = 0; i < num; ++i)
+        char* elemIP;
+        Packet_Read(p, &elemIP);
+
+        char* elemPort;
+        Packet_Read(p, &elemPort);
+
+        // agrego a los peer conocidos temporales
+        // ya que no puedo modificar GossipPeers mientras lo estoy iterando
+        _addToIPPortDict(storages->NewDiscoveries, elemMemId, elemIP, elemPort);
+
+        // si no esta en blacklist, agrego a la tabla de gossiping
+        if (!hashmap_has_key(storages->Blacklist, elemMemId))
         {
-            uint32_t elemMemId;
-            Packet_Read(p, &elemMemId);
+            pthread_rwlock_wrlock(&GossipTableLock);
 
-            char* elemIP;
-            Packet_Read(p, &elemIP);
+            _addToGossipList(elemMemId, elemIP, elemPort);
 
-            char* elemPort;
-            Packet_Read(p, &elemPort);
-
-            // agrego a los peer conocidos temporales
-            // ya que no puedo modificar GossipPeers mientras lo estoy iterando
-            _addToIPPortDict(storages->NewDiscoveries, elemMemId, elemIP, elemPort);
-
-            // si no esta en blacklist, agrego a la tabla de gossiping
-            if (!hashmap_has_key(storages->Blacklist, elemMemId))
-                _addToGossipList(elemMemId, elemIP, elemPort);
-
-            Free(elemPort);
-            Free(elemIP);
+            pthread_rwlock_unlock(&GossipTableLock);
         }
 
-        pthread_rwlock_unlock(&GossipTableLock);
+        Free(elemPort);
+        Free(elemIP);
     }
 
     Packet_Destroy(p);
