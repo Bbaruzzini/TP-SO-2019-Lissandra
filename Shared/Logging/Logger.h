@@ -16,7 +16,6 @@ typedef struct
     LogLevel Level;
     Vector Appenders;
     char* TimeStampStr;
-    char* LogsDir;
 } Logger;
 
 void Logger_Init(LogLevel level);
@@ -28,7 +27,6 @@ void Logger_Write(LogMessage* message);
 bool Logger_ShouldLog(LogLevel level);
 void Logger_Format(LogLevel level, char const* format, ...);
 char const* Logger_GetLogTimeStampStr(void);
-char const* Logger_GetLogsDir(void);
 void Logger_Terminate(void);
 
 // este voodoo chequea strings de formato en tiempo de compilación :)

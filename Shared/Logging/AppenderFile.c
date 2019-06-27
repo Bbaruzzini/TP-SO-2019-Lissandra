@@ -17,7 +17,6 @@ typedef struct
 
     FILE* logFile;
     char* fileName;
-    char const* logDir;
     bool backup;
     size_t maxFileSize;
     atomic_size_t fileSize;
@@ -36,7 +35,6 @@ Appender* AppenderFile_Create(LogLevel level, AppenderFlags flags, char const* f
     Appender_Init(&me->_base, level, flags, _write, _destroy);
 
     me->logFile = NULL;
-    me->logDir = Logger_GetLogsDir();
     me->maxFileSize = 0;
     atomic_init(&me->fileSize, 0);
 
@@ -75,12 +73,11 @@ Appender* AppenderFile_Create(LogLevel level, AppenderFlags flags, char const* f
 
 static FILE* _openFile(AppenderFile* appender, char const* name, char const* mode, bool backup)
 {
-    char* fullName = string_from_format("%s%s", appender->logDir, name);
     if (backup)
     {
         _closeFile(appender);
 
-        char* newName = string_duplicate(fullName);
+        char* newName = string_duplicate(name);
         char* timeStr;
         struct timespec time;
         timespec_get(&time, TIME_UTC);
@@ -88,12 +85,11 @@ static FILE* _openFile(AppenderFile* appender, char const* name, char const* mod
         string_append_with_format(&newName, ".%s", timeStr);
         Free(timeStr);
         string_replace(newName, ':', '-');
-        rename(fullName, newName);
+        rename(name, newName);
         Free(newName);
     }
 
-    FILE* ret = fopen(fullName, mode);
-    Free(fullName);
+    FILE* ret = fopen(name, mode);
     if (!ret)
         return NULL;
 

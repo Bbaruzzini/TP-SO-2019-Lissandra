@@ -26,9 +26,6 @@ void Logger_Init(LogLevel level)
     GetTimeStr(&time, &timestamp);
     sLogger.TimeStampStr = string_from_format("%s", timestamp);
     Free(timestamp);
-
-    // TODO: LOAD FROM CONFIG
-    sLogger.LogsDir = string_new();
 }
 
 void Logger_AddAppender(Appender* appender)
@@ -90,14 +87,8 @@ char const* Logger_GetLogTimeStampStr(void)
     return sLogger.TimeStampStr;
 }
 
-char const* Logger_GetLogsDir(void)
-{
-    return sLogger.LogsDir;
-}
-
 void Logger_Terminate(void)
 {
-    Free(sLogger.LogsDir);
     Free(sLogger.TimeStampStr);
     Vector_Destruct(&sLogger.Appenders);
 }
