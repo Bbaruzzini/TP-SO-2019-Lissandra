@@ -87,10 +87,16 @@ typedef struct
     t_list* MemoryList;
 } Criteria_EC;
 
-static inline uint32_t keyHash(uint16_t key)
+static inline uint16_t keyHash(uint16_t key)
 {
-    // todo: trivial hash
-    return key;
+    uint16_t hash = 0x5BA9U;
+    uint8_t const* k = (uint8_t*) &key;
+    for (uint8_t i = 0; i < sizeof(uint16_t); ++i)
+    {
+        hash ^= (uint16_t) k[i];
+        hash *= 0x0287;
+    }
+    return hash;
 }
 
 static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer);
@@ -578,23 +584,21 @@ static Memory* _shc_get(void* criteria, MemoryOps op, DBRequest const* dbr)
     }
 
     // por defecto cualquier memoria de las que tenga el criterio (ver issue 1326)
-    size_t memPos = random();
+    size_t hash = random();
     switch (op)
     {
         case OP_SELECT:
-            memPos = keyHash(dbr->Data.Select.Key);
+            hash = keyHash(dbr->Data.Select.Key);
             break;
         case OP_INSERT:
-            memPos = keyHash(dbr->Data.Insert.Key);
+            hash = keyHash(dbr->Data.Insert.Key);
             break;
         default:
             break;
     }
 
-    memPos %= Vector_size(&shc->MemoryArr);
-
-    Memory* const* const memArr = Vector_data(&shc->MemoryArr);
-    return memArr[memPos];
+    Memory** const arr = Vector_data(&shc->MemoryArr);
+    return arr[hash % Vector_size(&shc->MemoryArr)];
 }
 
 static Memory* _ec_get(void* criteria, MemoryOps op, DBRequest const* dbr)
