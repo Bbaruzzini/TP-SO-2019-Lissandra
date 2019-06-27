@@ -43,9 +43,8 @@ static inline void _addToIPPortHmap(t_hashmap* hmap, uint32_t memId, char const*
 
 static void _iteratePeer(int, void*, void*);
 static void _disconnectOldMemories(int, void*, void*);
-static void _compareEntry(int, void*);
+static void _logNewMemories(int, void*);
 
-static void _connectMemory(uint32_t memId, char const* ip, char const* port);
 static void _disconnectMemory(uint32_t memId);
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
@@ -188,8 +187,8 @@ void Criterias_Update(void)
     // quita las que tengo y no aparecen en el nuevo diff
     hashmap_iterate_with_data(MemoryIPMap, _disconnectOldMemories, diff);
 
-    // agrega nuevas y actualiza datos
-    hashmap_iterate(diff, _compareEntry);
+    // logueo nuevos discoveries, se agregan cuando cambio el mapa por el temporal
+    hashmap_iterate(diff, _logNewMemories);
 
     // por ultimo el diccionario queda actualizado con los nuevos items
     hashmap_destroy_and_destroy_elements(MemoryIPMap, Free);
@@ -440,7 +439,7 @@ static void _iteratePeer(int _, void* val, void* diff)
     Socket_Destroy(s);
 }
 
-static void _compareEntry(int key, void* val)
+static void _logNewMemories(int key, void* val)
 {
     MemoryConnectionData* const mcd = val;
 
@@ -449,7 +448,6 @@ static void _compareEntry(int key, void* val)
         return;
 
     LISSANDRA_LOG_INFO("DISCOVER: Descubierta nueva memoria en %s:%s! (MemId: %u)", mcd->IP, mcd->Port, (uint32_t) key);
-    _connectMemory(key, mcd->IP, mcd->Port);
 }
 
 static void _disconnectOldMemories(int key, void* val, void* diff)
@@ -460,17 +458,6 @@ static void _disconnectOldMemories(int key, void* val, void* diff)
         LISSANDRA_LOG_INFO("DISCOVER: Memoria id %u (%s:%s) se desconecto!", (uint32_t) key, mcd->IP, mcd->Port);
         _disconnectMemory(key);
     }
-}
-
-static void _connectMemory(uint32_t memId, char const* ip, char const* port)
-{
-    if (Criteria_MemoryExists(memId))
-    {
-        LISSANDRA_LOG_ERROR("Intento de agregar memoria %u ya existente!", memId);
-        return;
-    }
-
-    _addToIPPortHmap(MemoryIPMap, memId, ip, port);
 }
 
 static void _disconnectMemory(uint32_t memId)
