@@ -49,6 +49,13 @@ static void IniciarLogger(void)
 
 }
 
+static void _loadReloadableFields(t_config const* config)
+{
+    // solo los campos recargables en tiempo ejecucion
+    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
+    confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
+}
+
 static void _reLoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
@@ -59,12 +66,9 @@ static void _reLoadConfig(char const* fileName)
         return;
     }
 
-    // solo los campos recargables en tiempo ejecucion
-    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
+    _loadReloadableFields(config);
 
-    confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
-
-    //printf("configTamValue %d\n",confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
+    //printf("configTamValue %d\n", confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
     config_destroy(config);
 }
 
@@ -91,14 +95,13 @@ static void LoadConfigInitial(char const* fileName)
     else
         snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s", mountPoint);
 
-    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
-
     //printf("configTamValue %s\n",confLFS.PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
 
     confLFS.TAMANIO_VALUE = config_get_long_value(config, "TAMANIO_VALUE");
-    confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
     confLFS.TAMANIO_BLOQUES = config_get_long_value(config, "BLOCK_SIZE");
     confLFS.CANTIDAD_BLOQUES = config_get_long_value(config, "BLOCKS");
+
+    _loadReloadableFields(config);
 
     config_destroy(config);
 

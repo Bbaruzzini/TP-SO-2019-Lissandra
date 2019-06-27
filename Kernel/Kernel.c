@@ -54,6 +54,14 @@ static void IniciarDispatch(void)
         exit(EXIT_FAILURE);
 }
 
+static void _loadReloadableFields(t_config const* config)
+{
+    // solo los campos recargables en tiempo ejecucion
+    ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
+    atomic_store(&ConfigKernel.SLEEP_EJECUCION, config_get_long_value(config, "SLEEP_EJECUCION"));
+    atomic_store(&ConfigKernel.QUANTUM, config_get_long_value(config, "QUANTUM"));
+}
+
 static void _reLoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
@@ -64,10 +72,7 @@ static void _reLoadConfig(char const* fileName)
         return;
     }
 
-    // solo los campos recargables en tiempo ejecucion
-    ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
-    atomic_store(&ConfigKernel.SLEEP_EJECUCION, config_get_long_value(config, "SLEEP_EJECUCION"));
-    atomic_store(&ConfigKernel.QUANTUM, config_get_long_value(config, "QUANTUM"));
+    _loadReloadableFields(config);
 
     config_destroy(config);
 
@@ -93,9 +98,7 @@ static void SetupConfigInitial(char const* fileName)
     snprintf(ConfigKernel.PUERTO_MEMORIA, PORT_STRLEN, "%s", config_get_string_value(config, "PUERTO_MEMORIA"));
     ConfigKernel.MULTIPROCESAMIENTO = config_get_long_value(config, "MULTIPROCESAMIENTO");
 
-    ConfigKernel.METADATA_REFRESH = config_get_long_value(config, "METADATA_REFRESH");
-    ConfigKernel.SLEEP_EJECUCION = config_get_long_value(config, "SLEEP_EJECUCION");
-    ConfigKernel.QUANTUM = config_get_long_value(config, "QUANTUM");
+    _loadReloadableFields(config);
 
     config_destroy(config);
 

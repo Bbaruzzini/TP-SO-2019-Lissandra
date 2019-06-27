@@ -53,7 +53,7 @@ static void IniciarLogger(void)
     Logger_Init(LOG_LEVEL_TRACE);
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LGREEN, LRED, LRED, YELLOW, LGREEN, WHITE);
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, GREEN, GREY, LRED, YELLOW, LGREEN, WHITE);
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;
@@ -67,6 +67,15 @@ static void IniciarDispatch(void)
         exit(EXIT_FAILURE);
 }
 
+static void _loadReloadableFields(t_config const* config)
+{
+    // solo los campos recargables en tiempo ejecucion
+    ConfigMemoria.RETARDO_MEM = config_get_long_value(config, "RETARDO_MEM");
+    ConfigMemoria.RETARDO_FS = config_get_long_value(config, "RETARDO_FS");
+    ConfigMemoria.RETARDO_JOURNAL = config_get_long_value(config, "RETARDO_JOURNAL");
+    ConfigMemoria.RETARDO_GOSSIPING = config_get_long_value(config, "RETARDO_GOSSIPING");
+}
+
 static void _reLoadConfig(char const* fileName)
 {
     LISSANDRA_LOG_INFO("Configuracion modificada, recargando campos...");
@@ -77,11 +86,7 @@ static void _reLoadConfig(char const* fileName)
         return;
     }
 
-    // solo los campos recargables en tiempo ejecucion
-    ConfigMemoria.RETARDO_MEM = config_get_long_value(config, "RETARDO_MEM");
-    ConfigMemoria.RETARDO_FS = config_get_long_value(config, "RETARDO_FS");
-    ConfigMemoria.RETARDO_JOURNAL = config_get_long_value(config, "RETARDO_JOURNAL");
-    ConfigMemoria.RETARDO_GOSSIPING = config_get_long_value(config, "RETARDO_GOSSIPING");
+    _loadReloadableFields(config);
 
     config_destroy(config);
 
@@ -109,10 +114,7 @@ static void SetupConfigInitial(char const* fileName)
     ConfigMemoria.TAM_MEM = config_get_long_value(config, "TAM_MEM");
     ConfigMemoria.MEMORY_NUMBER = config_get_long_value(config, "MEMORY_NUMBER");
 
-    ConfigMemoria.RETARDO_MEM = config_get_long_value(config, "RETARDO_MEM");
-    ConfigMemoria.RETARDO_FS = config_get_long_value(config, "RETARDO_FS");
-    ConfigMemoria.RETARDO_JOURNAL = config_get_long_value(config, "RETARDO_JOURNAL");
-    ConfigMemoria.RETARDO_GOSSIPING = config_get_long_value(config, "RETARDO_GOSSIPING");
+    _loadReloadableFields(config);
 
     config_destroy(config);
 
