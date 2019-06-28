@@ -8,13 +8,14 @@
 #include <Logger.h>
 #include <Malloc.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <Timer.h>
 
 // la memoria es un arreglo de páginas contiguas
 static Vector Memory;
 static uint32_t MaxValueLength = 0;
 static size_t FrameSize = 0;
-static size_t NumPages = 0;
+static size_t NumFrames = 0;
 
 // bitmap de frames libres
 static uint8_t* FrameBitmap = NULL;
@@ -28,17 +29,23 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 {
     // malloc de n bytes contiguos
     size_t const allocSize = ConfigMemoria.TAM_MEM;
-    Vector_adopt(&Memory, Malloc(allocSize), allocSize);
-
-    MaxValueLength = maxValueLength;
 
     // el valor se guarda contiguo junto a los otros datos de longitud fija
     // si es menor al maximo se halla null terminated de lo contrario no
     FrameSize = sizeof(Frame) + maxValueLength;
-    NumPages = allocSize / FrameSize;
+    NumFrames = allocSize / FrameSize;
 
-    size_t bitmapBytes = NumPages / 8;
-    if (NumPages % 8)
+    if (!NumFrames)
+    {
+        LISSANDRA_LOG_FATAL("El valor de TAM_MEM es demasiado pequeño, asignar al menos %d bytes!", FrameSize);
+        exit(EXIT_FAILURE);
+    }
+
+    Vector_adopt(&Memory, Malloc(allocSize), allocSize);
+    MaxValueLength = maxValueLength;
+
+    size_t bitmapBytes = NumFrames / 8;
+    if (NumFrames % 8)
         ++bitmapBytes;
 
     FrameBitmap = Calloc(bitmapBytes, 1);
@@ -46,7 +53,9 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
 
     SegmentTable_Initialize(mountPoint);
 
-    LISSANDRA_LOG_INFO("Memoria inicializada. Tamaño: %d bytes (%d páginas). Tamaño de página: %d", allocSize, NumPages, FrameSize);
+    char const* const frameString = NumFrames == 1 ? "marco" : "marcos";
+    LISSANDRA_LOG_INFO("Memoria inicializada. Tamaño: %d bytes (%d %s). Tamaño de marco: %d", allocSize, NumFrames,
+                       frameString, FrameSize);
 }
 
 bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
@@ -57,7 +66,7 @@ bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
 
     PageTable* pt = SegmentTable_GetPageTable(tableName);
     if (!pt)
-        pt = SegmentTable_CreateSegment(tableName, NumPages);
+        pt = SegmentTable_CreateSegment(tableName, NumFrames);
 
     PageTable_AddPage(pt, key, freeFrame);
     WriteFrame(freeFrame, key, value);
@@ -75,7 +84,7 @@ bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
 
         pt = SegmentTable_GetPageTable(tableName);
         if (!pt)
-            pt = SegmentTable_CreateSegment(tableName, NumPages);
+            pt = SegmentTable_CreateSegment(tableName, NumFrames);
 
         PageTable_AddPage(pt, key, frame);
     }
@@ -158,11 +167,11 @@ static bool GetFreeFrame(size_t* frame)
         return false;
 
     size_t i = 0;
-    for (; i < NumPages; ++i)
+    for (; i < NumFrames; ++i)
         if (!bitarray_test_bit(FrameStatus, i))
             break;
 
-    if (i == NumPages)
+    if (i == NumFrames)
     {
         // no encontre ninguno libre, desalojar el LRU
         size_t freeFrame;
