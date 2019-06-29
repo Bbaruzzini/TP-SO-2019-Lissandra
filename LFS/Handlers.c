@@ -156,6 +156,7 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
         Free(elemento);
     }
 
+    free(nombreTabla);
     Socket_SendPacket(s, resp);
     Packet_Destroy(resp);
 }
