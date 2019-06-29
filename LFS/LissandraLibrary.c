@@ -398,6 +398,9 @@ void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
     generarPathArchivo(nombreTabla, nombreArchivo, pathAbsoluto);
 
     t_config* data = config_create(pathAbsoluto);
+
+    /// Ariel: config_get_array_value devuelve un Vector de char*
+    /// Los chars se liberan automaticamente cuando se llama a vector_destruct
     Vector bloques = config_get_array_value(data, "BLOCKS");
     size_t cantElementos = Vector_size(&bloques);
 
@@ -406,6 +409,10 @@ void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
 
     while (j < cantElementos)
     {
+        ///Ariel: problema: estan asumiendo que el elemento de bloques es un t_config
+        /// vector maneja una abstraccion de "puntero a elemento" por lo cual el verdadero tipo de lo que les tira
+        /// vector_at es char* * (puntero al elemento, que es un char*)
+
         elemento = Vector_at(&bloques, j);
         escribirValorBitarray(false, atoi(elemento->path));
         ++j;
@@ -414,7 +421,6 @@ void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
     unlink(pathAbsoluto);
     config_destroy(data);
     //config_destroy(elemento);
-    Free(pathAbsoluto);
 }
 
 int traverse_to_drop(char const* fn, char const* nombreTabla)
