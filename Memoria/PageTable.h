@@ -3,15 +3,14 @@
 #define PageTable_h__
 
 #include <stdint.h>
-#include <vector.h>
+#include <libcommons/hashmap.h>
 
 typedef struct
 {
-    size_t UsedPages;
-    Vector PageEntries;
+    t_hashmap* Pages;
 } PageTable;
 
-void PageTable_Construct(PageTable* pt, size_t totalFrames);
+void PageTable_Construct(PageTable* pt);
 
 void PageTable_AddPage(PageTable* pt, uint16_t key, size_t frame);
 

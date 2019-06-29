@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    char* Table;
+    char Table[NAME_MAX];
     PageTable Pages;
 } Segment;
 
@@ -33,11 +33,11 @@ void SegmentTable_Initialize(char const* tablePath)
     snprintf(TablePath, PATH_MAX, "%s", tablePath);
 }
 
-PageTable* SegmentTable_CreateSegment(char const* tableName, size_t totalFrames)
+PageTable* SegmentTable_CreateSegment(char const* tableName)
 {
     Segment* s = Malloc(sizeof(Segment));
-    s->Table = strdup(tableName);
-    PageTable_Construct(&s->Pages, totalFrames);
+    snprintf(s->Table, NAME_MAX, "%s", tableName);
+    PageTable_Construct(&s->Pages);
 
     char qualifiedPath[PATH_MAX];
     snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
@@ -99,7 +99,7 @@ static void GetDirtyFrames(char const* qualifiedPath, void* segment, void* vec)
     (void) qualifiedPath;
 
     Segment* const s = segment;
-    PageTable_GetDirtyFrames(&s->Pages, s->Table, (Vector*) vec);
+    PageTable_GetDirtyFrames(&s->Pages, s->Table, vec);
 }
 
 void SegmentTable_GetDirtyFrames(Vector* dirtyFrames)
@@ -129,7 +129,6 @@ void SegmentTable_Destroy(void)
 static void _segmentDestroy(void* segment)
 {
     Segment* const s = segment;
-    Free(s->Table);
     PageTable_Destruct(&s->Pages);
     Free(s);
 }

@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <Timer.h>
 
-// la memoria es un arreglo de páginas contiguas
-static Vector Memory;
+// la memoria es un arreglo de marcos contiguos
+static Frame* Memory = NULL;
 static uint32_t MaxValueLength = 0;
 static size_t FrameSize = 0;
 static size_t NumFrames = 0;
@@ -22,6 +22,7 @@ static uint8_t* FrameBitmap = NULL;
 static t_bitarray* FrameStatus = NULL;
 static bool Full = false; // valor cacheado para no tener que pasar por LRU de nuevo
 
+static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key);
 static void WriteFrame(size_t frameNumber, uint16_t key, char const* value);
 static bool GetFreeFrame(size_t* frame);
 
@@ -41,7 +42,7 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
         exit(EXIT_FAILURE);
     }
 
-    Vector_adopt(&Memory, Malloc(allocSize), allocSize);
+    Memory = Malloc(allocSize);
     MaxValueLength = maxValueLength;
 
     size_t bitmapBytes = NumFrames / 8;
@@ -58,22 +59,18 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
                        frameString, FrameSize);
 }
 
-bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value)
+bool Memory_InsertNewValue(char const* tableName, uint16_t key, char const* value)
 {
     size_t freeFrame;
     if (!GetFreeFrame(&freeFrame))
         return false;
 
-    PageTable* pt = SegmentTable_GetPageTable(tableName);
-    if (!pt)
-        pt = SegmentTable_CreateSegment(tableName, NumFrames);
-
-    PageTable_AddPage(pt, key, freeFrame);
+    CreateNewPage(freeFrame, tableName, key);
     WriteFrame(freeFrame, key, value);
     return true;
 }
 
-bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
+bool Memory_UpsertValue(char const* tableName, uint16_t key, char const* value)
 {
     PageTable* pt = SegmentTable_GetPageTable(tableName);
     size_t frame;
@@ -82,11 +79,7 @@ bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value)
         if (!GetFreeFrame(&frame))
             return false;
 
-        pt = SegmentTable_GetPageTable(tableName);
-        if (!pt)
-            pt = SegmentTable_CreateSegment(tableName, NumFrames);
-
-        PageTable_AddPage(pt, key, frame);
+        pt = CreateNewPage(frame, tableName, key);
     }
 
     WriteFrame(frame, key, value);
@@ -124,7 +117,7 @@ uint32_t Memory_GetMaxValueLength(void)
 
 Frame* Memory_Read(size_t frameNumber)
 {
-    return Vector_at(&Memory, frameNumber * FrameSize);
+    return (Frame*) ((uint8_t*) Memory + frameNumber * FrameSize);
 }
 
 void Memory_DoJournal(void(*insertFn)(void*))
@@ -147,7 +140,18 @@ void Memory_Destroy(void)
     SegmentTable_Destroy();
     bitarray_destroy(FrameStatus);
     Free(FrameBitmap);
-    Vector_Destruct(&Memory);
+    Free(Memory);
+}
+
+/* PRIVATE */
+static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key)
+{
+    PageTable* pt = SegmentTable_GetPageTable(tableName);
+    if (!pt)
+        pt = SegmentTable_CreateSegment(tableName);
+
+    PageTable_AddPage(pt, key, frameNumber);
+    return pt;
 }
 
 static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)

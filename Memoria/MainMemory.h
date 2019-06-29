@@ -5,13 +5,12 @@
 #include "Frame.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include <vector.h>
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint);
 
-bool Memory_SaveNewValue(char const* tableName, uint16_t key, char const* value);
+bool Memory_InsertNewValue(char const* tableName, uint16_t key, char const* value);
 
-bool Memory_UpdateValue(char const* tableName, uint16_t key, char const* value);
+bool Memory_UpsertValue(char const* tableName, uint16_t key, char const* value);
 
 void Memory_CleanFrame(size_t frameNumber);
 

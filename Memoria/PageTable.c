@@ -8,48 +8,40 @@ static size_t MonotonicCounter = 0;
 
 typedef struct
 {
-    uint16_t Key;
     size_t Counter;
     size_t Frame;
     bool Dirty;
-    bool Valid;
 } Page;
-
-static Page* _findPageByKey(PageTable const* pt, uint16_t key);
 
 typedef struct
 {
     size_t* minCounter;
     Page** minPage;
 }  SLRUPageParameters;
-static void _saveLRUPage(void* page, void* param);
+static void _saveLRUPage(int key, void* page, void* param);
 
 typedef struct
 {
     char const* tableName;
     Vector* dirtyFrames;
 } GDFrameParameters;
-static void _addDirtyFrame(void* page, void* param);
+static void _addDirtyFrame(int key, void* page, void* param);
 
 static void _cleanPage(void* page);
 
-void PageTable_Construct(PageTable* pt, size_t totalFrames)
+void PageTable_Construct(PageTable* pt)
 {
-    pt->UsedPages = 0;
-    Vector_Construct(&pt->PageEntries, sizeof(Page), _cleanPage, totalFrames);
-    Vector_resize_zero(&pt->PageEntries, totalFrames);
+    pt->Pages = hashmap_create();
 }
 
 void PageTable_AddPage(PageTable* pt, uint16_t key, size_t frame)
 {
-    Page* p = Vector_at(&pt->PageEntries, frame);
-    p->Key = key;
+    Page* p = Malloc(sizeof(Page));
     p->Counter = ++MonotonicCounter;
     p->Frame = frame;
     p->Dirty = false;
-    p->Valid = true;
 
-    ++pt->UsedPages;
+    hashmap_put(pt->Pages, key, p);
 }
 
 bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp)
@@ -62,7 +54,7 @@ bool PageTable_GetLRUFrame(PageTable const* pt, size_t* frame, size_t* timestamp
         .minCounter = &minCounter,
         .minPage = &minPage
     };
-    Vector_iterate_with_data(&pt->PageEntries, _saveLRUPage, &p);
+    hashmap_iterate_with_data(pt->Pages, _saveLRUPage, &p);
 
     if (!minPage)
         return false;
@@ -81,27 +73,22 @@ void PageTable_GetDirtyFrames(PageTable const* pt, char const* tableName, Vector
         .dirtyFrames = dirtyFrames
     };
 
-    Vector_iterate_with_data(&pt->PageEntries, _addDirtyFrame, &p);
+    hashmap_iterate_with_data(pt->Pages, _addDirtyFrame, &p);
 }
 
 bool PageTable_PreemptPage(PageTable* pt, uint16_t key)
 {
-    Page* p = _findPageByKey(pt, key);
-    if (p)
-    {
-        _cleanPage(p);
-        --pt->UsedPages;
-    }
-
-    return pt->UsedPages == 0;
+    hashmap_remove_and_destroy(pt->Pages, key, _cleanPage);
+    return hashmap_is_empty(pt->Pages);
 }
 
 bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page)
 {
-    Page* p = _findPageByKey(pt, key);
+    Page* p = hashmap_get(pt->Pages, key);
     if (!p)
         return false;
 
+    // increment last used
     p->Counter = ++MonotonicCounter;
     *page = p->Frame;
     return true;
@@ -109,7 +96,7 @@ bool PageTable_GetFrameNumber(PageTable const* pt, uint16_t key, size_t* page)
 
 void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
 {
-    Page* p = _findPageByKey(pt, key);
+    Page* p = hashmap_get(pt->Pages, key);
     if (!p)
         return;
 
@@ -118,35 +105,15 @@ void PageTable_MarkDirty(PageTable const* pt, uint16_t key)
 
 void PageTable_Destruct(PageTable* pt)
 {
-    Vector_Destruct(&pt->PageEntries);
+    hashmap_destroy_and_destroy_elements(pt->Pages, _cleanPage);
 }
 
 /* PRIVATE */
-static Page* _findPageByKey(PageTable const* pt, uint16_t key)
+static void _saveLRUPage(int key, void* page, void* param)
 {
-    Page* pages = Vector_data(&pt->PageEntries);
-    Page* res = NULL;
+    (void) key;
 
-    for (size_t i = 0; i < Vector_size(&pt->PageEntries); ++i)
-    {
-        if (!pages[i].Valid)
-            continue;
-
-        if (pages[i].Key == key)
-        {
-            res = pages + i;
-            break;
-        }
-    }
-
-    return res;
-}
-
-static void _saveLRUPage(void* page, void* param)
-{
     Page* const p = page;
-    if (!p->Valid)
-        return;
 
     SLRUPageParameters* const data = param;
     if (!p->Dirty && (!*data->minPage || p->Counter < *data->minCounter))
@@ -156,10 +123,10 @@ static void _saveLRUPage(void* page, void* param)
     }
 }
 
-static void _addDirtyFrame(void* page, void* param)
+static void _addDirtyFrame(int key, void* page, void* param)
 {
     Page* const p = page;
-    if (!p->Valid || !p->Dirty)
+    if (!p->Dirty)
         return;
 
     Frame* f = Memory_Read(p->Frame);
@@ -168,7 +135,7 @@ static void _addDirtyFrame(void* page, void* param)
     {
         .TableName = data->tableName,
         .Timestamp = f->Timestamp,
-        .Key = f->Key,
+        .Key = key,
         .Value = f->Value
     };
 
@@ -179,5 +146,5 @@ static void _cleanPage(void* page)
 {
     Page* const p = page;
     Memory_CleanFrame(p->Frame);
-    p->Valid = false;
+    Free(p);
 }

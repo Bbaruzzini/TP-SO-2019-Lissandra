@@ -72,7 +72,7 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
     Free(fs_value);
     Packet_Destroy(p);
 
-    if (!Memory_SaveNewValue(tableName, key, value))
+    if (!Memory_InsertNewValue(tableName, key, value))
         return MemoryFull;
 
     // delay artificial acceso a memoria (write latency)
@@ -83,7 +83,7 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
 bool API_Insert(char const* tableName, uint16_t key, char const* value)
 {
     LISSANDRA_LOG_DEBUG("INSERT %s %u %s", tableName, key, value);
-    if (!Memory_UpdateValue(tableName, key, value))
+    if (!Memory_UpsertValue(tableName, key, value))
         return false;
 
     // delay artificial acceso a memoria (write latency)
