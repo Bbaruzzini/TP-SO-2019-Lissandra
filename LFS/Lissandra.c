@@ -14,6 +14,8 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <stdint.h>
 
 CLICommand const CLICommands[] =
 {
@@ -40,7 +42,7 @@ static void IniciarLogger(void)
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
     //Cambiamos el color "198EDC por "EA899A""
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LGREEN, LRED, LRED, YELLOW, LGREEN, WHITE);
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LMAGENTA, LRED, LRED, YELLOW, LGREEN, WHITE);
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags;
@@ -206,6 +208,44 @@ int main(void)
     //printf("hora ariel: %d\n", GetMSEpoch());
     //printf("hora denise: %d\n", time(NULL));
 
+
+/*  Pruebas para dump para la cual hace falta tener creada la tabla FRUTAS
+    t_elem_memtable* elementoA = new_elem_memtable("FRUTAS");
+
+    t_registro* registro1 = new_elem_registro(3, "Manzana", 1548421507);
+    t_registro* registro2 = new_elem_registro(2, "Pera", 1348451807);
+    t_registro* registro3 = new_elem_registro(3, "Banana", 1548421508);
+    t_registro* registro4 = new_elem_registro(2, "Frutilla", 1548436508);
+    t_registro* registro5 = new_elem_registro(2, "Anana", 1548436508);
+    t_registro* registro6 = new_elem_registro(2, "Mandarina", 1548156508);
+    t_registro* registro7 = new_elem_registro(2, "Pomelo", 1548148908);
+    t_registro* registro8 = new_elem_registro(2, "Naranja", 1548144508);
+    t_registro* registro9 = new_elem_registro(2, "Limon", 1545555508);
+    t_registro* registro10 = new_elem_registro(2, "Melon", 1548140008);
+
+    insert_new_in_memtable(elementoA);
+
+    insert_new_in_registros("FRUTAS", registro1);
+    insert_new_in_registros("FRUTAS", registro2);
+    insert_new_in_registros("FRUTAS", registro3);
+    insert_new_in_registros("FRUTAS", registro4);
+    insert_new_in_registros("FRUTAS", registro5);
+    insert_new_in_registros("FRUTAS", registro6);
+    insert_new_in_registros("FRUTAS", registro7);
+    insert_new_in_registros("FRUTAS", registro8);
+    insert_new_in_registros("FRUTAS", registro9);
+    insert_new_in_registros("FRUTAS", registro10);
+
+    t_elem_memtable* new = memtable_get("FRUTAS");
+
+    printf("Este es el nombre de la tabla: %s\n", new->nombreTabla);
+
+    size_t cantElementos = Vector_size(&new->registros);
+
+    printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
+
+    dump();
+*/
     iniciar_servidor();
 
     //Aca va consola ->Update: La consola subio para aca
