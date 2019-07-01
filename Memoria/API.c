@@ -68,7 +68,7 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
 
     char* fs_value;
     Packet_Read(p, &fs_value);
-    snprintf(value, maxValueLength, "%s", fs_value);
+    snprintf(value, maxValueLength + 1, "%s", fs_value);
     Free(fs_value);
     Packet_Destroy(p);
 
