@@ -7,6 +7,7 @@
 
 typedef struct Memory Memory;
 typedef struct Packet Packet;
+typedef struct PeriodicTimer PeriodicTimer;
 typedef struct Socket Socket;
 
 typedef enum
@@ -46,9 +47,9 @@ typedef struct
     } Data;
 } DBRequest;
 
-void Criterias_Init(void);
+void Criterias_Init(PeriodicTimer* discoverTimer);
 
-void Criterias_Update(void);
+void Criterias_Update(PeriodicTimer* pt);
 
 bool Criteria_MemoryExists(uint32_t memId);
 
@@ -56,7 +57,7 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId);
 
 void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value);
 
-void Criterias_Report(void);
+void Criterias_Report(PeriodicTimer* pt);
 
 void Criterias_BroadcastJournal(void);
 

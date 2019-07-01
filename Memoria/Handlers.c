@@ -247,5 +247,5 @@ void HandleJournalOpcode(Socket* s, Packet* p)
     (void) s;
     (void) p;
 
-    API_Journal();
+    API_Journal(NULL);
 }

@@ -145,7 +145,7 @@ static inline MetricEvent GetEventFor(MemoryOps op)
     return evt;
 }
 
-void Criterias_Init(void)
+void Criterias_Init(PeriodicTimer* discoverTimer)
 {
     MemoryIPMap = hashmap_create();
 
@@ -168,11 +168,13 @@ void Criterias_Init(void)
     Criterias[CRITERIA_SHC] = (Criteria*) shc;
     Criterias[CRITERIA_EC] = (Criteria*) ec;
 
-    Criterias_Update();
+    Criterias_Update(discoverTimer);
 }
 
-void Criterias_Update(void)
+void Criterias_Update(PeriodicTimer* pt)
 {
+    PeriodicTimer_SetEnabled(pt, false);
+
     {
         // si la seed no esta porque se desconecto o es el gossip inicial o whatever, la agregamos a manopla
         if (!hashmap_has_key(MemoryIPMap, 0))
@@ -193,6 +195,8 @@ void Criterias_Update(void)
     // por ultimo el diccionario queda actualizado con los nuevos items
     hashmap_destroy_and_destroy_elements(MemoryIPMap, Free);
     MemoryIPMap = diff;
+
+    PeriodicTimer_SetEnabled(pt, true);
 }
 
 bool Criteria_MemoryExists(uint32_t memId)
@@ -250,8 +254,10 @@ void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value)
     pthread_mutex_unlock(&itr->CritLock);
 }
 
-void Criterias_Report(void)
+void Criterias_Report(PeriodicTimer* pt)
 {
+    (void) pt;
+
     static char const* const CRITERIA_NAMES[NUM_CRITERIA] =
     {
         "STRONG",

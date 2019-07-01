@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Threads.h>
+#include <Timer.h>
 
 typedef struct
 {
@@ -32,7 +33,6 @@ static pthread_rwlock_t GossipTableLock = PTHREAD_RWLOCK_INITIALIZER;
 // funcion para iterar la tabla y agregarlas al paquete
 static void _addToPacket(int memId, void* elem, void* packet);
 
-static atomic_bool GossipRunning = false;
 static void* _gossipWorkerTh(void*);
 
 typedef struct
@@ -93,7 +93,7 @@ static inline void _removeAndBlock(t_hashmap* blacklist, uint32_t memId)
     hashmap_put(blacklist, memId, NULL);
 }
 
-void Gossip_Init(void)
+void Gossip_Init(PeriodicTimer* gossipTimer)
 {
     size_t ipSize = Vector_size(&ConfigMemoria.IP_SEEDS);
     if (ipSize != Vector_size(&ConfigMemoria.PUERTO_SEEDS))
@@ -114,7 +114,7 @@ void Gossip_Init(void)
         _addToIPPortDict(GossipPeers, 0, ips[i], ports[i]);
     }
 
-    Gossip_Do();
+    Gossip_Do(gossipTimer);
 }
 
 void Gossip_AddMemory(uint32_t memId, char const* memIp, char const* memPort)
@@ -126,19 +126,12 @@ void Gossip_AddMemory(uint32_t memId, char const* memIp, char const* memPort)
     pthread_rwlock_unlock(&GossipTableLock);
 }
 
-void Gossip_Do(void)
+void Gossip_Do(PeriodicTimer* pt)
 {
-    // un solo gossip deberia correr a la vez
-    if (atomic_load(&GossipRunning))
-    {
-        LISSANDRA_LOG_INFO("GOSSIP: Ya hay un gossip en progreso!");
-        return;
-    }
-
-    atomic_store(&GossipRunning, true);
+    PeriodicTimer_SetEnabled(pt, false);
 
     // llamar al worker thread, porque el connect bloquearia el main thread de otra forma
-    Threads_CreateDetached(_gossipWorkerTh, NULL);
+    Threads_CreateDetached(_gossipWorkerTh, pt);
 }
 
 void Gossip_SendTable(Socket* peer)
@@ -319,10 +312,8 @@ static void _addNewGossipsToIterateList(int _, void* value)
     _addToIPPortDict(GossipPeers, peer->MemId, peer->IP, peer->Port);
 }
 
-static void* _gossipWorkerTh(void* _)
+static void* _gossipWorkerTh(void* pt)
 {
-    (void) _;
-
     LISSANDRA_LOG_INFO("GOSSIP: Iniciando gossiping...");
 
     // primero cualquier memoria que hayamos descubierto antes del gossiping (porque otra memoria nos gossipeo primero)
@@ -355,6 +346,6 @@ static void* _gossipWorkerTh(void* _)
     dictionary_destroy_and_destroy_elements(newDiscoveries, Free);
 
     // aviso que termine para que el siguiente pueda ejecutar
-    atomic_store(&GossipRunning, false);
+    PeriodicTimer_SetEnabled(pt, true);
     return NULL;
 }

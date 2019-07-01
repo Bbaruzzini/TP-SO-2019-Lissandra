@@ -482,6 +482,6 @@ bool HandleMetrics(Vector const* args)
         return false;
     }
 
-    Criterias_Report();
+    Criterias_Report(NULL);
     return true;
 }

@@ -189,5 +189,5 @@ void HandleJournal(Vector const* args)
         return;
     }
 
-    API_Journal();
+    API_Journal(NULL);
 }

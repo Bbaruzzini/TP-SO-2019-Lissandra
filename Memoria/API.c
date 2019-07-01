@@ -230,8 +230,10 @@ static void Journal_Register(void* dirtyFrame)
     Packet_Destroy(p);
 }
 
-void API_Journal(void)
+void API_Journal(PeriodicTimer* pt)
 {
+    (void) pt;
+
     LISSANDRA_LOG_DEBUG("JOURNAL");
     Memory_DoJournal(Journal_Register);
 }

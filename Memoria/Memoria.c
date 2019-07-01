@@ -223,7 +223,7 @@ int main(void)
     SetupConfigInitial(configFileName);
 
     StartMemory();
-    Gossip_Init();
+    Gossip_Init(GossipTimer);
 
     MainLoop();
 

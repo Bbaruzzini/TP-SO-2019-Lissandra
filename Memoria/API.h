@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <vector.h>
 
+typedef struct PeriodicTimer PeriodicTimer;
+
 typedef struct
 {
     char* tableName;
@@ -49,6 +51,6 @@ bool API_Describe(char const* tableName, Vector* results);
 // devuelve EXIT_FAILURE si la tabla no existe en el FS
 uint8_t API_Drop(char const* tableName);
 
-void API_Journal(void);
+void API_Journal(PeriodicTimer* pt);
 
 #endif //Memoria_API_h

@@ -103,6 +103,6 @@ static bool _readCb(void* periodicTimer)
     }
 
     for (uint64_t i = 0; pt->TimerEnabled && i < expiries; ++i)
-        pt->Callback();
+        pt->Callback(pt);
     return true;
 }

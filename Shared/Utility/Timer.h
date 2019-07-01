@@ -6,8 +6,10 @@
 #include <stdint.h>
 #include <time.h>
 
-typedef void TimerCallbackFnType(void);
-typedef struct
+typedef struct PeriodicTimer PeriodicTimer;
+
+typedef void TimerCallbackFnType(PeriodicTimer*);
+typedef struct PeriodicTimer
 {
     FDI _impl;
 

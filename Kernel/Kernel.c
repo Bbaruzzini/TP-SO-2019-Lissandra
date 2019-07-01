@@ -33,7 +33,9 @@ static Appender* consoleLog = NULL;
 static Appender* fileLog = NULL;
 
 static PeriodicTimer* DescribeTimer = NULL;
-static void PeriodicDescribe(void);
+static void PeriodicDescribe(PeriodicTimer*);
+
+static PeriodicTimer* DiscoverTimer = NULL;
 
 static void IniciarLogger(void)
 {
@@ -116,12 +118,13 @@ static void SetupConfigInitial(char const* fileName)
 
     // cada 10 segundos? no dice nada el enunciado asi que pongo arbitrariamente el intervalo
     // en fin, cada 10 segundos dije! se hace el discovery de memorias aka gossiping
-    EventDispatcher_AddFDI(PeriodicTimer_Create(DISCOVERY_INTERVAL, Criterias_Update));
+    DiscoverTimer = PeriodicTimer_Create(DISCOVERY_INTERVAL, Criterias_Update);
+    EventDispatcher_AddFDI(DiscoverTimer);
 }
 
 static void InitMemorySubsystem(void)
 {
-    Criterias_Init();
+    Criterias_Init(DiscoverTimer);
     Metadata_Init();
 }
 
@@ -163,8 +166,10 @@ int main(void)
     Cleanup();
 }
 
-static void PeriodicDescribe(void)
+static void PeriodicDescribe(PeriodicTimer* pt)
 {
+    (void) pt;
+
     // hago un describe global
     Vector args = string_n_split("DESCRIBE", 1, NULL);
 
