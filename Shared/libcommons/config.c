@@ -117,6 +117,30 @@ void config_set_value(t_config* self, char const* key, char const* value)
     dictionary_put(self->properties, key, duplicate_value);
 }
 
+void config_set_array_value(t_config* self, char const* key, Vector const* vec)
+{
+    if (Vector_empty(vec))
+    {
+        config_set_value(self, key, "[]");
+        return;
+    }
+
+    char* value = string_from_format("%s", "[");
+
+    size_t const begin = 0;
+    size_t const end = Vector_size(vec) - 1;
+
+    size_t i = 0;
+    char** const strings = Vector_data(vec);
+    for (i = begin; i < end; ++i)
+        string_append_with_format(&value, "%s,", strings[i]);
+    //last element
+    string_append_with_format(&value, "%s]", strings[i]);
+
+    config_remove_key(self, key);
+    dictionary_put(self->properties, key, value);
+}
+
 void config_remove_key(t_config* self, char const* key)
 {
     t_dictionary* dictionary = self->properties;

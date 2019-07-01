@@ -101,6 +101,12 @@ void config_destroy(t_config* config);
 void config_set_value(t_config*, char const* key, char const* value);
 
 /**
+* @NAME: config_set_array_value
+* @DESC: Setea el valor array en el archivo de config, a la key asociada.
+*/
+void config_set_array_value(t_config*, char const* key, Vector const* vec);
+
+/**
 * @NAME: config_remove_key
 * @DESC: Remueve la clave y su valor asociado del archivo de config.
 */
