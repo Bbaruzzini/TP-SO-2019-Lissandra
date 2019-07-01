@@ -40,6 +40,33 @@ PeriodicTimer* PeriodicTimer_Create(uint32_t intervalMS, TimerCallbackFnType* ca
     return pt;
 }
 
+void PeriodicTimer_SetEnabled(PeriodicTimer* pt, bool enable)
+{
+    if (pt->TimerEnabled == enable)
+        return;
+
+    if (!enable)
+    {
+        // disarm timer
+        struct itimerspec its = { 0 };
+        if (timerfd_settime(pt->Handle, 0, &its, NULL) < 0)
+            LISSANDRA_LOG_SYSERROR("timerfd_settime");
+    }
+    else
+    {
+        // rearm timer with old interval
+        struct itimerspec its =
+        {
+            .it_interval = pt->Interval,
+            .it_value = pt->Interval
+        };
+        if (timerfd_settime(pt->Handle, 0, &its, NULL))
+            LISSANDRA_LOG_SYSERROR("timerfd_settime");
+    }
+
+    pt->TimerEnabled = enable;
+}
+
 void PeriodicTimer_ReSetTimer(PeriodicTimer* pt, uint32_t newIntervalMS)
 {
     struct timespec const newInterval = MSToTimeSpec(newIntervalMS);
@@ -48,24 +75,12 @@ void PeriodicTimer_ReSetTimer(PeriodicTimer* pt, uint32_t newIntervalMS)
     if (!memcmp(&pt->Interval, &newInterval, sizeof(struct timespec)))
         return;
 
-    // disarm timer
-    struct itimerspec its = { 0 };
-    if (timerfd_settime(pt->Handle, 0, &its, NULL) < 0)
-    {
-        LISSANDRA_LOG_SYSERROR("timerfd_settime");
-        return;
-    }
+    // disable timer
+    PeriodicTimer_SetEnabled(pt, false);
 
-    // rearm timer with new interval
-    its.it_interval = newInterval;
-    its.it_value = newInterval;
-    if (timerfd_settime(pt->Handle, 0, &its, NULL) < 0)
-    {
-        LISSANDRA_LOG_SYSERROR("timerfd_settime");
-        return;
-    }
-
+    // enable timer with new interval
     pt->Interval = newInterval;
+    PeriodicTimer_SetEnabled(pt, true);
 }
 
 void PeriodicTimer_Destroy(void* timer)
@@ -87,7 +102,7 @@ static bool _readCb(void* periodicTimer)
         return true;
     }
 
-    for (uint64_t i = 0; i < expiries; ++i)
+    for (uint64_t i = 0; pt->TimerEnabled && i < expiries; ++i)
         pt->Callback();
     return true;
 }

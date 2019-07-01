@@ -13,10 +13,14 @@ typedef struct
 
     struct timespec Interval;
     TimerCallbackFnType* Callback;
+    bool TimerEnabled;
 } PeriodicTimer;
 
 // Crea un nuevo timer: intervalo en milisegundos, y funcion de llamada cuando el mismo expire
 PeriodicTimer* PeriodicTimer_Create(uint32_t intervalMS, TimerCallbackFnType* callback);
+
+// activa o desactiva el timer
+void PeriodicTimer_SetEnabled(PeriodicTimer* pt, bool enable);
 
 // cambia el intervalo de tiempo
 void PeriodicTimer_ReSetTimer(PeriodicTimer* pt, uint32_t newIntervalMS);
