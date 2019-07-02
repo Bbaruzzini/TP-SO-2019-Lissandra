@@ -247,6 +247,9 @@ bool buscarBloqueLibre(size_t* bloqueLibre)
         return false;
 
     *bloqueLibre = i;
+
+    // marca el bloque como ocupado
+    escribirValorBitarray(true, i);
     return true;
 }
 

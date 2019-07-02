@@ -130,7 +130,6 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
     }
 
     return registroMayor;
-
 }
 
 int delete_elem_memtable(char const* nombreTabla)
@@ -152,54 +151,39 @@ int delete_elem_memtable(char const* nombreTabla)
     }
 
     return -1;
-
 }
 
-void dump(){
-
+void dump(void)
+{
     //Aca debería bloquear esto?
     size_t cantTablas = Vector_size(&memtable);
     //Hasta aca?
-    t_elem_memtable* elemento;
-    t_registro* registro;
-    FILE* temporal;
-    char* table;
-    char pathTable[PATH_MAX];
-    char pathBloque[PATH_MAX];
-    char pathTemporal[PATH_MAX];
-    char buffer[1024];
 
     //Itera tantas veces como tablas contó que había en ese momento en la memtable
-    size_t bloqueLibre;
-    size_t i = 0;
-    while (i < cantTablas){
-
-        elemento = Vector_at(&memtable, i);
-        table = elemento->nombreTabla;
-        snprintf(pathTable, PATH_MAX,  "%sTables/%s", confLFS.PUNTO_MONTAJE, table);
-        if(!existeDir(pathTable))
+    for (size_t i = 0; i < cantTablas; ++i)
+    {
+        t_elem_memtable* elemento = Vector_at(&memtable, i);
+        char* table = elemento->nombreTabla;
+        char pathTable[PATH_MAX];
+        snprintf(pathTable, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, table);
+        if (!existeDir(pathTable))
         {
             LISSANDRA_LOG_ERROR("La tabla hallada en la memtable no se encuentra en el File System...Esto no deberia estar pasando");
-            ++i;
             continue;
         }
-        //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
-        size_t j = 0;
-        snprintf(pathTemporal, PATH_MAX,  "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, table, j);
-        while(existeArchivo(pathTemporal))
-        {
-            ++j;
-            snprintf(pathTemporal, PATH_MAX,  "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, table, j);
-        }
 
+        //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
+        char pathTemporal[PATH_MAX];
+        for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, table, j), existeArchivo(pathTemporal); ++j);
+
+        size_t bloqueLibre;
         if (!buscarBloqueLibre(&bloqueLibre))
         {
             LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando dump");
             return;
         }
-        escribirValorBitarray(true, bloqueLibre);
 
-        temporal = fopen(pathTemporal, "a");
+        FILE* temporal = fopen(pathTemporal, "w");
         fprintf(temporal, "SIZE=0\n");
         fprintf(temporal, "BLOCKS=[%d]\n", bloqueLibre);
         fclose(temporal);
@@ -208,55 +192,61 @@ void dump(){
         //Aca deberia bloquear esto?
         size_t cantRegistros = Vector_size(&elemento->registros);
         //Hasta aca?
-        size_t k = 0;
         size_t sizeTotal = 0;
-        size_t totalRegistros = 0;
         int offset = 0;
-        int resEscritura;
-        while(k < cantRegistros)
+        for (size_t k = 0; k < cantRegistros; ++k)
         {
-            registro = Vector_at(&elemento->registros, k);
+            t_registro* registro = Vector_at(&elemento->registros, k);
+            char buffer[1024];
             snprintf(buffer, 1024, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
             size_t tamanioRegistro = strlen(buffer);
+            char pathBloque[PATH_MAX];
             generarPathBloque(bloqueLibre, pathBloque);
-            if(tamanioRegistro <= espacioDisponible)
+            if (tamanioRegistro <= espacioDisponible)
             {
                 //Escribir registro
-                resEscritura = escribirBloque(pathBloque, tamanioRegistro, buffer, offset);
-                if(resEscritura == EXIT_FAILURE){
+                if (!escribirBloque(pathBloque, tamanioRegistro, buffer, offset))
+                {
                     LISSANDRA_LOG_ERROR("Se produjo un error al intentar escribir el bloque");
-                    ++k;
                     continue;
                 }
                 espacioDisponible = espacioDisponible - tamanioRegistro;
-            } else {
+            }
+            else
+            {
                 //Tengo que agarrar un nuevo bloque libre, escribir lo que puedo del registro en lo que me quedo del otro bloque y el resto en el nuevo
-                int cantBloques = (tamanioRegistro-espacioDisponible)/confLFS.TAMANIO_BLOQUES;
-                if((tamanioRegistro-espacioDisponible)%confLFS.TAMANIO_BLOQUES != 0){
+                int cantBloques = (tamanioRegistro - espacioDisponible) / confLFS.TAMANIO_BLOQUES;
+                if ((tamanioRegistro - espacioDisponible) % confLFS.TAMANIO_BLOQUES != 0)
                     ++cantBloques;
-                }
+
                 //TODO:validar si hay suficientes bloques libres y si no hay abortar dump
-                resEscritura = escribirBloque(pathBloque, espacioDisponible, buffer, offset); //el buffer tiene que tener solo la porcion que se puede escribir en ese espacio disponible
-                if(resEscritura == EXIT_FAILURE){
+                //el buffer tiene que tener solo la porcion que se puede escribir en ese espacio disponible
+                if (!escribirBloque(pathBloque, espacioDisponible, buffer, offset))
+                {
                     LISSANDRA_LOG_ERROR("Se produjo un error al intentar escribir el bloque");
-                    ++k;
                     continue;
                 }
+
                 snprintf(buffer, 1024, "%s", (buffer + espacioDisponible));
                 espacioDisponible = confLFS.TAMANIO_BLOQUES;
-                for(int a = 0; a < cantBloques; ++a){
+                for (int a = 0; a < cantBloques; ++a)
+                {
                     bloqueLibre = reservarNuevoBloqueLibre(pathTemporal);
                     generarPathBloque(bloqueLibre, pathBloque);
-                    if(strlen(buffer) > confLFS.TAMANIO_BLOQUES){
-                        resEscritura = escribirBloque(pathBloque, confLFS.TAMANIO_BLOQUES, buffer, 0);
-                        if(resEscritura == EXIT_FAILURE){
+                    if (strlen(buffer) > confLFS.TAMANIO_BLOQUES)
+                    {
+                        if (!escribirBloque(pathBloque, confLFS.TAMANIO_BLOQUES, buffer, 0))
+                        {
                             LISSANDRA_LOG_ERROR("Se produjo un error al intentar escribir el bloque");
                             continue;
                         }
                         snprintf(buffer, 1024, "%s", (buffer + espacioDisponible));
-                    } else {
-                        resEscritura = escribirBloque(pathBloque, strlen(buffer), buffer, 0);//el buffer tiene que tener solo la porcion que me falta escribir
-                        if(resEscritura == EXIT_FAILURE){
+                    }
+                    else
+                    {
+                        //el buffer tiene que tener solo la porcion que me falta escribir
+                        if (!escribirBloque(pathBloque, strlen(buffer), buffer, 0))
+                        {
                             LISSANDRA_LOG_ERROR("Se produjo un error al intentar escribir el bloque");
                             continue;
                         }
@@ -265,70 +255,71 @@ void dump(){
                 }
                 offset = strlen(buffer) - tamanioRegistro;
             }
-            offset = offset + tamanioRegistro ;
+            offset = offset + tamanioRegistro;
             sizeTotal = sizeTotal + tamanioRegistro;
-            ++totalRegistros;
-            ++k;
         }
 
-        //Borrar de la memtable la cantidad de registros totalRegistros (para la tabla correspondiente)
-        Vector_erase_range(&elemento->registros, 0, (totalRegistros));
+        //Borrar de la memtable los registros (para la tabla correspondiente)
+        Vector_clear(&elemento->registros);
         //Anotar en el .tmp el size total
         cambiarSize(pathTemporal, sizeTotal);
-
-        ++i;
     }
-
 }
 
-int escribirBloque(char* pathBloque, size_t tamanioRegistro, char* buffer, int offset){
-    int fd = open(pathBloque, O_RDWR | O_CREAT, S_IRWXU);
-    if(fd == -1){
+bool escribirBloque(char* pathBloque, size_t tamanioRegistro, char* buffer, int offset)
+{
+    int fd = open(pathBloque, O_RDWR);
+    if (fd == -1)
+    {
+        LISSANDRA_LOG_SYSERROR("open");
         LISSANDRA_LOG_ERROR("Se produjo un error al intentar abrir el archivo %s", pathBloque);
-        return EXIT_FAILURE;
+        return false;
     }
-    lseek(fd, (offset+tamanioRegistro-1), SEEK_SET);
-    write(fd, "", 1);
-    char* map = mmap(0, (offset + tamanioRegistro), PROT_READ | PROT_WRITE, MAP_SHARED, fd, SEEK_SET);
-    if (map == MAP_FAILED) {
-        close(fd);
+    //lseek(fd, (offset + tamanioRegistro - 1), SEEK_SET);
+    //write(fd, "", 1);
+    uint8_t* map = mmap(NULL, (offset + tamanioRegistro), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd); // el fd puede ser cerrado y no invalida el mapeo
+
+    if (map == MAP_FAILED)
+    {
+        LISSANDRA_LOG_SYSERROR("mmap");
         LISSANDRA_LOG_ERROR("Error haciendo el mapping");
-        return EXIT_FAILURE;
+        return false;
     }
     strcat(map, buffer);
     //memcpy(map, buffer, tamanioRegistro);
     //strcpy(map + offset, buffer);
-    msync(map, tamanioRegistro, MS_SYNC);
     munmap(map, tamanioRegistro);
-    close(fd);
-    return EXIT_SUCCESS;
+
+    return true;
 }
 
-void generarPathBloque(int numBloque, char* buf){
-    snprintf(buf, PATH_MAX,  "%sBloques/%d.bin", confLFS.PUNTO_MONTAJE, numBloque);
+void generarPathBloque(int numBloque, char* buf)
+{
+    snprintf(buf, PATH_MAX, "%sBloques/%d.bin", confLFS.PUNTO_MONTAJE, numBloque);
 }
 
 //Revisar esta
-size_t reservarNuevoBloqueLibre(char* pathArchivo){
+size_t reservarNuevoBloqueLibre(char* pathArchivo)
+{
     size_t bloqueLibre;
-    if(!buscarBloqueLibre(&bloqueLibre))
+    if (!buscarBloqueLibre(&bloqueLibre))
         return false;
-
-    escribirValorBitarray(true, bloqueLibre);
 
     t_config* c = config_create(pathArchivo);
     char bloques[1024];
-    size_t length = strlen(config_get_string_value(c, "BLOCKS"))-1;
+    size_t length = strlen(config_get_string_value(c, "BLOCKS")) - 1;
     snprintf(bloques, 1024, "%*.*s,%d]", length, length, config_get_string_value(c, "BLOCKS"), bloqueLibre);
 
-    config_set_value(c,"BLOCKS", bloques);
+    config_set_value(c, "BLOCKS", bloques);
     config_save(c);
     config_destroy(c);
 
     return bloqueLibre;
 }
 
-void cambiarSize(char* pathArchivo, size_t newSize){
+void cambiarSize(char* pathArchivo, size_t newSize)
+{
     char newTamanio[10];
     snprintf(newTamanio, 10, "%d", newSize);
     t_config* c = config_create(pathArchivo);

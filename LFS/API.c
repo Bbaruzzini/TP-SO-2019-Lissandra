@@ -109,8 +109,6 @@ uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroP
 
                 }
 
-                escribirValorBitarray(true, bloqueLibre);
-
                 {
                     FILE* particion = fopen(pathParticion, "a");
                     fprintf(particion, "SIZE=0\n");

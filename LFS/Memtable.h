@@ -52,8 +52,8 @@ t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t k
 //Funcion para eliminar un elemento de la memtable
 int delete_elem_memtable(char const* nombreTabla);
 
-void dump();
-int escribirBloque(char* pathBloque, size_t tamanioRegistro, char* buffer, int offset);
+void dump(void);
+bool escribirBloque(char* pathBloque, size_t tamanioRegistro, char* buffer, int offset);
 void generarPathBloque(int numBloque, char* buf);
 size_t reservarNuevoBloqueLibre(char* pathArchivo);
 void cambiarSize(char* pathArchivo, size_t newSize);
