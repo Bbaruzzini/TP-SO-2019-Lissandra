@@ -42,17 +42,9 @@ uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t 
     */
 
     //Verifica si hay datos a dumpear, y si no existen aloca memoria
-    if (!hayDump(nombreTabla))
-    {
-        t_elem_memtable* newElem = new_elem_memtable(nombreTabla);
-        insert_new_in_memtable(newElem);
-    }
-
-    t_registro* newReg = new_elem_registro(key, value, timestamp);
-    insert_new_in_registros(nombreTabla, newReg);
+    new_elem_memtable(nombreTabla, key, value, timestamp);
 
     LISSANDRA_LOG_INFO("Se inserto un nuevo registro en la tabla %s", nombreTabla);
-
     return EXIT_SUCCESS;
 }
 
@@ -149,18 +141,14 @@ uint8_t api_drop(char* nombreTabla)
     }
 
     t_elem_memtable* elemento = memtable_get(nombreTabla);
-
-    if (elemento != NULL)
+    if (!elemento)
     {
-        //Se elimina la memtable de la tabla
-        int resMemtable = delete_elem_memtable(nombreTabla);
-
-        if (resMemtable != 0)
-        {
-            LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar de la memtable la tabla: %s", nombreTabla);
-            return EXIT_FAILURE;
-        }
+        LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar de la memtable la tabla: %s", nombreTabla);
+        return EXIT_FAILURE;
     }
+
+    //Se elimina la memtable de la tabla
+    delete_elem_memtable(nombreTabla);
 
     //Se eliminan los archivos de la tabla
     int resultado = traverse_to_drop(pathAbsoluto, nombreTabla);

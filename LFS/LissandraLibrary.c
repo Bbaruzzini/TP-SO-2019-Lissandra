@@ -11,6 +11,7 @@
 #include <Console.h>
 #include <dirent.h>
 #include <EventDispatcher.h>
+#include <fcntl.h>
 #include <File.h>
 #include <libcommons/config.h>
 #include <libcommons/string.h>
@@ -21,6 +22,7 @@
 #include <Socket.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <Threads.h>
 #include <unistd.h>
@@ -253,6 +255,11 @@ bool buscarBloqueLibre(size_t* bloqueLibre)
     return true;
 }
 
+void generarPathBloque(size_t numBloque, char* buf)
+{
+    snprintf(buf, PATH_MAX, "%sBloques/%d.bin", confLFS.PUNTO_MONTAJE, numBloque);
+}
+
 void escribirValorBitarray(bool valor, int pos)
 {
 
@@ -480,5 +487,96 @@ int traverse_to_drop(char const* fn, char const* nombreTabla)
 
     closedir(dir);
     return 0;
+}
 
+void escribirArchivoLFS(char const* path, void const* buf, size_t len)
+{
+    t_config* file = config_create(path);
+    if (!file)
+        return;
+
+    size_t oldSize = config_get_long_value(file, "SIZE");
+    Vector blocks = config_get_array_value(file, "BLOCKS");
+
+    // el archivo ocupa actualmente N bloques, calcular espacio restante en el ultimo bloque
+    size_t remaining = Vector_size(&blocks) * confLFS.TAMANIO_BLOQUES - oldSize;
+
+    // calcular cuantos bloques nuevos se requieren
+    size_t blocksNeeded = 0;
+    if (len > remaining)
+    {
+        blocksNeeded = (len - remaining) / confLFS.TAMANIO_BLOQUES;
+        if ((len - remaining) % confLFS.TAMANIO_BLOQUES)
+            ++blocksNeeded;
+    }
+
+    // guardar bloques nuevos
+    for (size_t i = 0; i < blocksNeeded; ++i)
+    {
+        size_t bloque;
+        if (!buscarBloqueLibre(&bloque))
+        {
+            LISSANDRA_LOG_FATAL("No hay más bloques disponibles en el FS!");
+            exit(EXIT_FAILURE);
+        }
+
+        char* blockNum = string_from_format("%u", bloque);
+        Vector_push_back(&blocks, &blockNum);
+    }
+
+    // calcular nuevo tamaño, bytes
+    char* newSize = string_from_format("%u", oldSize + len);
+
+    // listo, ya el archivo tiene los bloques suficientes, escribamos bloque a bloque
+    // comenzando por el ultimo viejo
+    size_t writeLength = remaining;
+    if (len < remaining)
+        writeLength = len;
+
+    char** const blockArray = Vector_data(&blocks);
+
+    size_t offset = confLFS.TAMANIO_BLOQUES - remaining; // en donde debo pararme en el ultimo bloque viejo
+    for (size_t i = oldSize / confLFS.TAMANIO_BLOQUES; i < Vector_size(&blocks); ++i)
+    {
+        size_t const blockNum = strtoul(blockArray[i], NULL, 10);
+
+        char pathBloque[PATH_MAX];
+        generarPathBloque(blockNum, pathBloque);
+
+        int fd = open(pathBloque, O_RDWR);
+        if (fd == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("open");
+            exit(EXIT_FAILURE);
+        }
+
+        uint8_t* mapping = mmap(NULL, confLFS.TAMANIO_BLOQUES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (mapping == MAP_FAILED)
+        {
+            LISSANDRA_LOG_SYSERROR("mmap");
+            exit(EXIT_FAILURE);
+        }
+
+        memcpy(mapping + offset, buf, writeLength);
+        buf = (uint8_t const*) buf + writeLength;
+        len -= writeLength;
+
+        munmap(mapping, confLFS.TAMANIO_BLOQUES);
+        close(fd);
+
+        // los proximos bloques estan vacios
+        offset = 0;
+        writeLength = confLFS.TAMANIO_BLOQUES;
+        if (len < confLFS.TAMANIO_BLOQUES)
+            writeLength = len;
+    }
+
+    config_set_value(file, "SIZE", newSize);
+    Free(newSize);
+
+    config_set_array_value(file, "BLOCKS", &blocks);
+    Vector_Destruct(&blocks);
+
+    config_save(file);
+    config_destroy(file);
 }

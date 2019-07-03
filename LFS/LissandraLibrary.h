@@ -30,6 +30,8 @@ void generarPathTabla(char* nombreTabla, char* buf);
 
 bool buscarBloqueLibre(size_t* bloqueLibre);
 
+void generarPathBloque(size_t numBloque, char* buf);
+
 void escribirValorBitarray(bool valor, int pos);
 
 t_describe* get_table_metadata(char const* path, char const* tabla);
@@ -47,6 +49,9 @@ void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char
 void borrarArchivo(char const* nombreTabla, char const* nombreArchivo);
 
 int traverse_to_drop(char const* fn, char const* nombreTabla);
+
+// primitivas FS
+void escribirArchivoLFS(char const* path, void const* buf, size_t len);
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
