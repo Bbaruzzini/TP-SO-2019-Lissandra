@@ -4,6 +4,9 @@ project(Lissandra C)
 # necesario ya que CMAKE_C_STANDARD pone el flag de gnu11 en lugar de c11
 add_compile_options(-std=c11)
 
+# dame warnings baby
+add_compile_options(-Wall -Wextra -Wstrict-prototypes -pedantic)
+
 # para algunas funciones POSIX
 add_definitions(-D_DEFAULT_SOURCE)
 
@@ -28,19 +31,10 @@ add_executable(LFS ${LFS_SRCS})
 file(GLOB MEM_SRCS Memoria/*.c Memoria/*.h)
 add_executable(Memoria ${MEM_SRCS})
 
-# dame warnings baby
-add_library(warnings-interface INTERFACE)
-target_compile_options(warnings-interface
-        INTERFACE
-        -Wall
-        -Wextra
-        -Wstrict-prototypes
-        -pedantic)
-
-target_link_libraries(shared pthread readline warnings-interface)
-target_link_libraries(Kernel shared warnings-interface)
-target_link_libraries(LFS shared warnings-interface)
-target_link_libraries(Memoria shared warnings-interface)
+target_link_libraries(shared pthread readline)
+target_link_libraries(Kernel shared)
+target_link_libraries(LFS shared)
+target_link_libraries(Memoria shared)
 
 add_custom_command(TARGET Kernel
         POST_BUILD
