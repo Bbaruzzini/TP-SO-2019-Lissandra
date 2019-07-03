@@ -260,18 +260,12 @@ void generarPathBloque(size_t numBloque, char* buf)
     snprintf(buf, PATH_MAX, "%sBloques/%d.bin", confLFS.PUNTO_MONTAJE, numBloque);
 }
 
-void escribirValorBitarray(bool valor, int pos)
+void escribirValorBitarray(bool valor, size_t pos)
 {
-
     if (valor)
         bitarray_set_bit(bitArray, pos);
     else
         bitarray_clean_bit(bitArray, pos);
-
-    FILE* bitmap = fopen(pathMetadataBitarray, "w");
-    fwrite(bitArray->bitarray, 1, bitArray->size, bitmap);
-    fclose(bitmap);
-
 }
 
 t_describe* get_table_metadata(char const* path, char const* tabla)

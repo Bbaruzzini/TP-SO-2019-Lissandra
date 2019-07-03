@@ -32,7 +32,7 @@ bool buscarBloqueLibre(size_t* bloqueLibre);
 
 void generarPathBloque(size_t numBloque, char* buf);
 
-void escribirValorBitarray(bool valor, int pos);
+void escribirValorBitarray(bool valor, size_t pos);
 
 t_describe* get_table_metadata(char const* path, char const* tabla);
 

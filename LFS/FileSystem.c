@@ -2,16 +2,22 @@
 #include "FileSystem.h"
 #include "Config.h"
 #include "LissandraLibrary.h"
+#include <fcntl.h>
 #include <libcommons/config.h>
 #include <Logger.h>
 #include <Malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 char pathMetadataBitarray[PATH_MAX] = { 0 };
 
 t_bitarray* bitArray = NULL;
+
+static uint8_t* bitmap = NULL;
+static size_t sizeBitArray = 0;
 
 void iniciarFileSystem(void)
 {
@@ -58,38 +64,48 @@ void iniciarFileSystem(void)
         fclose(metadata);
     }
 
-    size_t sizeBitArray;
-    uint8_t* data;
+    sizeBitArray = confLFS.CANTIDAD_BLOQUES / 8;
+    if (confLFS.CANTIDAD_BLOQUES % 8)
+        ++sizeBitArray;
 
     snprintf(pathMetadataBitarray, PATH_MAX, "%s/Bitmap.bin", pathMetadata);
-    if (existeArchivo(pathMetadataBitarray))
+
+    // abrir
+    int fd = open(pathMetadataBitarray, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (fd == -1)
     {
-        FILE* bitmap = fopen(pathMetadataBitarray, "rb");
-
-        struct stat stats;
-        fstat(fileno(bitmap), &stats);
-
-        sizeBitArray = stats.st_size;
-        data = Malloc(stats.st_size);
-        fread(data, 1, stats.st_size, bitmap);
-
-        fclose(bitmap);
-    }
-    else
-    {
-        sizeBitArray = confLFS.CANTIDAD_BLOQUES / 8;
-        if (confLFS.CANTIDAD_BLOQUES % 8)
-            ++sizeBitArray;
-
-        data = Calloc(sizeBitArray, 1);
-
-        FILE* bitmap = fopen(pathMetadataBitarray, "w");
-        fwrite(data, 1, sizeBitArray, bitmap);
-        fclose(bitmap);
+        LISSANDRA_LOG_SYSERROR("open");
+        exit(EXIT_FAILURE);
     }
 
-    bitArray = bitarray_create_with_mode(data, sizeBitArray, LSB_FIRST);
+    struct stat stats;
+    if (fstat(fd, &stats) == -1)
+    {
+        LISSANDRA_LOG_SYSERROR("fstat");
+        exit(EXIT_FAILURE);
+    }
 
+    size_t const fileSize = stats.st_size;
+    if (fileSize != sizeBitArray)
+    {
+        LISSANDRA_LOG_ERROR("Bitmap.bin no tiene el tamaño correcto (%u bytes, esperaba %u). Corrigiendo...", fileSize, sizeBitArray);
+        if (ftruncate(fd, sizeBitArray) == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("ftruncate");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    bitmap = mmap(NULL, sizeBitArray, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (bitmap == MAP_FAILED)
+    {
+        LISSANDRA_LOG_SYSERROR("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    close(fd);
+
+    bitArray = bitarray_create_with_mode(bitmap, sizeBitArray, LSB_FIRST);
     if (dirIsEmpty(pathBloques))
     {
         for (size_t j = 0; j < confLFS.CANTIDAD_BLOQUES; ++j)
@@ -114,25 +130,8 @@ void iniciarFileSystem(void)
     LISSANDRA_LOG_TRACE("Se finalizo la creacion del File System");
 }
 
-/*
-char* generarPathBloque(int num_bloque){
-    char* path_bloque = string_new();
-    string_append(&path_bloque, confLFS.PUNTO_MONTAJE);
-    string_append(&path_bloque, "Bloques/");
-    string_append(&path_bloque, string_itoa(num_bloque));
-    string_append(&path_bloque, ".bin");
-
-    return path_bloque;
+void terminarFileSystem(void)
+{
+    bitarray_destroy(bitArray);
+    munmap(bitmap, sizeBitArray);
 }
-*/
-/*
-int cantidadBloques(char** bloques){
-    int j = 0;
-
-    while(bloques[j] != NULL)
-        j++;
-
-    return j;
-}
-
-*/

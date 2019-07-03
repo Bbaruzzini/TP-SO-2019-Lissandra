@@ -240,4 +240,5 @@ int main(void)
     //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
     // limpieza
     EventDispatcher_Terminate();
+    terminarFileSystem();
 }

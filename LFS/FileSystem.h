@@ -22,5 +22,6 @@ extern t_bitarray* bitArray;
 
 void iniciarFileSystem(void);
 
+void terminarFileSystem(void);
 
 #endif //LISSANDRA_FILESYSTEM_H
