@@ -37,6 +37,7 @@ PeriodicTimer* PeriodicTimer_Create(uint32_t intervalMS, TimerCallbackFnType* ca
 
     pt->Interval = interval;
     pt->Callback = callback;
+    pt->TimerEnabled = true;
     return pt;
 }
 
