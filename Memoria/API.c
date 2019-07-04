@@ -206,11 +206,10 @@ static void Journal_Register(void* dirtyFrame)
     Packet_Append(p, df->TableName);
     Packet_Append(p, df->Key);
 
-    char* value = Malloc(maxValueLength + 1);
+    char value[maxValueLength + 1];
     *value = '\0';
     strncat(value, df->Value, maxValueLength);
     Packet_Append(p, value);
-    Free(value);
 
     Packet_Append(p, df->Timestamp);
 

@@ -331,12 +331,11 @@ static void _string_append_with_format_list(const char* format, char** original,
     size_t buffer_size = vsnprintf(NULL, 0, format, copy_arguments) + 1;
     va_end(copy_arguments);
 
-    char* temporal = Malloc(buffer_size);
+    char temporal[buffer_size];
     va_copy(copy_arguments, arguments);
     vsnprintf(temporal, buffer_size, format, copy_arguments);
     va_end(copy_arguments);
     string_append(original, temporal);
-    Free(temporal);
 }
 
 static bool _is_last_token(char const* next, size_t index, size_t _)

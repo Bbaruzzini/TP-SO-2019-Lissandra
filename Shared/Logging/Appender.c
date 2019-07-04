@@ -38,10 +38,9 @@ void Appender_Write(Appender* appender, LogMessage* message)
     message->Prefix = string_new();
     if (appender->Flags & APPENDER_FLAGS_PREFIX_TIMESTAMP)
     {
-        char* timestamp;
-        LogMessage_GetTimeStr(message, &timestamp);
+        char timestamp[23 + 1];
+        LogMessage_GetTimeStr(message, timestamp);
         string_append_with_format(&message->Prefix, "[%s] ", timestamp);
-        Free(timestamp);
     }
 
     if (appender->Flags & APPENDER_FLAGS_PREFIX_LOGLEVEL)

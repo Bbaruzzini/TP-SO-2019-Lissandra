@@ -119,7 +119,7 @@ void* CliThread(void* param)
 static void AtenderComando(char const* command)
 {
     size_t spc = strcspn(command, " ");
-    char* cmd = Malloc(spc + 1);
+    char cmd[spc + 1];
     strncpy(cmd, command, spc + 1);
     cmd[spc] = '\0';
 
@@ -134,5 +134,4 @@ static void AtenderComando(char const* command)
     }
 
     Vector_Destruct(&args);
-    Free(cmd);
 }

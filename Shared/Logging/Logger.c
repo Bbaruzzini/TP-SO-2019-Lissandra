@@ -20,12 +20,9 @@ void Logger_Init(LogLevel level)
     sLogger.Level = level;
     Vector_Construct(&sLogger.Appenders, sizeof(Appender*), _vectorFreeFn, 0);
 
-    char* timestamp;
     struct timespec time;
     timespec_get(&time, TIME_UTC);
-    GetTimeStr(&time, &timestamp);
-    sLogger.TimeStampStr = string_from_format("%s", timestamp);
-    Free(timestamp);
+    GetTimeStr(&time, sLogger.TimeStampStr);
 }
 
 void Logger_AddAppender(Appender* appender)
@@ -89,6 +86,5 @@ char const* Logger_GetLogTimeStampStr(void)
 
 void Logger_Terminate(void)
 {
-    Free(sLogger.TimeStampStr);
     Vector_Destruct(&sLogger.Appenders);
 }

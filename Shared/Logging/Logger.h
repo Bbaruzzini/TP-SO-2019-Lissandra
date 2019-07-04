@@ -15,7 +15,7 @@ typedef struct
 {
     LogLevel Level;
     Vector Appenders;
-    char* TimeStampStr;
+    char TimeStampStr[23 + 1];
 } Logger;
 
 void Logger_Init(LogLevel level);

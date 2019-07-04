@@ -84,7 +84,7 @@ static bool _parseCommand(char const* command)
     // copy pasteo horrible de Console.c pero no se me ocurre como evitar la duplicacion codigo
     // ya que LFS y Memoria van a usar los handler de consola directamente, sin pasar por un runner como en este caso
     size_t spc = strcspn(command, " ");
-    char* cmd = Malloc(spc + 1);
+    char cmd[spc + 1];
     strncpy(cmd, command, spc + 1);
     cmd[spc] = '\0';
 
@@ -102,7 +102,6 @@ static bool _parseCommand(char const* command)
     }
 
     Vector_Destruct(&args);
-    Free(cmd);
     return res;
 }
 

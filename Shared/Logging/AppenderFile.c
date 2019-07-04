@@ -78,12 +78,14 @@ static FILE* _openFile(AppenderFile* appender, char const* name, char const* mod
         _closeFile(appender);
 
         char* newName = string_duplicate(name);
-        char* timeStr;
-        struct timespec time;
-        timespec_get(&time, TIME_UTC);
-        GetTimeStr(&time, &timeStr);
-        string_append_with_format(&newName, ".%s", timeStr);
-        Free(timeStr);
+        {
+            char timeStr[23 + 1];
+            struct timespec time;
+            timespec_get(&time, TIME_UTC);
+            GetTimeStr(&time, timeStr);
+            string_append_with_format(&newName, ".%s", timeStr);
+        }
+
         string_replace(newName, ':', '-');
         rename(name, newName);
         Free(newName);

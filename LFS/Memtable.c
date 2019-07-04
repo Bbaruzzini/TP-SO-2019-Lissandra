@@ -98,12 +98,10 @@ static void _dump_element(void* element, void* path)
     char const* pathTemporal = path;
 
     size_t len = snprintf(NULL, 0, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
-    char* field = Malloc(len + 1);
+    char field[len + 1];
     snprintf(field, len + 1, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
 
     escribirArchivoLFS(pathTemporal, field, len);
-
-    Free(field);
 }
 
 static void _dump_table(char const* key, void* element)
