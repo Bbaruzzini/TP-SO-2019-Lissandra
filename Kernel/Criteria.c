@@ -49,7 +49,7 @@ static void _disconnectMemory(uint32_t memId);
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
 typedef Memory* GetMemFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
-typedef void ReportFnType(void const* criteria, ReportType report);
+typedef void MemoryLoadFnType(void const* criteria, double* total);
 typedef void DestroyFnType(void* criteria);
 
 typedef struct
@@ -59,7 +59,7 @@ typedef struct
 
     AddMemoryFnType* AddMemoryFn;
     GetMemFnType* GetMemFn;
-    ReportFnType* ReportFn;
+    MemoryLoadFnType* ReportFn;
     DestroyFnType* DestroyFn;
 } Criteria;
 
@@ -98,7 +98,7 @@ static inline uint16_t keyHash(uint16_t key)
     return hash;
 }
 
-static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer);
+static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, MemoryLoadFnType* memloader, DestroyFnType* destroyer);
 static void _destroy_mem(void* elem);
 static void _destroy_mem_array(void* pElem);
 static void _destroy(Criteria* criteria);
@@ -111,38 +111,37 @@ static GetMemFnType _sc_get;
 static GetMemFnType _shc_get;
 static GetMemFnType _ec_get;
 
-static ReportFnType _sc_report;
-static ReportFnType _shc_report;
-static ReportFnType _ec_report;
+static MemoryLoadFnType _sc_report;
+static MemoryLoadFnType _shc_report;
+static MemoryLoadFnType _ec_report;
 
 static DestroyFnType _sc_destroy;
 static DestroyFnType _shc_destroy;
 static DestroyFnType _ec_destroy;
 
 static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
-static void _report_one(Memory* mem, ReportType rt);
-static void _shc_report_one(void* pElem, void* rt);
-static void _ec_report_one(void* elem, void* rt);
+static void _report_one(Memory* mem, double const* total);
+static void _shc_report_one(void* pElem, void* total);
+static void _ec_report_one(void* elem, void* total);
 
 static Criteria* Criterias[NUM_CRITERIA] = { 0 };
 static t_hashmap* MemoryIPMap = NULL;
 
-static inline MetricEvent GetEventFor(MemoryOps op)
+static inline bool GetEventFor(MemoryOps op, MetricEvent* result)
 {
-    MetricEvent evt;
     switch (op)
     {
         case OP_SELECT:
-            evt = EVT_MEM_READ;
+            *result = EVT_MEM_READ;
             break;
         case OP_INSERT:
-            evt = EVT_MEM_WRITE;
+            *result = EVT_MEM_WRITE;
             break;
         default:
-            evt = EVT_MEM_OP;
-            break;
+            return false;
     }
-    return evt;
+
+    return true;
 }
 
 void Criterias_Init(PeriodicTimer* discoverTimer)
@@ -273,14 +272,12 @@ void Criterias_Report(PeriodicTimer* pt)
         Criteria* itr = Criterias[type];
         pthread_mutex_lock(&itr->CritLock);
 
-        Metrics_PruneOldEvents(itr->CritMetrics);
-
-        for (ReportType r = CRITERIA_REPORTS_BEGIN; r < CRITERIA_REPORTS_END; ++r)
+        double total = Metrics_PruneOldEvents(itr->CritMetrics);
+        for (ReportType r = 0; r < NUM_REPORTS; ++r)
             Metrics_Report(itr->CritMetrics, r);
 
-        // por ahora solo MEMORY_LOAD
-        for (ReportType r = MEMORY_REPORTS_BEGIN; r < MEMORY_REPORTS_END; ++r)
-            itr->ReportFn(itr, r);
+        // Carga de memoria
+        itr->ReportFn(itr, &total);
 
         pthread_mutex_unlock(&itr->CritLock);
 
@@ -342,7 +339,9 @@ Memory* Criteria_GetMemoryFor(CriteriaType type, MemoryOps op, DBRequest const* 
     Criteria* const itr = Criterias[type];
 
     // registrar la operacion para metricas
-    Criteria_AddMetric(type, GetEventFor(op), 0);
+    MetricEvent evt;
+    if (GetEventFor(op, &evt))
+        Criteria_AddMetric(type, evt, 0);
 
     return itr->GetMemFn(itr, op, dbr);
 }
@@ -496,7 +495,7 @@ static void _disconnectMemory(uint32_t memId)
     list_remove_and_destroy_by_condition(ec->MemoryList, FindMemByIdPred, (void*) memId, _destroy_mem);
 }
 
-static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, ReportFnType* reporter, DestroyFnType* destroyer)
+static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getmemer, MemoryLoadFnType* memloader, DestroyFnType* destroyer)
 {
     Criteria* const c = criteria;
     c->CritMetrics = Metrics_Create();
@@ -504,7 +503,7 @@ static void _initBase(void* criteria, AddMemoryFnType* adder, GetMemFnType* getm
 
     c->AddMemoryFn = adder;
     c->GetMemFn = getmemer;
-    c->ReportFn = reporter;
+    c->ReportFn = memloader;
     c->DestroyFn = destroyer;
 }
 
@@ -614,26 +613,26 @@ static Memory* _ec_get(void* criteria, MemoryOps op, DBRequest const* dbr)
     return list_get(ec->MemoryList, memPos);
 }
 
-static void _sc_report(void const* criteria, ReportType report)
+static void _sc_report(void const* criteria, double* total)
 {
     Criteria_SC const* const sc = criteria;
     Memory* const mem = sc->SCMem;
     if (!mem)
         return;
 
-    _report_one(mem, report);
+    _report_one(mem, total);
 }
 
-static void _shc_report(void const* criteria, ReportType report)
+static void _shc_report(void const* criteria, double* total)
 {
     Criteria_SHC const* const shc = criteria;
-    Vector_iterate_with_data(&shc->MemoryArr, _shc_report_one, (void*) report);
+    Vector_iterate_with_data(&shc->MemoryArr, _shc_report_one, total);
 }
 
-static void _ec_report(void const* criteria, ReportType report)
+static void _ec_report(void const* criteria, double* total)
 {
     Criteria_EC const* const ec = criteria;
-    list_iterate_with_data(ec->MemoryList, _ec_report_one, (void*) report);
+    list_iterate_with_data(ec->MemoryList, _ec_report_one, total);
 }
 
 static void _sc_destroy(void* criteria)
@@ -672,34 +671,41 @@ static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
     };
 
     // metrica por memoria
-    Metrics_Add(mem->MemMetrics, GetEventFor(op), 0);
+    MetricEvent evt;
+    if (GetEventFor(op, &evt))
+        Metrics_Add(mem->MemMetrics, evt, 0);
 
     Packet* p = PacketBuilders[op](dbr);
     Socket_SendPacket(mem->MemSocket, p);
     Packet_Destroy(p);
 }
 
-static void _report_one(Memory* mem, ReportType rt)
+static void _report_one(Memory* mem, double const* total)
 {
     pthread_mutex_lock(&mem->MemLock);
 
-    Metrics_PruneOldEvents(mem->MemMetrics);
-    Metrics_Report(mem->MemMetrics, rt);
+    double memOps = Metrics_PruneOldEvents(mem->MemMetrics);
+
+    double load = 0.0;
+    if (*total)
+        load = memOps / *total;
+
+    LISSANDRA_LOG_INFO("Carga de memoria %u: %4.2f%%", mem->MemId, load * 100.0);
 
     pthread_mutex_unlock(&mem->MemLock);
 }
 
-static void _shc_report_one(void* pElem, void* rt)
+static void _shc_report_one(void* pElem, void* total)
 {
     Memory* const* const pMem = pElem;
     Memory* const mem = *pMem;
 
-    _report_one(mem, (ReportType) rt);
+    _report_one(mem, total);
 }
 
-static void _ec_report_one(void* elem, void* rt)
+static void _ec_report_one(void* elem, void* total)
 {
     Memory* const mem = elem;
 
-    _report_one(mem, (ReportType) rt);
+    _report_one(mem, total);
 }

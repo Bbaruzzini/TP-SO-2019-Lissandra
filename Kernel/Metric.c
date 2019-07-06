@@ -49,7 +49,7 @@ void Metrics_Add(Metrics* m, MetricEvent event, uint64_t value)
     }
 }
 
-void Metrics_PruneOldEvents(Metrics* m)
+double Metrics_PruneOldEvents(Metrics* m)
 {
     // reportar eventos ocurridos en los ultimos 30 segundos inclusive
     static uint32_t const CUT_INTERVAL_MS = 30000U;
@@ -76,13 +76,20 @@ void Metrics_PruneOldEvents(Metrics* m)
         i = next;
     }
     m->Head = metric;
+
+    // devolver cantidad de inserts y selects totales en los ultimos 30 seg
+    double inssel = 0.0;
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
+        if (i->Type == EVT_MEM_WRITE || i->Type == EVT_MEM_READ)
+            ++inssel;
+
+    return inssel;
 }
 
 static double _meanReadLatency(Metrics const*);
 static double _meanWriteLatency(Metrics const*);
 static double _totalReads(Metrics const*);
 static double _totalWrites(Metrics const*);
-static double _memoryLoad(Metrics const*);
 
 void Metrics_Report(Metrics const* m, ReportType report)
 {
@@ -100,7 +107,6 @@ void Metrics_Report(Metrics const* m, ReportType report)
         { "Latencia promedio INSERT/30s: %.0fms", _meanWriteLatency },
         { "Cantidad SELECT/30s: %.0f", _totalReads },
         { "Cantidad INSERT/30s: %.0f", _totalWrites },
-        { "Carga de memoria: %4.2f%%", _memoryLoad }
     };
 
     struct ListIterator const* const itr = ListIterators + report;
@@ -188,30 +194,4 @@ static double _totalWrites(Metrics const* m)
     }
 
     return count;
-}
-
-static double _memoryLoad(Metrics const* m)
-{
-    double rwOp = 0.0;
-    double total = 0.0;
-
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-    {
-        switch (i->Type)
-        {
-            case EVT_MEM_WRITE:
-            case EVT_MEM_READ:
-                ++rwOp;
-                //no break
-            case EVT_MEM_OP:
-                ++total;
-                break;
-            default:
-                continue;
-        }
-    }
-
-    if (!total)
-        return 0.0;
-    return rwOp / total * 100.0; // en porcentaje
 }
