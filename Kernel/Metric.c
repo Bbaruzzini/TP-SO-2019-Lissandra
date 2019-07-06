@@ -21,6 +21,8 @@ typedef struct Metrics
     Metric* Tail;
 } Metrics;
 
+static void _pruneOldEvents(Metrics*);
+
 Metrics* Metrics_Create(void)
 {
     Metrics* m = Malloc(sizeof(Metrics));
@@ -49,7 +51,94 @@ void Metrics_Add(Metrics* m, MetricEvent event, uint64_t value)
     }
 }
 
-double Metrics_PruneOldEvents(Metrics* m)
+uint64_t Metrics_Report(Metrics* m)
+{
+    // limpiar eventos viejos
+    _pruneOldEvents(m);
+
+    uint64_t readLatencySum = 0;
+    uint64_t readLatencyCount = 0;
+
+    uint64_t writeLatencySum = 0;
+    uint64_t writeLatencyCount = 0;
+
+    // cantidad de select ejecutados en los ultimos 30 seg
+    uint64_t selectCount = 0;
+
+    // cantidad de insert ejecutados en los ultimos 30 seg
+    uint64_t insertCount = 0;
+
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
+    {
+        switch (i->Type)
+        {
+            case EVT_READ_LATENCY:
+                readLatencySum += i->Value;
+                ++readLatencyCount;
+                break;
+            case EVT_WRITE_LATENCY:
+                writeLatencySum += i->Value;
+                ++writeLatencyCount;
+                break;
+            case EVT_MEM_READ:
+                ++selectCount;
+                break;
+            case EVT_MEM_WRITE:
+                ++insertCount;
+                break;
+            default:
+                continue;
+        }
+    }
+
+    // tiempo promedio que tarda un SELECT en los ultimos 30 seg
+    double readLatencyMean = 0.0;
+    if (readLatencyCount)
+        readLatencyMean = readLatencySum / (double) readLatencyCount;
+
+    // tiempo promedio que tarda un INSERT en los ultimos 30 seg
+    double writeLatencyMean = 0.0;
+    if (writeLatencyCount)
+        writeLatencyMean = writeLatencySum / (double) writeLatencyCount;
+
+    LISSANDRA_LOG_INFO("Latencia promedio SELECT/30s: %.0fms", readLatencyMean);
+    LISSANDRA_LOG_INFO("Latencia promedio INSERT/30s: %.0fms", writeLatencyMean);
+    LISSANDRA_LOG_INFO("Cantidad SELECT/30s: %" PRIu64, selectCount);
+    LISSANDRA_LOG_INFO("Cantidad INSERT/30s: %" PRIu64, insertCount);
+
+    // devolver cantidad de inserts y selects totales en los ultimos 30 seg
+    return selectCount + insertCount;
+}
+
+uint64_t Metrics_GetInsertSelect(Metrics* m)
+{
+    // limpiar eventos viejos
+    _pruneOldEvents(m);
+
+    // devolver cantidad de inserts y selects totales en los ultimos 30 seg
+    uint64_t inssel = 0;
+    for (Metric* i = m->Head; i != NULL; i = i->Next)
+        if (i->Type == EVT_MEM_WRITE || i->Type == EVT_MEM_READ)
+            ++inssel;
+
+    return inssel;
+}
+
+void Metrics_Destroy(Metrics* m)
+{
+    Metric* metric = m->Head;
+    while (metric != NULL)
+    {
+        Metric* next = metric->Next;
+        Free(metric);
+        metric = next;
+    }
+
+    Free(m);
+}
+
+/* PRIVATE */
+static void _pruneOldEvents(Metrics* m)
 {
     // reportar eventos ocurridos en los ultimos 30 segundos inclusive
     static uint32_t const CUT_INTERVAL_MS = 30000U;
@@ -76,122 +165,4 @@ double Metrics_PruneOldEvents(Metrics* m)
         i = next;
     }
     m->Head = metric;
-
-    // devolver cantidad de inserts y selects totales en los ultimos 30 seg
-    double inssel = 0.0;
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-        if (i->Type == EVT_MEM_WRITE || i->Type == EVT_MEM_READ)
-            ++inssel;
-
-    return inssel;
-}
-
-static double _meanReadLatency(Metrics const*);
-static double _meanWriteLatency(Metrics const*);
-static double _totalReads(Metrics const*);
-static double _totalWrites(Metrics const*);
-
-void Metrics_Report(Metrics const* m, ReportType report)
-{
-    typedef double ListIterateFn(Metrics const*);
-
-    struct ListIterator
-    {
-        char const* Format;
-        ListIterateFn* Iterator;
-    };
-
-    static struct ListIterator const ListIterators[NUM_REPORTS] =
-    {
-        { "Latencia promedio SELECT/30s: %.0fms", _meanReadLatency },
-        { "Latencia promedio INSERT/30s: %.0fms", _meanWriteLatency },
-        { "Cantidad SELECT/30s: %.0f", _totalReads },
-        { "Cantidad INSERT/30s: %.0f", _totalWrites },
-    };
-
-    struct ListIterator const* const itr = ListIterators + report;
-    LISSANDRA_LOG_INFO(itr->Format, itr->Iterator(m));
-}
-
-void Metrics_Destroy(Metrics* m)
-{
-    Metric* metric = m->Head;
-    while (metric != NULL)
-    {
-        Metric* next = metric->Next;
-        Free(metric);
-        metric = next;
-    }
-
-    Free(m);
-}
-
-/* PRIVATE */
-// horrible repeticion de codigo pero bueno, C no es C++ y se nota
-static double _meanReadLatency(Metrics const* m)
-{
-    double res = 0.0;
-    double count = 0.0;
-
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-    {
-        if (i->Type != EVT_READ_LATENCY)
-            continue;
-
-        res += i->Value;
-        ++count;
-    }
-
-    if (!count)
-        return 0.0;
-    return res / count;
-}
-
-static double _meanWriteLatency(Metrics const* m)
-{
-    double res = 0.0;
-    double count = 0.0;
-
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-    {
-        if (i->Type != EVT_WRITE_LATENCY)
-            continue;
-
-        res += i->Value;
-        ++count;
-    }
-
-    if (!count)
-        return 0.0;
-    return res / count;
-}
-
-static double _totalReads(Metrics const* m)
-{
-    double count = 0.0;
-
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-    {
-        if (i->Type != EVT_MEM_READ)
-            continue;
-
-        ++count;
-    }
-
-    return count;
-}
-
-static double _totalWrites(Metrics const* m)
-{
-    double count = 0.0;
-
-    for (Metric* i = m->Head; i != NULL; i = i->Next)
-    {
-        if (i->Type != EVT_MEM_WRITE)
-            continue;
-
-        ++count;
-    }
-
-    return count;
 }

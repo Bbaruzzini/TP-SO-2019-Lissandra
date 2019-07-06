@@ -12,25 +12,15 @@ typedef enum
     EVT_MEM_WRITE,     // loguea un INSERT
 } MetricEvent;
 
-typedef enum
-{
-    MEAN_READ_LATENCY,  // tiempo promedio que tarda un SELECT en los ultimos 30 seg
-    MEAN_WRITE_LATENCY, // tiempo promedio que tarda un INSERT en los ultimos 30 seg
-    TOTAL_READS,        // cantidad de select ejecutados en los ultimos 30 seg
-    TOTAL_WRITES,       // cantidad de insert ejecutados en los ultimos 30 seg
-
-    NUM_REPORTS,
-} ReportType;
-
 typedef struct Metrics Metrics;
 
 Metrics* Metrics_Create(void);
 
 void Metrics_Add(Metrics*, MetricEvent, uint64_t);
 
-double Metrics_PruneOldEvents(Metrics*);
+uint64_t Metrics_Report(Metrics*);
 
-void Metrics_Report(Metrics const*, ReportType);
+uint64_t Metrics_GetInsertSelect(Metrics*);
 
 void Metrics_Destroy(Metrics*);
 

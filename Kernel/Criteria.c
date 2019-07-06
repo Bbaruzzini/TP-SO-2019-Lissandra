@@ -49,7 +49,7 @@ static void _disconnectMemory(uint32_t memId);
 
 typedef void AddMemoryFnType(void* criteria, Memory* mem);
 typedef Memory* GetMemFnType(void* criteria, MemoryOps op, DBRequest const* dbr);
-typedef void MemoryLoadFnType(void const* criteria, double* total);
+typedef void MemoryLoadFnType(void const* criteria, uint64_t* total);
 typedef void DestroyFnType(void* criteria);
 
 typedef struct
@@ -120,7 +120,7 @@ static DestroyFnType _shc_destroy;
 static DestroyFnType _ec_destroy;
 
 static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
-static void _report_one(Memory* mem, double const* total);
+static void _report_one(Memory* mem, uint64_t const* total);
 static void _shc_report_one(void* pElem, void* total);
 static void _ec_report_one(void* elem, void* total);
 
@@ -272,9 +272,7 @@ void Criterias_Report(PeriodicTimer* pt)
         Criteria* itr = Criterias[type];
         pthread_mutex_lock(&itr->CritLock);
 
-        double total = Metrics_PruneOldEvents(itr->CritMetrics);
-        for (ReportType r = 0; r < NUM_REPORTS; ++r)
-            Metrics_Report(itr->CritMetrics, r);
+        uint64_t total = Metrics_Report(itr->CritMetrics);
 
         // Carga de memoria
         itr->ReportFn(itr, &total);
@@ -613,7 +611,7 @@ static Memory* _ec_get(void* criteria, MemoryOps op, DBRequest const* dbr)
     return list_get(ec->MemoryList, memPos);
 }
 
-static void _sc_report(void const* criteria, double* total)
+static void _sc_report(void const* criteria, uint64_t* total)
 {
     Criteria_SC const* const sc = criteria;
     Memory* const mem = sc->SCMem;
@@ -623,13 +621,13 @@ static void _sc_report(void const* criteria, double* total)
     _report_one(mem, total);
 }
 
-static void _shc_report(void const* criteria, double* total)
+static void _shc_report(void const* criteria, uint64_t* total)
 {
     Criteria_SHC const* const shc = criteria;
     Vector_iterate_with_data(&shc->MemoryArr, _shc_report_one, total);
 }
 
-static void _ec_report(void const* criteria, double* total)
+static void _ec_report(void const* criteria, uint64_t* total)
 {
     Criteria_EC const* const ec = criteria;
     list_iterate_with_data(ec->MemoryList, _ec_report_one, total);
@@ -680,15 +678,15 @@ static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
     Packet_Destroy(p);
 }
 
-static void _report_one(Memory* mem, double const* total)
+static void _report_one(Memory* mem, uint64_t const* total)
 {
     pthread_mutex_lock(&mem->MemLock);
 
-    double memOps = Metrics_PruneOldEvents(mem->MemMetrics);
+    uint64_t const memOps = Metrics_GetInsertSelect(mem->MemMetrics);
 
     double load = 0.0;
     if (*total)
-        load = memOps / *total;
+        load = memOps / (double) *total;
 
     LISSANDRA_LOG_INFO("Carga de memoria %u: %4.2f%%", mem->MemId, load * 100.0);
 
