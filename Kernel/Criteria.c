@@ -688,7 +688,15 @@ static void _report_one(Memory* mem, uint64_t const* total)
     if (*total)
         load = memOps / (double) *total;
 
-    LISSANDRA_LOG_INFO("Carga de memoria %u: %4.2f%%", mem->MemId, load * 100.0);
+    static char const* fullbar = "##################################################";
+    uint32_t const prog_width = 30;
+    char progress[prog_width + 2 + 1];
+
+    uint32_t const prog_print = (uint32_t) (load * prog_width + 0.5);
+    uint32_t const rest_print = prog_width - prog_print;
+
+    snprintf(progress, prog_width + 2 + 1, "[%.*s%*s]", prog_print, fullbar, rest_print, "");
+    LISSANDRA_LOG_INFO("Carga de memoria %u: %4.2f%% %s", mem->MemId, load * 100.0, progress);
 
     pthread_mutex_unlock(&mem->MemLock);
 }
