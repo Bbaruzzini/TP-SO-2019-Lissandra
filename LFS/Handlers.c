@@ -51,11 +51,19 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     ///}
 
     t_registro* resultado = api_select(nombreTabla, key);
-    size_t const tam = sizeof(t_registro);
-    Packet* respuesta = Packet_Create(MSG_SELECT, tam);
-    Packet_Append(respuesta, resultado->key);
-    Packet_Append(respuesta, resultado->value);
-    Packet_Append(respuesta, resultado->timestamp);
+    Packet* respuesta;
+
+    if(resultado != NULL){
+        size_t const tam = sizeof(t_registro);
+        respuesta = Packet_Create(MSG_SELECT, tam);
+        Packet_Append(respuesta, resultado->timestamp);
+        Packet_Append(respuesta, resultado->value);
+        Packet_Append(respuesta, resultado->key);
+    } else {
+        respuesta = Packet_Create(MSG_SELECT, 1);
+        Packet_Append(respuesta, EXIT_FAILURE);
+    }
+
 
     Free(resultado);
 
