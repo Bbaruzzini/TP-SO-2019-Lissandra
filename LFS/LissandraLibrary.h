@@ -9,6 +9,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <Timer.h>
+#include "Memtable.h"
 
 typedef struct
 {
@@ -49,6 +51,26 @@ void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char
 void borrarArchivo(char const* nombreTabla, char const* nombreArchivo);
 
 int traverse_to_drop(char const* fn, char const* nombreTabla);
+
+uint16_t get_particion(uint16_t particiones, uint16_t key);
+
+void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion);
+
+char* get_contenido_archivo(char* path);
+
+char* get_contenido_particion(char* pathParticion);
+
+t_registro* get_biggest_timestamp(char* contenido, uint16_t key);
+
+t_registro* scanParticion(char* pathParticion, uint16_t key);
+
+t_registro* temporales_get_biggest_timestamp(char const* fn, uint16_t key);
+
+t_registro* scanTemporales(char* pathTabla, uint16_t key);
+
+t_registro* scanMemtable(char* nombreTabla, uint16_t key);
+
+t_registro* get_newest(t_registro* particion_timestamp, t_registro* temporales_timestamp, t_registro* memtable_timestamp);
 
 // primitivas FS
 void escribirArchivoLFS(char const* path, void const* buf, size_t len);

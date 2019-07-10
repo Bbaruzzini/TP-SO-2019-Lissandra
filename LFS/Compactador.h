@@ -8,11 +8,11 @@
 #include <string.h>
 #include <libcommons/string.h>
 #include "Memtable.h"
-#include "Lissandra.c"
+//#include "Lissandra.c"
 #include "LissandraLibrary.h"
 #include <libcommons/config.h>
 
-
+/*
 enum resultados_operaciones { CONTINUAR, FINALIZAR };
 
 //hilos
@@ -54,6 +54,6 @@ void obtenerPathTabla(char* nombreTabla, char* path);
 
 //funciones manejo archivo
 FILE *abrirArchivoParaLectura(char* path);
-
+*/
 
 #endif //LISSANDRA_COMPACTADOR_H

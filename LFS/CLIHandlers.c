@@ -10,6 +10,15 @@
 #include <stdio.h>
 #include <Timer.h>
 
+
+static void _printSelect(void* elem)
+{
+    t_registro* elemento = elem;
+    printf("Key: %d\n", elemento->key);
+    printf("Value: %s\n", elemento->value);
+    printf("Timestamp: %llu\n", elemento->timestamp);
+}
+
 void HandleSelect(Vector const* args)
 {
     //           cmd args
@@ -35,7 +44,14 @@ void HandleSelect(Vector const* args)
         return;
 
     //TODO: completar con lo que falta desde aca
-    api_select(table, k);
+    t_registro* resultadoSelect = api_select(table, k);
+    if (resultadoSelect != NULL)
+    {
+        _printSelect(resultadoSelect);
+        Free(resultadoSelect);
+    }
+    else
+        LISSANDRA_LOG_ERROR("No se pudo realizar el SELECT: la tabla ingresada no existe en el File System");
 }
 
 void HandleInsert(Vector const* args)

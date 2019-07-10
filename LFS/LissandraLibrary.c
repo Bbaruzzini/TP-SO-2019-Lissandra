@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <Threads.h>
 #include <unistd.h>
+#include <Timer.h>
 
 //Variables
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
@@ -275,7 +276,6 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     CriteriaType ct;
     if (!CriteriaFromString(consistency, &ct)) // error!
         return NULL;
-
     uint16_t partitions = config_get_int_value(contenido, "PARTITIONS");
     uint32_t compaction_time = config_get_long_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
@@ -290,10 +290,10 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     /*
     printf("Estoy en get_table_metadata\n");
     printf("Tabla: %s\n", infoMetadata->table);
-    printf("Consistencia: %s\n", infoMetadata->consistency);
+    printf("Consistencia: %d\n", infoMetadata->consistency);
     printf("Particiones: %d\n", infoMetadata->partitions);
     printf("Tiempo: %d\n", infoMetadata->compaction_time);
-     */
+    */
     //HASTA ACA
 
     return infoMetadata;
@@ -481,6 +481,252 @@ int traverse_to_drop(char const* fn, char const* nombreTabla)
 
     closedir(dir);
     return 0;
+}
+
+uint16_t get_particion(uint16_t particiones, uint16_t key){
+    //key mod particiones de la tabla
+    uint16_t particion = key % particiones;
+    return particion;
+}
+
+void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion){
+    snprintf(pathParticion, PATH_MAX, "%s/%d.bin", pathTabla, particion);
+}
+
+char* get_contenido_archivo(char* path){
+    struct stat fileInfo = {0};
+    int fd = open(path, O_RDWR);
+
+    if (fd == -1){
+        LISSANDRA_LOG_SYSERROR("open");
+        exit(EXIT_FAILURE);
+    }
+
+    if (fstat(fd, &fileInfo) == -1){
+        LISSANDRA_LOG_SYSERROR("Error al intentar obtener el tamanio del archivo");
+        exit(EXIT_FAILURE);
+    }
+
+    if (fileInfo.st_size == 0){
+        fprintf(stderr, "Error: Archivo vacio\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char* contenido = malloc(fileInfo.st_size + 1);
+    memset(contenido, '\0', fileInfo.st_size + 1);
+    char* mapping = mmap(0, fileInfo.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    if (mapping == MAP_FAILED){
+        LISSANDRA_LOG_SYSERROR("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    int i;
+    int j = 0;
+    for (i = 0; i < fileInfo.st_size; i++){
+        if(mapping[i]){
+            contenido[j] = mapping[i];
+            j++;
+        }
+    }
+
+    if (munmap(mapping, fileInfo.st_size) == -1){
+        close(fd);
+        LISSANDRA_LOG_SYSERROR("munmap");
+        exit(EXIT_FAILURE);
+    }
+
+    close(fd);
+    return contenido;
+}
+
+char* get_contenido_particion(char* pathParticion){
+    FILE * fd = fopen(pathParticion, "r");
+    if(fd == NULL){
+        LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
+        fclose(fd);
+        return NULL;
+    }
+    t_config* datos = config_create(pathParticion);
+    Vector bloques = config_get_array_value(datos, "BLOCKS");
+    size_t bloquesTotales = Vector_size(&bloques);
+
+    char* contenido = malloc(config_get_int_value(datos, "SIZE"));
+    contenido[0] = '\0';
+
+    char** const arrayBloques = Vector_data(&bloques);
+    size_t i;
+    for(i=0; i < bloquesTotales; i++)
+    {
+        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
+        char pathBloque[PATH_MAX];
+        generarPathBloque(numBloque, pathBloque);
+        char* contenidoBloque = get_contenido_archivo(pathBloque);
+        strcat(contenido, contenidoBloque);
+        free(contenidoBloque);
+    }
+
+    fclose(fd);
+    Vector_Destruct(&bloques);
+    config_destroy(datos);
+    return contenido;
+}
+
+t_registro* get_biggest_timestamp(char* contenido, uint16_t key){
+    char* buffer  = malloc(sizeof(char) * strlen(contenido));
+    buffer[0] = '\0';
+    t_registro* registro = NULL;
+    char* token;
+    for(token = strtok_r(contenido, "\n", &buffer); token != NULL ; token = strtok_r(buffer, "\n", &buffer))
+    {
+        uint16_t keyToken;
+        char* value = malloc(confLFS.TAMANIO_VALUE);
+        uint64_t timestamp;
+        sscanf(token, "%llu;%hu;%s", &timestamp, &keyToken, value);
+        if(key == keyToken){
+            if(registro == NULL){
+                registro = malloc(sizeof(t_registro));
+                registro->key = keyToken;
+                registro->value = value;
+                registro->timestamp = timestamp;
+            } else {
+                if(registro->timestamp < timestamp)
+                {
+                    registro->key = keyToken;
+                    registro->value = value;
+                    registro->timestamp = timestamp;
+                }
+            }
+        } else {
+            free(value);
+        }
+    }
+
+    //free(contenido);
+    //free(buffer);
+    return registro;
+}
+
+t_registro* scanParticion(char* pathParticion, uint16_t key){
+    char* contenido = get_contenido_particion(pathParticion);
+    t_registro* registro = get_biggest_timestamp(contenido, key);
+    return registro;
+}
+
+t_registro* temporales_get_biggest_timestamp(char const* fn, uint16_t key)
+{
+    t_registro* registro = NULL;
+    DIR* dir;
+    if (!(dir = opendir(fn)))
+    {
+        printf("ERROR: La ruta especificada es invalida\n");
+        return registro;
+    }
+
+    struct dirent* entry;
+    t_registro* registroAux = NULL;
+
+    while ((entry = readdir(dir)))
+    {
+        char path[PATH_MAX];
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+        {
+            struct stat info;
+
+            snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
+
+            if (stat(path, &info) != 0)
+            {
+                LISSANDRA_LOG_ERROR("Error stat() en %s", path);
+                return registro;
+            }
+            else
+            {
+                char* token;
+                char* buffer = path;
+                //Este primero me da lo que esta antes del "."
+                token = strtok_r(buffer, ".", &buffer);
+                //Este segundo me da lo que esta espues del ".", o sea la extencion
+                token = strtok_r(buffer, ".", &buffer);
+                if(strcmp(token, "tmp") == 0 || strcmp(token, "tmpc") == 0){
+                    snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
+                    char* contenido = get_contenido_particion(path);
+                    registroAux = get_biggest_timestamp(contenido, key);
+                    if(registro == NULL){
+                        registro = malloc(sizeof(t_registro));
+                        registro->key = registroAux->key;
+                        registro->value = registroAux->value;
+                        registro->timestamp = registroAux->timestamp;
+                    } else {
+                        if(registro->timestamp < registroAux->timestamp){
+                            registro->key = registroAux->key;
+                            registro->value = registroAux->value;
+                            registro->timestamp = registroAux->timestamp;
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    closedir(dir);
+    return registro;
+}
+
+t_registro* scanTemporales(char* pathTabla, uint16_t key){
+    t_registro* registro = temporales_get_biggest_timestamp(pathTabla, key);
+    return registro;
+}
+
+t_registro* scanMemtable(char* nombreTabla, uint16_t key){
+    t_elem_memtable* memtable_tabla = memtable_get(nombreTabla);
+    t_registro* registro = registro_get_biggest_timestamp(memtable_tabla, key);
+    return registro;
+}
+
+t_registro* get_newest(t_registro* particion_timestamp, t_registro* temporales_timestamp, t_registro* memtable_timestamp){
+    if(particion_timestamp == NULL && temporales_timestamp == NULL && memtable_timestamp == NULL)
+        return NULL;
+
+    if(particion_timestamp == NULL && temporales_timestamp == NULL && memtable_timestamp != NULL)
+        return memtable_timestamp;
+
+    if(particion_timestamp == NULL && temporales_timestamp != NULL && memtable_timestamp == NULL)
+        return temporales_timestamp;
+
+    if(particion_timestamp != NULL && temporales_timestamp == NULL && memtable_timestamp == NULL)
+        return particion_timestamp;
+
+    if(particion_timestamp == NULL && temporales_timestamp != NULL && memtable_timestamp != NULL){
+        if(temporales_timestamp->timestamp <= memtable_timestamp->timestamp)
+            return memtable_timestamp;
+        else return temporales_timestamp;
+    }
+
+    if(particion_timestamp != NULL && temporales_timestamp == NULL && memtable_timestamp != NULL){
+        if(particion_timestamp->timestamp <= memtable_timestamp->timestamp)
+            return memtable_timestamp;
+        else return particion_timestamp;
+    }
+
+    if(particion_timestamp != NULL && temporales_timestamp != NULL && memtable_timestamp == NULL){
+        if(particion_timestamp->timestamp <= temporales_timestamp->timestamp)
+            return temporales_timestamp;
+        else return particion_timestamp;
+    }
+
+    if(particion_timestamp != NULL && temporales_timestamp != NULL && memtable_timestamp != NULL){
+        if(particion_timestamp->timestamp > temporales_timestamp->timestamp && particion_timestamp->timestamp > memtable_timestamp->timestamp){
+            return particion_timestamp;
+        }
+        if(temporales_timestamp->timestamp > particion_timestamp->timestamp && temporales_timestamp->timestamp > memtable_timestamp->timestamp){
+            return temporales_timestamp;
+        }
+        if(memtable_timestamp->timestamp > particion_timestamp->timestamp && memtable_timestamp->timestamp > temporales_timestamp->timestamp){
+            return memtable_timestamp;
+        }
+        return memtable_timestamp;
+    }
 }
 
 void escribirArchivoLFS(char const* path, void const* buf, size_t len)

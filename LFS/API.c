@@ -7,12 +7,42 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-void api_select(char* nombreTabla, uint16_t key)
+t_registro* api_select(char* nombreTabla, uint16_t key)
 {
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
 
-    /// todo
+    t_registro* resultado = NULL;
+
+    //Verificar que la tabla exista en el FS
+    if(!existeDir(path)){
+        LISSANDRA_LOG_ERROR("La tabla ingresada para SELECT: %s no existe en el File System", nombreTabla);
+        printf("ERROR: La tabla ingresada: %s no existe en el File System\n", nombreTabla);
+        return resultado;
+    }
+    //Obtener la metadata asociada a dicha tabla
+    char pathMetadata[PATH_MAX];
+    generarPathArchivo(nombreTabla, "Metadata.bin", pathMetadata);
+    t_describe* infoTabla = get_table_metadata(pathMetadata, nombreTabla);
+
+    //Calcular cual es la particion que contiene dicho KEY
+    uint16_t particion = get_particion(infoTabla->partitions, key);
+    char pathParticion[PATH_MAX];
+    generarPathParticion(particion, path, pathParticion);
+
+    //Ecanear la particion objetivo
+    t_registro* particion_timestamp = scanParticion(pathParticion, key);
+
+    //Escanear todos los archivos temporales
+    t_registro* temporales_timestamp = scanTemporales(path, key);
+
+    //Escanear la memoria temporal de dicha tabla buscando la key deseada
+    t_registro* memtable_timestamp = scanMemtable(nombreTabla, key);
+
+    //Encontradas las entradas para dicha KEY, se retorna el valor con el Timestamp más grande
+     resultado = get_newest(particion_timestamp, temporales_timestamp, memtable_timestamp);
+
+    return resultado;
 }
 
 uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)

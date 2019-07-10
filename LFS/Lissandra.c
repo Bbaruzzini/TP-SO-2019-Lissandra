@@ -209,8 +209,8 @@ int main(void)
     //printf("hora denise: %d\n", time(NULL));
 
 
-/*  Pruebas para dump para la cual hace falta tener creada la tabla FRUTAS
-
+  //Pruebas para dump para la cual hace falta tener creada la tabla FRUTAS
+    /*
     new_elem_memtable("FRUTAS", 3, "Manzana", 1548421507);
     new_elem_memtable("FRUTAS", 2, "Pera", 1348451807);
     new_elem_memtable("FRUTAS", 3, "Banana", 1548421508);
@@ -231,7 +231,7 @@ int main(void)
     printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
 
     dump();
-*/
+    */
     iniciar_servidor();
 
     //Aca va consola ->Update: La consola subio para aca

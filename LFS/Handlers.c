@@ -41,7 +41,7 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     Packet_Read(p, &key);
 
     ///una respuesta al paquete bien podria ser de este estilo
-    char* valor = strdup("SELECT NO IMPLEMENTADO");
+    //char* valor = strdup("SELECT NO IMPLEMENTADO");
     ///if (!lfs_select(nombreTabla, key, &valor))
     ///{
     ///    LISSANDRA_LOG_ERROR("Recibi tabla/key (%s/%d) invalida!", nombreTabla, key);
@@ -50,12 +50,21 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     ///    return;
     ///}
 
-    Packet* respuesta = Packet_Create(MSG_SELECT, confLFS.TAMANIO_VALUE);
-    Packet_Append(respuesta, valor);
-    Socket_SendPacket(s, respuesta);
-    Packet_Destroy(respuesta);
+    t_registro* resultado = api_select(nombreTabla, key);
+    size_t const tam = sizeof(t_registro);
+    Packet* respuesta = Packet_Create(MSG_SELECT, tam);
+    Packet_Append(respuesta, resultado->key);
+    Packet_Append(respuesta, resultado->value);
+    Packet_Append(respuesta, resultado->timestamp);
 
-    Free(valor);
+    Free(resultado);
+
+    //Packet* respuesta = Packet_Create(MSG_SELECT, confLFS.TAMANIO_VALUE);
+    //Packet_Append(respuesta, valor);
+    Socket_SendPacket(s, respuesta);
+    //Packet_Destroy(respuesta);
+
+    //Free(valor);
 
     Free(nombreTabla);
     ///Packet_Destroy no es necesario aca porque lo hace la funcion atender_memoria!
