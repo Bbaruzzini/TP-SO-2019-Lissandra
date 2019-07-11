@@ -10,40 +10,25 @@
 
 typedef struct
 {
-    char* nombreTabla;
-    Vector registros;
-} t_elem_memtable;
-
-//Querido Ariel: si de casualidad pasas por aca y lees esto, te agradeceria de corazon si me podes decir
-//si el key, value y timestamp son int, int32_t, int16_t o cual de todos los int, porque la verdad verdad,
-//no tengo la menor idea :D Graciaaaaaaas!
-/// Ariel: esto es correcto
-/// Obs2: value podria ser un valor fijo y no un char* asi no tienen que preocuparse por otro malloc mas
-/// (miren como está hecho en memoria)
-typedef struct
-{
     uint16_t key;
     char* value;
     uint64_t timestamp;
 } t_registro;
 
-void crearMemtable(void);
+void memtable_create(void);
 
 //Funcion para meterle nuevos elementos a la memtable
-void new_elem_memtable(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp);
+void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp);
 
-//Funcion para buscar, si existe, un elemento en la memTable para una cierta Tabla
-//Si existe, lo retorna, sino retorna NULL
-t_elem_memtable* memtable_get(char const* nombreTabla);
+//Funcion para saber si existe area temporal de la tabla
+bool memtable_has_table(char const* nombreTabla);
 
 //Funcion para buscar segun una key dada el registro con mayor timestamp
-t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t key);
+t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key);
 
 //Funcion para eliminar un elemento de la memtable
-void delete_elem_memtable(char const* nombreTabla);
+void memtable_delete_table(char const* nombreTabla);
 
-void dump(void);
-size_t reservarNuevoBloqueLibre(char* pathArchivo);
-void cambiarSize(char* pathArchivo, size_t newSize);
+void memtable_dump(void);
 
 #endif //LISSANDRA_MEMTABLE_H

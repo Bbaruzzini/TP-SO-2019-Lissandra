@@ -10,9 +10,18 @@
 #include <libcommons/string.h>
 #include <Logger.h>
 #include <Malloc.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <zconf.h>
+
+typedef struct
+{
+    char* nombreTabla;
+    Vector registros;
+} t_elem_memtable;
 
 static t_dictionary* memtable = NULL;
+static pthread_rwlock_t memtableMutex = PTHREAD_RWLOCK_INITIALIZER;
 
 static void _delete_memtable_table(void* elem)
 {
@@ -28,13 +37,13 @@ static void _delete_memtable_register(void* elem)
     Free(r->value);
 }
 
-void crearMemtable(void)
+void memtable_create(void)
 {
     memtable = dictionary_create();
     LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
-void new_elem_memtable(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
+void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
     t_registro new =
     {
@@ -42,6 +51,8 @@ void new_elem_memtable(char const* nombreTabla, uint16_t key, char const* value,
         .value = string_duplicate(value),
         .timestamp = timestamp
     };
+
+    pthread_rwlock_wrlock(&memtableMutex);
 
     t_elem_memtable* table = dictionary_get(memtable, nombreTabla);
     if (!table)
@@ -54,42 +65,63 @@ void new_elem_memtable(char const* nombreTabla, uint16_t key, char const* value,
     }
 
     Vector_push_back(&table->registros, &new);
+
+    pthread_rwlock_unlock(&memtableMutex);
 }
 
-t_elem_memtable* memtable_get(char const* nombreTabla)
+bool memtable_has_table(char const* nombreTabla)
 {
-    return dictionary_get(memtable, nombreTabla);
+    bool res;
+    pthread_rwlock_rdlock(&memtableMutex);
+    res = dictionary_has_key(memtable, nombreTabla);
+    pthread_rwlock_unlock(&memtableMutex);
+
+    return res;
 }
 
-t_registro* registro_get_biggest_timestamp(t_elem_memtable* elemento, uint16_t key)
+t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key)
 {
-    size_t cantElementos = Vector_size(&elemento->registros);
-    t_registro* registro;
+    pthread_rwlock_rdlock(&memtableMutex);
+
+    t_elem_memtable* const elemento = dictionary_get(memtable, nombreTabla);
+
+    size_t const cantElementos = Vector_size(&elemento->registros);
+
     t_registro* registroMayor = NULL;
-    uint64_t timestamp = 0;
-    size_t i = 0;
+    uint64_t timestampMayor = 0;
 
-    while (i < cantElementos)
+    for (size_t i = 0; i < cantElementos; ++i)
     {
-        registro = Vector_at(&elemento->registros, i);
-
+        t_registro* const registro = Vector_at(&elemento->registros, i);
         if (registro->key == key)
         {
-            if (registro->timestamp > timestamp)
+            if (!registroMayor || registro->timestamp > timestampMayor)
             {
-                timestamp = registro->timestamp;
+                timestampMayor = registro->timestamp;
                 registroMayor = registro;
             }
         }
-        ++i;
     }
 
-    return registroMayor;
+    t_registro* resultado = NULL;
+    if (registroMayor)
+    {
+        resultado = Malloc(sizeof(t_registro));
+        *resultado = *registroMayor;
+        resultado->value = strdup(registroMayor->value);
+    }
+
+    pthread_rwlock_unlock(&memtableMutex);
+    return resultado;
 }
 
-void delete_elem_memtable(char const* nombreTabla)
+void memtable_delete_table(char const* nombreTabla)
 {
+    pthread_rwlock_wrlock(&memtableMutex);
+
     dictionary_remove_and_destroy(memtable, nombreTabla, _delete_memtable_table);
+
+    pthread_rwlock_unlock(&memtableMutex);
 }
 
 static void _dump_element(void* element, void* path)
@@ -125,7 +157,7 @@ static void _dump_table(char const* key, void* element)
     size_t bloqueLibre;
     if (!buscarBloqueLibre(&bloqueLibre))
     {
-        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando dump");
+        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando memtable_dump");
         return;
     }
 
@@ -136,16 +168,21 @@ static void _dump_table(char const* key, void* element)
     fclose(temporal);
 
     Vector_iterate_with_data(&table->registros, _dump_element, pathTemporal);
-
-    //Borrar de la memtable los registros (para la tabla correspondiente)
-    Vector_clear(&table->registros);
 }
 
-void dump(void)
+void memtable_dump(void)
 {
-    //Aca debería bloquear esto?
-    //Hasta aca?
+    t_dictionary* oldMemtable;
+
+    {
+        //intercambio punteros
+        pthread_rwlock_wrlock(&memtableMutex);
+        oldMemtable = memtable;
+        memtable = dictionary_create();
+        pthread_rwlock_unlock(&memtableMutex);
+    }
 
     //Itera tantas veces como tablas contó que había en ese momento en la memtable
-    dictionary_iterator(memtable, _dump_table);
+    dictionary_iterator(oldMemtable, _dump_table);
+    dictionary_destroy_and_destroy_elements(oldMemtable, _delete_memtable_table);
 }

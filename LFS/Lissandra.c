@@ -143,11 +143,11 @@ int main(void)
 
     iniciarFileSystem();
 
-    crearMemtable();
+    memtable_create();
 /*
  * Estas de aca son pruebas para ver si las funciones de la memtable andan
  *
-    t_elem_memtable* elementoA = new_elem_memtable("TABLA1");
+    t_elem_memtable* elementoA = memtable_new_elem("TABLA1");
 
     t_registro* registro1 = new_elem_registro(3, "\"Este es el primer registro que pruebo\"", 1548421507);
     t_registro* registro2 = new_elem_registro(2, "\"Este es el segundo registro que pruebo\"", 1348451807);
@@ -171,7 +171,7 @@ int main(void)
 
     printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
 
-    t_registro* registro = registro_get_biggest_timestamp(new, 3);
+    t_registro* registro = memtable_get_biggest_timestamp(new, 3);
 
     if(registro == NULL){
         printf("Esta vacio!!!\n");
@@ -209,7 +209,7 @@ int main(void)
     //printf("hora denise: %d\n", time(NULL));
 
 
-  //Pruebas para dump para la cual hace falta tener creada la tabla FRUTAS
+  //Pruebas para memtable_dump para la cual hace falta tener creada la tabla FRUTAS
     /*
     new_elem_memtable("FRUTAS", 3, "Manzana", 1548421507);
     new_elem_memtable("FRUTAS", 2, "Pera", 1348451807);
@@ -220,7 +220,7 @@ int main(void)
     new_elem_memtable("FRUTAS", 2, "Pomelo", 1548148908);
     new_elem_memtable("FRUTAS", 2, "Naranja", 1548144508);
     new_elem_memtable("FRUTAS", 2, "Limon", 1545555508);
-    new_elem_memtable("FRUTAS", 2, "Melon", 1548140008);
+    memtable_new_elem("FRUTAS", 2, "Melon", 1548140008);
 
     t_elem_memtable* new = memtable_get("FRUTAS");
 
@@ -230,7 +230,7 @@ int main(void)
 
     printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
 
-    dump();
+    memtable_dump();
     */
     iniciar_servidor();
 

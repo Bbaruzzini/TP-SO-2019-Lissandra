@@ -62,7 +62,8 @@ enum
 #define OPCODES_RECV(OPC)                                                      \
     /* Mensajes que entienden los 3 modulos                                    \
        (Respuestas a queries) */                                               \
-    OPC(MSG_SELECT)  /* char*: value                                           \
+    OPC(MSG_SELECT)  /* uint64: timestamp                                      \
+                      * char*: value                                           \
                       */                                                       \
                                                                                \
     OPC(MSG_DESCRIBE) /* char*: nombre tabla                                   \

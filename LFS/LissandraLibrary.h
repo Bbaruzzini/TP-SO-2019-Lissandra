@@ -42,8 +42,6 @@ int traverse(char const* fn, t_list* lista, char const* tabla);
 
 bool dirIsEmpty(char const* path);
 
-bool hayDump(char const* nombreTabla);
-
 bool is_any(char const* nombreArchivo);
 
 void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char* buf);
@@ -56,21 +54,15 @@ uint16_t get_particion(uint16_t particiones, uint16_t key);
 
 void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion);
 
-char* get_contenido_archivo(char* path);
+char* leerArchivoLFS(char const* path);
 
-char* get_contenido_particion(char* pathParticion);
+t_registro* get_biggest_timestamp(char const* contenido, uint16_t key);
 
-t_registro* get_biggest_timestamp(char* contenido, uint16_t key);
+t_registro* scanParticion(char const* pathParticion, uint16_t key);
 
-t_registro* scanParticion(char* pathParticion, uint16_t key);
+t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key);
 
-t_registro* temporales_get_biggest_timestamp(char const* fn, uint16_t key);
-
-t_registro* scanTemporales(char* pathTabla, uint16_t key);
-
-t_registro* scanMemtable(char* nombreTabla, uint16_t key);
-
-t_registro* get_newest(t_registro* particion_timestamp, t_registro* temporales_timestamp, t_registro* memtable_timestamp);
+t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro* memtable);
 
 // primitivas FS
 void escribirArchivoLFS(char const* path, void const* buf, size_t len);

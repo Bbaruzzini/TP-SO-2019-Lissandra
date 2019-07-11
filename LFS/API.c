@@ -3,27 +3,43 @@
 #include "Config.h"
 #include "Memtable.h"
 #include <Consistency.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/file.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 t_registro* api_select(char* nombreTabla, uint16_t key)
 {
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
 
-    t_registro* resultado = NULL;
-
     //Verificar que la tabla exista en el FS
-    if(!existeDir(path)){
+    if (!existeDir(path))
+    {
         LISSANDRA_LOG_ERROR("La tabla ingresada para SELECT: %s no existe en el File System", nombreTabla);
-        printf("ERROR: La tabla ingresada: %s no existe en el File System\n", nombreTabla);
-        return resultado;
+        return NULL;
     }
+
     //Obtener la metadata asociada a dicha tabla
     char pathMetadata[PATH_MAX];
     generarPathArchivo(nombreTabla, "Metadata.bin", pathMetadata);
     t_describe* infoTabla = get_table_metadata(pathMetadata, nombreTabla);
+
+    // bloqueo sugerido compartido tabla (lectura)
+    int fd = open(path, O_RDONLY);
+    if (fd == -1)
+    {
+        LISSANDRA_LOG_SYSERROR("open");
+        return NULL;
+    }
+
+    if (flock(fd, LOCK_SH) == -1)
+    {
+        LISSANDRA_LOG_SYSERROR("flock");
+        return NULL;
+    }
 
     //Calcular cual es la particion que contiene dicho KEY
     uint16_t particion = get_particion(infoTabla->partitions, key);
@@ -34,15 +50,16 @@ t_registro* api_select(char* nombreTabla, uint16_t key)
     t_registro* particion_timestamp = scanParticion(pathParticion, key);
 
     //Escanear todos los archivos temporales
-    t_registro* temporales_timestamp = scanTemporales(path, key);
+    t_registro* temporales_timestamp = temporales_get_biggest_timestamp(path, key);
+
+    // quita el bloqueo sugerido
+    close(fd);
 
     //Escanear la memoria temporal de dicha tabla buscando la key deseada
-    t_registro* memtable_timestamp = scanMemtable(nombreTabla, key);
+    t_registro* memtable_timestamp = memtable_get_biggest_timestamp(nombreTabla, key);
 
     //Encontradas las entradas para dicha KEY, se retorna el valor con el Timestamp más grande
-     resultado = get_newest(particion_timestamp, temporales_timestamp, memtable_timestamp);
-
-    return resultado;
+    return get_newest(particion_timestamp, temporales_timestamp, memtable_timestamp);
 }
 
 uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
@@ -72,7 +89,7 @@ uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t 
     */
 
     //Verifica si hay datos a dumpear, y si no existen aloca memoria
-    new_elem_memtable(nombreTabla, key, value, timestamp);
+    memtable_new_elem(nombreTabla, key, value, timestamp);
 
     LISSANDRA_LOG_INFO("Se inserto un nuevo registro en la tabla %s", nombreTabla);
     return EXIT_SUCCESS;
@@ -166,19 +183,17 @@ uint8_t api_drop(char* nombreTabla)
     if (!existeDir(pathAbsoluto))
     {
         LISSANDRA_LOG_ERROR("La tabla no existe...");
-        printf("La tabla no existe\n");
         return EXIT_FAILURE;
     }
 
-    t_elem_memtable* elemento = memtable_get(nombreTabla);
-    if (!elemento)
+    if (!memtable_has_table(nombreTabla))
     {
         LISSANDRA_LOG_ERROR("Se produjo un error al intentar borrar de la memtable la tabla: %s", nombreTabla);
         return EXIT_FAILURE;
     }
 
     //Se elimina la memtable de la tabla
-    delete_elem_memtable(nombreTabla);
+    memtable_delete_table(nombreTabla);
 
     //Se eliminan los archivos de la tabla
     int resultado = traverse_to_drop(pathAbsoluto, nombreTabla);

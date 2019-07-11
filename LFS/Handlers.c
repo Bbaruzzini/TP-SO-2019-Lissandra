@@ -26,7 +26,6 @@ OpcodeHandlerFnType* const OpcodeTable[NUM_HANDLED_OPCODES] =
     NULL                    // LQL_JOURNAL
 };
 
-/// TODO: Implementar logica funciones
 void HandleSelectOpcode(Socket* s, Packet* p)
 {
     /* char*: nombre tabla
@@ -40,42 +39,26 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     Packet_Read(p, &nombreTabla);
     Packet_Read(p, &key);
 
-    ///una respuesta al paquete bien podria ser de este estilo
-    //char* valor = strdup("SELECT NO IMPLEMENTADO");
-    ///if (!lfs_select(nombreTabla, key, &valor))
-    ///{
-    ///    LISSANDRA_LOG_ERROR("Recibi tabla/key (%s/%d) invalida!", nombreTabla, key);
-    ///    ///todo: manejo de errores
-    //////////todo: MSG_ERR_NOT_FOUND
-    ///    return;
-    ///}
-
     t_registro* resultado = api_select(nombreTabla, key);
     Packet* respuesta;
 
-    if(resultado != NULL){
-        size_t const tam = sizeof(t_registro);
-        respuesta = Packet_Create(MSG_SELECT, tam);
+    if (resultado)
+    {
+        // adivino size
+        respuesta = Packet_Create(MSG_SELECT, 100);
         Packet_Append(respuesta, resultado->timestamp);
         Packet_Append(respuesta, resultado->value);
-        Packet_Append(respuesta, resultado->key);
-    } else {
-        respuesta = Packet_Create(MSG_SELECT, 1);
-        Packet_Append(respuesta, EXIT_FAILURE);
+        Free(resultado->value);
     }
-
+    else
+        respuesta = Packet_Create(MSG_ERR_NOT_FOUND, 0);
 
     Free(resultado);
 
-    //Packet* respuesta = Packet_Create(MSG_SELECT, confLFS.TAMANIO_VALUE);
-    //Packet_Append(respuesta, valor);
     Socket_SendPacket(s, respuesta);
-    //Packet_Destroy(respuesta);
-
-    //Free(valor);
+    Packet_Destroy(respuesta);
 
     Free(nombreTabla);
-    ///Packet_Destroy no es necesario aca porque lo hace la funcion atender_memoria!
 }
 
 void HandleInsertOpcode(Socket* s, Packet* p)

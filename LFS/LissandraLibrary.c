@@ -2,13 +2,13 @@
 // Created by Denise on 26/04/2019.
 //
 
-//Linkear bibliotecas!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #include "LissandraLibrary.h"
 #include "Config.h"
 #include "FileSystem.h"
 #include "Memtable.h"
 #include <Consistency.h>
 #include <Console.h>
+#include <ConsoleInput.h>
 #include <dirent.h>
 #include <EventDispatcher.h>
 #include <fcntl.h>
@@ -368,11 +368,6 @@ bool dirIsEmpty(char const* path)
     return n <= 2;
 }
 
-bool hayDump(char const* nombreTabla)
-{
-    return memtable_get(nombreTabla) != NULL;
-}
-
 bool is_any(char const* nombreArchivo)
 {
     Vector strings = string_split(nombreArchivo, ".");
@@ -483,250 +478,233 @@ int traverse_to_drop(char const* fn, char const* nombreTabla)
     return 0;
 }
 
-uint16_t get_particion(uint16_t particiones, uint16_t key){
+uint16_t get_particion(uint16_t particiones, uint16_t key)
+{
     //key mod particiones de la tabla
-    uint16_t particion = key % particiones;
-    return particion;
+    return key % particiones;
 }
 
-void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion){
+void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion)
+{
     snprintf(pathParticion, PATH_MAX, "%s/%d.bin", pathTabla, particion);
 }
 
-char* get_contenido_archivo(char* path){
-    struct stat fileInfo = {0};
-    int fd = open(path, O_RDWR);
-
-    if (fd == -1){
-        LISSANDRA_LOG_SYSERROR("open");
-        exit(EXIT_FAILURE);
-    }
-
-    if (fstat(fd, &fileInfo) == -1){
-        LISSANDRA_LOG_SYSERROR("Error al intentar obtener el tamanio del archivo");
-        exit(EXIT_FAILURE);
-    }
-
-    if (fileInfo.st_size == 0){
-        fprintf(stderr, "Error: Archivo vacio\n");
-        exit(EXIT_FAILURE);
-    }
-
-    char* contenido = malloc(fileInfo.st_size + 1);
-    memset(contenido, '\0', fileInfo.st_size + 1);
-    char* mapping = mmap(0, fileInfo.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (mapping == MAP_FAILED){
-        LISSANDRA_LOG_SYSERROR("mmap");
-        exit(EXIT_FAILURE);
-    }
-
-    int i;
-    int j = 0;
-    for (i = 0; i < fileInfo.st_size; i++){
-        if(mapping[i]){
-            contenido[j] = mapping[i];
-            j++;
-        }
-    }
-
-    if (munmap(mapping, fileInfo.st_size) == -1){
-        close(fd);
-        LISSANDRA_LOG_SYSERROR("munmap");
-        exit(EXIT_FAILURE);
-    }
-
-    close(fd);
-    return contenido;
-}
-
-char* get_contenido_particion(char* pathParticion){
-    FILE * fd = fopen(pathParticion, "r");
-    if(fd == NULL){
+char* leerArchivoLFS(const char* path)
+{
+    FILE* part = fopen(path, "r");
+    if (!part)
+    {
         LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
-        fclose(fd);
         return NULL;
     }
-    t_config* datos = config_create(pathParticion);
-    Vector bloques = config_get_array_value(datos, "BLOCKS");
-    size_t bloquesTotales = Vector_size(&bloques);
 
-    char* contenido = malloc(config_get_int_value(datos, "SIZE"));
-    contenido[0] = '\0';
-
-    char** const arrayBloques = Vector_data(&bloques);
-    size_t i;
-    for(i=0; i < bloquesTotales; i++)
+    Vector bloques;
+    size_t longitudArchivo;
     {
-        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
-        char pathBloque[PATH_MAX];
-        generarPathBloque(numBloque, pathBloque);
-        char* contenidoBloque = get_contenido_archivo(pathBloque);
-        strcat(contenido, contenidoBloque);
-        free(contenidoBloque);
+        t_config* datos = config_create(path);
+        bloques = config_get_array_value(datos, "BLOCKS");
+        longitudArchivo = config_get_long_value(datos, "SIZE");
+        config_destroy(datos);
     }
 
-    fclose(fd);
+    size_t const bloquesTotales = Vector_size(&bloques);
+
+    char* contenido = Malloc(longitudArchivo);
+    size_t offset = 0;
+
+    char** const arrayBloques = Vector_data(&bloques);
+    for (size_t i = 0; i < bloquesTotales; ++i)
+    {
+        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
+
+        char pathBloque[PATH_MAX];
+        generarPathBloque(numBloque, pathBloque);
+
+        int fd = open(pathBloque, O_RDONLY);
+        if (fd == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("open");
+            exit(EXIT_FAILURE);
+        }
+
+        char* mapping = mmap(0, confLFS.TAMANIO_BLOQUES, PROT_READ, MAP_SHARED, fd, 0);
+        if (mapping == MAP_FAILED)
+        {
+            LISSANDRA_LOG_SYSERROR("mmap");
+            exit(EXIT_FAILURE);
+        }
+
+        memcpy(contenido + offset, mapping, confLFS.TAMANIO_BLOQUES);
+        offset += confLFS.TAMANIO_BLOQUES;
+
+        if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("munmap");
+            exit(EXIT_FAILURE);
+        }
+
+        close(fd);
+    }
+
+    fclose(part);
     Vector_Destruct(&bloques);
-    config_destroy(datos);
+
     return contenido;
 }
 
-t_registro* get_biggest_timestamp(char* contenido, uint16_t key){
-    char* buffer  = malloc(sizeof(char) * strlen(contenido));
-    buffer[0] = '\0';
-    t_registro* registro = NULL;
-    char* token;
-    for(token = strtok_r(contenido, "\n", &buffer); token != NULL ; token = strtok_r(buffer, "\n", &buffer))
+t_registro* get_biggest_timestamp(char const* contenido, uint16_t key)
+{
+    Vector registros = string_split(contenido, "\n");
+
+    t_registro* resultado = NULL;
+    char** const tokens = Vector_data(&registros);
+    for (size_t i = 0; i < Vector_size(&registros); ++i)
     {
-        uint16_t keyToken;
-        char* value = malloc(confLFS.TAMANIO_VALUE);
+        char* const registro = tokens[i];
+
         uint64_t timestamp;
-        sscanf(token, "%llu;%hu;%s", &timestamp, &keyToken, value);
-        if(key == keyToken){
-            if(registro == NULL){
-                registro = malloc(sizeof(t_registro));
-                registro->key = keyToken;
-                registro->value = value;
-                registro->timestamp = timestamp;
-            } else {
-                if(registro->timestamp < timestamp)
-                {
-                    registro->key = keyToken;
-                    registro->value = value;
-                    registro->timestamp = timestamp;
-                }
+        uint16_t keyToken;
+        char* value;
+
+        {
+            Vector campos = string_split(registro, ";");
+            // timestamp;key;value
+            char** const fields = Vector_data(&campos);
+            timestamp = strtoull(fields[0], NULL, 10);
+            if (!ValidateKey(fields[1], &keyToken))
+                break;
+
+            value = string_duplicate(fields[2]);
+            Vector_Destruct(&campos);
+        }
+
+        if (key == keyToken)
+        {
+            if (!resultado)
+            {
+                resultado = Malloc(sizeof(t_registro));
+
+                resultado->key = keyToken;
+                resultado->value = string_duplicate(value);
+                resultado->timestamp = timestamp;
             }
-        } else {
-            free(value);
+            else if (resultado->timestamp < timestamp)
+            {
+                resultado->key = keyToken;
+
+                Free(resultado->value);
+                resultado->value = string_duplicate(value);
+
+                resultado->timestamp = timestamp;
+            }
         }
     }
 
-    //free(contenido);
-    //free(buffer);
-    return registro;
+    Vector_Destruct(&registros);
+    return resultado;
 }
 
-t_registro* scanParticion(char* pathParticion, uint16_t key){
-    char* contenido = get_contenido_particion(pathParticion);
-    t_registro* registro = get_biggest_timestamp(contenido, key);
-    return registro;
-}
-
-t_registro* temporales_get_biggest_timestamp(char const* fn, uint16_t key)
+t_registro* scanParticion(char const* pathParticion, uint16_t key)
 {
-    t_registro* registro = NULL;
+    char* contenido = leerArchivoLFS(pathParticion);
+    t_registro* registro = get_biggest_timestamp(contenido, key);
+    Free(contenido);
+    return registro;
+}
+
+t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key)
+{
     DIR* dir;
-    if (!(dir = opendir(fn)))
+    if (!(dir = opendir(pathTabla)))
     {
         printf("ERROR: La ruta especificada es invalida\n");
-        return registro;
+        return NULL;
     }
 
-    struct dirent* entry;
-    t_registro* registroAux = NULL;
+    t_registro* resultado = NULL;
 
+    struct dirent* entry;
     while ((entry = readdir(dir)))
     {
         char path[PATH_MAX];
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+        if (*entry->d_name != '.')
         {
             struct stat info;
-
-            snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
+            snprintf(path, PATH_MAX, "%s/%s", pathTabla, entry->d_name);
 
             if (stat(path, &info) != 0)
             {
-                LISSANDRA_LOG_ERROR("Error stat() en %s", path);
-                return registro;
-            }
-            else
-            {
-                char* token;
-                char* buffer = path;
-                //Este primero me da lo que esta antes del "."
-                token = strtok_r(buffer, ".", &buffer);
-                //Este segundo me da lo que esta espues del ".", o sea la extencion
-                token = strtok_r(buffer, ".", &buffer);
-                if(strcmp(token, "tmp") == 0 || strcmp(token, "tmpc") == 0){
-                    snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
-                    char* contenido = get_contenido_particion(path);
-                    registroAux = get_biggest_timestamp(contenido, key);
-                    if(registro == NULL){
-                        registro = malloc(sizeof(t_registro));
-                        registro->key = registroAux->key;
-                        registro->value = registroAux->value;
-                        registro->timestamp = registroAux->timestamp;
-                    } else {
-                        if(registro->timestamp < registroAux->timestamp){
-                            registro->key = registroAux->key;
-                            registro->value = registroAux->value;
-                            registro->timestamp = registroAux->timestamp;
-                        }
-                    }
-                }
+                LISSANDRA_LOG_SYSERROR("stat");
+                closedir(dir);
+                return NULL;
             }
 
+            bool istmp = false;
+            {
+                Vector aux = string_split(path, ".");
+                char** fileName = Vector_data(&aux);
+
+                char const* ext = fileName[1];
+                if (0 == strcmp(ext, "tmp") || 0 == strcmp(ext, "tmpc"))
+                    istmp = true;
+
+                Vector_Destruct(&aux);
+            }
+
+            if (!istmp)
+                continue;
+
+            char* contenido = leerArchivoLFS(path);
+            t_registro* registroAux = get_biggest_timestamp(contenido, key);
+            if (!resultado)
+            {
+                resultado = Malloc(sizeof(t_registro));
+                resultado->key = registroAux->key;
+                resultado->value = string_duplicate(registroAux->value);
+                resultado->timestamp = registroAux->timestamp;
+            }
+            else if (resultado->timestamp < registroAux->timestamp)
+            {
+                resultado->key = registroAux->key;
+
+                Free(resultado->value);
+                resultado->value = string_duplicate(registroAux->value);
+
+                resultado->timestamp = registroAux->timestamp;
+            }
         }
     }
 
     closedir(dir);
-    return registro;
+    return resultado;
 }
 
-t_registro* scanTemporales(char* pathTabla, uint16_t key){
-    t_registro* registro = temporales_get_biggest_timestamp(pathTabla, key);
-    return registro;
-}
+t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro* memtable)
+{
+    size_t num = 0;
+    t_registro* registros[3];
 
-t_registro* scanMemtable(char* nombreTabla, uint16_t key){
-    t_elem_memtable* memtable_tabla = memtable_get(nombreTabla);
-    t_registro* registro = registro_get_biggest_timestamp(memtable_tabla, key);
-    return registro;
-}
+    if (particion)
+        registros[num++] = particion;
 
-t_registro* get_newest(t_registro* particion_timestamp, t_registro* temporales_timestamp, t_registro* memtable_timestamp){
-    if(particion_timestamp == NULL && temporales_timestamp == NULL && memtable_timestamp == NULL)
-        return NULL;
+    if (temporales)
+        registros[num++] = temporales;
 
-    if(particion_timestamp == NULL && temporales_timestamp == NULL && memtable_timestamp != NULL)
-        return memtable_timestamp;
+    if (memtable)
+        registros[num++] = memtable;
 
-    if(particion_timestamp == NULL && temporales_timestamp != NULL && memtable_timestamp == NULL)
-        return temporales_timestamp;
-
-    if(particion_timestamp != NULL && temporales_timestamp == NULL && memtable_timestamp == NULL)
-        return particion_timestamp;
-
-    if(particion_timestamp == NULL && temporales_timestamp != NULL && memtable_timestamp != NULL){
-        if(temporales_timestamp->timestamp <= memtable_timestamp->timestamp)
-            return memtable_timestamp;
-        else return temporales_timestamp;
-    }
-
-    if(particion_timestamp != NULL && temporales_timestamp == NULL && memtable_timestamp != NULL){
-        if(particion_timestamp->timestamp <= memtable_timestamp->timestamp)
-            return memtable_timestamp;
-        else return particion_timestamp;
-    }
-
-    if(particion_timestamp != NULL && temporales_timestamp != NULL && memtable_timestamp == NULL){
-        if(particion_timestamp->timestamp <= temporales_timestamp->timestamp)
-            return temporales_timestamp;
-        else return particion_timestamp;
-    }
-
-    if(particion_timestamp != NULL && temporales_timestamp != NULL && memtable_timestamp != NULL){
-        if(particion_timestamp->timestamp > temporales_timestamp->timestamp && particion_timestamp->timestamp > memtable_timestamp->timestamp){
-            return particion_timestamp;
+    t_registro* mayor = NULL;
+    uint64_t timestampMayor = 0;
+    for (size_t i = 0; i < num; ++i)
+    {
+        if (!mayor || registros[i]->timestamp > timestampMayor)
+        {
+            timestampMayor = registros[i]->timestamp;
+            mayor = registros[i];
         }
-        if(temporales_timestamp->timestamp > particion_timestamp->timestamp && temporales_timestamp->timestamp > memtable_timestamp->timestamp){
-            return temporales_timestamp;
-        }
-        if(memtable_timestamp->timestamp > particion_timestamp->timestamp && memtable_timestamp->timestamp > temporales_timestamp->timestamp){
-            return memtable_timestamp;
-        }
-        return memtable_timestamp;
     }
+
+    return mayor;
 }
 
 void escribirArchivoLFS(char const* path, void const* buf, size_t len)
@@ -790,7 +768,7 @@ void escribirArchivoLFS(char const* path, void const* buf, size_t len)
             exit(EXIT_FAILURE);
         }
 
-        uint8_t* mapping = mmap(NULL, confLFS.TAMANIO_BLOQUES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        char* mapping = mmap(NULL, confLFS.TAMANIO_BLOQUES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (mapping == MAP_FAILED)
         {
             LISSANDRA_LOG_SYSERROR("mmap");
