@@ -242,6 +242,7 @@ bool HandleCreate(Vector const* args)
         return false;
     }
 
+    Metadata_Add(table, ct);
     LISSANDRA_LOG_INFO("CREATE: tabla: %s, consistencia: %s, particiones: %s, tiempo compactacion: %s", table, criteria,
                        partitions, compaction_time);
     return true;
