@@ -78,6 +78,11 @@ t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key
     pthread_rwlock_rdlock(&memtableMutex);
 
     Vector* const registros = dictionary_get(memtable, nombreTabla);
+    if (!registros)
+    {
+        pthread_rwlock_unlock(&memtableMutex);
+        return NULL;
+    }
 
     size_t const cantElementos = Vector_size(registros);
 

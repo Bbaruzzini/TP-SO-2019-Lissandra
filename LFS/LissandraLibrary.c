@@ -544,6 +544,9 @@ t_registro* get_biggest_timestamp(char const* contenido, uint16_t key)
 t_registro* scanParticion(char const* pathParticion, uint16_t key)
 {
     char* contenido = leerArchivoLFS(pathParticion);
+    if (!contenido)
+        return NULL;
+
     t_registro* registro = get_biggest_timestamp(contenido, key);
     Free(contenido);
     return registro;
@@ -592,7 +595,16 @@ t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key
                 continue;
 
             char* contenido = leerArchivoLFS(path);
+            if (!contenido)
+                continue;
+
             t_registro* registroAux = get_biggest_timestamp(contenido, key);
+            if (!registroAux)
+            {
+                Free(contenido);
+                continue;
+            }
+
             if (!resultado)
             {
                 resultado = Malloc(sizeof(t_registro));
@@ -609,6 +621,8 @@ t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key
 
                 resultado->timestamp = registroAux->timestamp;
             }
+
+            Free(contenido);
         }
     }
 
@@ -647,7 +661,7 @@ t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro
 char* leerArchivoLFS(const char* path)
 {
     Vector bloques;
-    size_t longitudArchivo;
+    size_t bytesLeft;
     {
         t_config* file = config_create(path);
         if (!file)
@@ -657,8 +671,15 @@ char* leerArchivoLFS(const char* path)
         }
 
         bloques = config_get_array_value(file, "BLOCKS");
-        longitudArchivo = config_get_long_value(file, "SIZE");
+        bytesLeft = config_get_long_value(file, "SIZE");
         config_destroy(file);
+    }
+
+    size_t const longitudArchivo = bytesLeft;
+    if (!longitudArchivo)
+    {
+        Vector_Destruct(&bloques);
+        return NULL;
     }
 
     size_t const bloquesTotales = Vector_size(&bloques);
@@ -668,7 +689,8 @@ char* leerArchivoLFS(const char* path)
     if (longitudArchivo < readLen)
         readLen = longitudArchivo;
 
-    char* contenido = Malloc(longitudArchivo);
+    char* const contenido = Malloc(longitudArchivo + 1);
+    char* rpos = contenido;
 
     char** const arrayBloques = Vector_data(&bloques);
     for (size_t i = 0; i < bloquesTotales; ++i)
@@ -692,9 +714,9 @@ char* leerArchivoLFS(const char* path)
             exit(EXIT_FAILURE);
         }
 
-        memcpy(contenido, mapping, readLen);
-        contenido += readLen;
-        longitudArchivo -= readLen;
+        memcpy(rpos, mapping, readLen);
+        rpos += readLen;
+        bytesLeft -= readLen;
 
         if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)
         {
@@ -705,11 +727,13 @@ char* leerArchivoLFS(const char* path)
         close(fd);
 
         readLen = confLFS.TAMANIO_BLOQUES;
-        if (longitudArchivo < readLen)
-            readLen = longitudArchivo;
+        if (bytesLeft < readLen)
+            readLen = bytesLeft;
     }
 
     Vector_Destruct(&bloques);
+
+    contenido[longitudArchivo] = '\0';
     return contenido;
 }
 
