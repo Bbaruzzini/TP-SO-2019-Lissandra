@@ -225,8 +225,8 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
     if (!s)
     {
         LISSANDRA_LOG_ERROR("Criteria_AddMemory: Memoria %u desconectada!", memId);
-        _disconnectMemory(memId);
         hashmap_remove_and_destroy(MemoryIPMap, memId, Free);
+        _disconnectMemory(memId);
         return;
     }
 
@@ -361,8 +361,8 @@ Packet* Memory_SendRequestWithAnswer(Memory* mem, MemoryOps op, DBRequest const*
     if (!p)
     {
         LISSANDRA_LOG_ERROR("Se desconectó memoria %u mientras leia un request!!, quitando...", mem->MemId);
-        _disconnectMemory(mem->MemId);
         hashmap_remove_and_destroy(MemoryIPMap, mem->MemId, Free);
+        _disconnectMemory(mem->MemId);
     }
 
     return p;
