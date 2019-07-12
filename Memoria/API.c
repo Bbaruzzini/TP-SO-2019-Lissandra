@@ -66,13 +66,16 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
             return Ok;
     }
 
+    uint64_t timestamp;
+    Packet_Read(p, &timestamp);
+
     char* fs_value;
     Packet_Read(p, &fs_value);
     snprintf(value, maxValueLength + 1, "%s", fs_value);
     Free(fs_value);
     Packet_Destroy(p);
 
-    if (!Memory_InsertNewValue(tableName, key, value))
+    if (!Memory_InsertNewValue(tableName, timestamp, key, value))
         return MemoryFull;
 
     // delay artificial acceso a memoria (write latency)

@@ -62,7 +62,7 @@ enum
 #define OPCODES_RECV(OPC)                                                      \
     /* Mensajes que entienden los 3 modulos                                    \
        (Respuestas a queries) */                                               \
-    OPC(MSG_SELECT)  /* uint64: timestamp                                      \
+    OPC(MSG_SELECT)  /* uint64: timestamp (FS->Mem solamente)                  \
                       * char*: value                                           \
                       */                                                       \
                                                                                \

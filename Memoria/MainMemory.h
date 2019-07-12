@@ -8,7 +8,7 @@
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint);
 
-bool Memory_InsertNewValue(char const* tableName, uint16_t key, char const* value);
+bool Memory_InsertNewValue(char const* tableName, uint64_t timestamp, uint16_t key, char const* value);
 
 bool Memory_UpsertValue(char const* tableName, uint16_t key, char const* value);
 

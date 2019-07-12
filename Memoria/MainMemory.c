@@ -23,7 +23,7 @@ static t_bitarray* FrameStatus = NULL;
 static bool Full = false; // valor cacheado para no tener que pasar por LRU de nuevo
 
 static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key);
-static void WriteFrame(size_t frameNumber, uint16_t key, char const* value);
+static void WriteFrame(size_t frameNumber, uint64_t timestamp, uint16_t key, char const* value);
 static bool GetFreeFrame(size_t* frame);
 
 void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
@@ -59,14 +59,14 @@ void Memory_Initialize(uint32_t maxValueLength, char const* mountPoint)
                        frameString, FrameSize);
 }
 
-bool Memory_InsertNewValue(char const* tableName, uint16_t key, char const* value)
+bool Memory_InsertNewValue(char const* tableName, uint64_t timestamp, uint16_t key, char const* value)
 {
     size_t freeFrame;
     if (!GetFreeFrame(&freeFrame))
         return false;
 
     CreateNewPage(freeFrame, tableName, key);
-    WriteFrame(freeFrame, key, value);
+    WriteFrame(freeFrame, timestamp, key, value);
     return true;
 }
 
@@ -82,7 +82,7 @@ bool Memory_UpsertValue(char const* tableName, uint16_t key, char const* value)
         pt = CreateNewPage(frame, tableName, key);
     }
 
-    WriteFrame(frame, key, value);
+    WriteFrame(frame, GetMSEpoch(), key, value);
     PageTable_MarkDirty(pt, key);
     return true;
 }
@@ -154,14 +154,14 @@ static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint1
     return pt;
 }
 
-static void WriteFrame(size_t frameNumber, uint16_t key, char const* value)
+static void WriteFrame(size_t frameNumber, uint64_t timestamp, uint16_t key, char const* value)
 {
     Frame* const f = Memory_Read(frameNumber);
 
     LISSANDRA_LOG_DEBUG("WriteFrame: frame: %p, offset: %u", (void*)f, frameNumber);
 
     f->Key = key;
-    f->Timestamp = GetMSEpoch();
+    f->Timestamp = timestamp;
     strncpy(f->Value, value, MaxValueLength);
 }
 
