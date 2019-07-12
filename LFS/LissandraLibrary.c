@@ -646,26 +646,29 @@ t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro
 
 char* leerArchivoLFS(const char* path)
 {
-    FILE* part = fopen(path, "r");
-    if (!part)
-    {
-        LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
-        return NULL;
-    }
-
     Vector bloques;
     size_t longitudArchivo;
     {
-        t_config* datos = config_create(path);
-        bloques = config_get_array_value(datos, "BLOCKS");
-        longitudArchivo = config_get_long_value(datos, "SIZE");
-        config_destroy(datos);
+        t_config* file = config_create(path);
+        if (!file)
+        {
+            LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
+            return NULL;
+        }
+
+        bloques = config_get_array_value(file, "BLOCKS");
+        longitudArchivo = config_get_long_value(file, "SIZE");
+        config_destroy(file);
     }
 
     size_t const bloquesTotales = Vector_size(&bloques);
 
+    // cuanto leer
+    size_t readLen = confLFS.TAMANIO_BLOQUES;
+    if (longitudArchivo < readLen)
+        readLen = longitudArchivo;
+
     char* contenido = Malloc(longitudArchivo);
-    size_t offset = 0;
 
     char** const arrayBloques = Vector_data(&bloques);
     for (size_t i = 0; i < bloquesTotales; ++i)
@@ -689,8 +692,9 @@ char* leerArchivoLFS(const char* path)
             exit(EXIT_FAILURE);
         }
 
-        memcpy(contenido + offset, mapping, confLFS.TAMANIO_BLOQUES);
-        offset += confLFS.TAMANIO_BLOQUES;
+        memcpy(contenido, mapping, readLen);
+        contenido += readLen;
+        longitudArchivo -= readLen;
 
         if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)
         {
@@ -699,11 +703,13 @@ char* leerArchivoLFS(const char* path)
         }
 
         close(fd);
+
+        readLen = confLFS.TAMANIO_BLOQUES;
+        if (longitudArchivo < readLen)
+            readLen = longitudArchivo;
     }
 
-    fclose(part);
     Vector_Destruct(&bloques);
-
     return contenido;
 }
 
@@ -776,7 +782,7 @@ void escribirArchivoLFS(char const* path, void const* buf, size_t len)
         }
 
         memcpy(mapping + offset, buf, writeLength);
-        buf = (uint8_t const*) buf + writeLength;
+        buf = (char const*) buf + writeLength;
         len -= writeLength;
 
         munmap(mapping, confLFS.TAMANIO_BLOQUES);
