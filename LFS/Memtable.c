@@ -163,8 +163,10 @@ static void _dump_table(char const* nombreTabla, void* registros)
     close(fd);
 }
 
-void memtable_dump(void)
+void memtable_dump(PeriodicTimer* pt)
 {
+    (void) pt;
+
     t_dictionary* oldMemtable;
 
     {

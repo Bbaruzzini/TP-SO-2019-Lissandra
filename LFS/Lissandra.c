@@ -34,6 +34,8 @@ atomic_bool ProcessRunning = true;
 static Appender* consoleLog;
 static Appender* fileLog;
 
+static PeriodicTimer* DumpTimer = NULL;
+
 t_config_FS confLFS = { 0 };
 
 static void IniciarLogger(void)
@@ -72,6 +74,9 @@ static void _reLoadConfig(char const* fileName)
 
     //printf("configTamValue %d\n", confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
     config_destroy(config);
+
+    // recargo el intervalo de dumps
+    PeriodicTimer_ReSetTimer(DumpTimer, confLFS.TIEMPO_DUMP);
 }
 
 static void LoadConfigInitial(char const* fileName)
@@ -111,6 +116,10 @@ static void LoadConfigInitial(char const* fileName)
     FileWatcher* fw = FileWatcher_Create();
     FileWatcher_AddWatch(fw, fileName, _reLoadConfig);
     EventDispatcher_AddFDI(fw);
+
+    // timers
+    DumpTimer = PeriodicTimer_Create(confLFS.TIEMPO_DUMP, memtable_dump);
+    EventDispatcher_AddFDI(DumpTimer);
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
 }

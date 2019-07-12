@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <vector.h>
 
+typedef struct PeriodicTimer PeriodicTimer;
+
 typedef struct
 {
     uint16_t key;
@@ -29,6 +31,6 @@ t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key
 //Funcion para eliminar un elemento de la memtable
 void memtable_delete_table(char const* nombreTabla);
 
-void memtable_dump(void);
+void memtable_dump(PeriodicTimer*);
 
 #endif //LISSANDRA_MEMTABLE_H
