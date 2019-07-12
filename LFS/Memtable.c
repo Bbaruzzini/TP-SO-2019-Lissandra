@@ -5,6 +5,7 @@
 #include "Memtable.h"
 #include "Config.h"
 #include "LissandraLibrary.h"
+#include <fcntl.h>
 #include <libcommons/config.h>
 #include <libcommons/dictionary.h>
 #include <libcommons/string.h>
@@ -13,6 +14,8 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/file.h>
+#include <unistd.h>
 
 static t_dictionary* memtable = NULL;
 static pthread_rwlock_t memtableMutex = PTHREAD_RWLOCK_INITIALIZER;
@@ -131,15 +134,12 @@ static void _dump_table(char const* nombreTabla, void* registros)
 {
     char pathTable[PATH_MAX];
     snprintf(pathTable, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, nombreTabla);
-    if (!existeDir(pathTable))
+    int fd = open(pathTable, O_RDONLY);
+    if (fd == -1)
     {
         LISSANDRA_LOG_ERROR("La tabla hallada en la memtable no se encuentra en el File System... Esto no deberia estar pasando");
         return;
     }
-
-    //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
-    char pathTemporal[PATH_MAX];
-    for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, nombreTabla, j), existeArchivo(pathTemporal); ++j);
 
     size_t bloqueLibre;
     if (!buscarBloqueLibre(&bloqueLibre))
@@ -148,13 +148,19 @@ static void _dump_table(char const* nombreTabla, void* registros)
         exit(EXIT_FAILURE);
     }
 
-    // todo crearArchivoVacio(pathTemporal, bloqueLibre);
-    FILE* temporal = fopen(pathTemporal, "w");
-    fprintf(temporal, "SIZE=0\n");
-    fprintf(temporal, "BLOCKS=[%d]\n", bloqueLibre);
-    fclose(temporal);
+    // bloqueo sugerido exclusivo (escritura, para no pisar el compactador o select)
+    flock(fd, LOCK_EX);
+
+    //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
+    char pathTemporal[PATH_MAX];
+    for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, nombreTabla, j), existeArchivo(pathTemporal); ++j);
+
+    crearArchivoLFS(pathTemporal, bloqueLibre);
 
     Vector_iterate_with_data(registros, _dump_element, pathTemporal);
+
+    // fin bloqueo
+    close(fd);
 }
 
 void memtable_dump(void)

@@ -54,8 +54,6 @@ uint16_t get_particion(uint16_t particiones, uint16_t key);
 
 void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion);
 
-char* leerArchivoLFS(char const* path);
-
 t_registro* get_biggest_timestamp(char const* contenido, uint16_t key);
 
 t_registro* scanParticion(char const* pathParticion, uint16_t key);
@@ -65,7 +63,11 @@ t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key
 t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro* memtable);
 
 // primitivas FS
+char* leerArchivoLFS(char const* path);
+
 void escribirArchivoLFS(char const* path, void const* buf, size_t len);
+
+void crearArchivoLFS(char const* path, size_t block);
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!

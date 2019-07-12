@@ -489,69 +489,6 @@ void generarPathParticion(uint16_t particion, char* pathTabla, char* pathPartici
     snprintf(pathParticion, PATH_MAX, "%s/%d.bin", pathTabla, particion);
 }
 
-char* leerArchivoLFS(const char* path)
-{
-    FILE* part = fopen(path, "r");
-    if (!part)
-    {
-        LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
-        return NULL;
-    }
-
-    Vector bloques;
-    size_t longitudArchivo;
-    {
-        t_config* datos = config_create(path);
-        bloques = config_get_array_value(datos, "BLOCKS");
-        longitudArchivo = config_get_long_value(datos, "SIZE");
-        config_destroy(datos);
-    }
-
-    size_t const bloquesTotales = Vector_size(&bloques);
-
-    char* contenido = Malloc(longitudArchivo);
-    size_t offset = 0;
-
-    char** const arrayBloques = Vector_data(&bloques);
-    for (size_t i = 0; i < bloquesTotales; ++i)
-    {
-        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
-
-        char pathBloque[PATH_MAX];
-        generarPathBloque(numBloque, pathBloque);
-
-        int fd = open(pathBloque, O_RDONLY);
-        if (fd == -1)
-        {
-            LISSANDRA_LOG_SYSERROR("open");
-            exit(EXIT_FAILURE);
-        }
-
-        char* mapping = mmap(0, confLFS.TAMANIO_BLOQUES, PROT_READ, MAP_SHARED, fd, 0);
-        if (mapping == MAP_FAILED)
-        {
-            LISSANDRA_LOG_SYSERROR("mmap");
-            exit(EXIT_FAILURE);
-        }
-
-        memcpy(contenido + offset, mapping, confLFS.TAMANIO_BLOQUES);
-        offset += confLFS.TAMANIO_BLOQUES;
-
-        if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)
-        {
-            LISSANDRA_LOG_SYSERROR("munmap");
-            exit(EXIT_FAILURE);
-        }
-
-        close(fd);
-    }
-
-    fclose(part);
-    Vector_Destruct(&bloques);
-
-    return contenido;
-}
-
 t_registro* get_biggest_timestamp(char const* contenido, uint16_t key)
 {
     Vector registros = string_split(contenido, "\n");
@@ -707,6 +644,69 @@ t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro
     return mayor;
 }
 
+char* leerArchivoLFS(const char* path)
+{
+    FILE* part = fopen(path, "r");
+    if (!part)
+    {
+        LISSANDRA_LOG_ERROR("No se encontro el archivo en el File System");
+        return NULL;
+    }
+
+    Vector bloques;
+    size_t longitudArchivo;
+    {
+        t_config* datos = config_create(path);
+        bloques = config_get_array_value(datos, "BLOCKS");
+        longitudArchivo = config_get_long_value(datos, "SIZE");
+        config_destroy(datos);
+    }
+
+    size_t const bloquesTotales = Vector_size(&bloques);
+
+    char* contenido = Malloc(longitudArchivo);
+    size_t offset = 0;
+
+    char** const arrayBloques = Vector_data(&bloques);
+    for (size_t i = 0; i < bloquesTotales; ++i)
+    {
+        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
+
+        char pathBloque[PATH_MAX];
+        generarPathBloque(numBloque, pathBloque);
+
+        int fd = open(pathBloque, O_RDONLY);
+        if (fd == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("open");
+            exit(EXIT_FAILURE);
+        }
+
+        char* mapping = mmap(0, confLFS.TAMANIO_BLOQUES, PROT_READ, MAP_SHARED, fd, 0);
+        if (mapping == MAP_FAILED)
+        {
+            LISSANDRA_LOG_SYSERROR("mmap");
+            exit(EXIT_FAILURE);
+        }
+
+        memcpy(contenido + offset, mapping, confLFS.TAMANIO_BLOQUES);
+        offset += confLFS.TAMANIO_BLOQUES;
+
+        if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)
+        {
+            LISSANDRA_LOG_SYSERROR("munmap");
+            exit(EXIT_FAILURE);
+        }
+
+        close(fd);
+    }
+
+    fclose(part);
+    Vector_Destruct(&bloques);
+
+    return contenido;
+}
+
 void escribirArchivoLFS(char const* path, void const* buf, size_t len)
 {
     t_config* file = config_create(path);
@@ -797,4 +797,12 @@ void escribirArchivoLFS(char const* path, void const* buf, size_t len)
 
     config_save(file);
     config_destroy(file);
+}
+
+void crearArchivoLFS(char const* path, size_t block)
+{
+    FILE* temporal = fopen(path, "w");
+    fprintf(temporal, "SIZE=0\n");
+    fprintf(temporal, "BLOCKS=[%u]\n", block);
+    fclose(temporal);
 }
