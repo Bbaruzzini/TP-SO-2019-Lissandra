@@ -12,23 +12,15 @@
 #include <Malloc.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <zconf.h>
-
-typedef struct
-{
-    char* nombreTabla;
-    Vector registros;
-} t_elem_memtable;
+#include <stdlib.h>
 
 static t_dictionary* memtable = NULL;
 static pthread_rwlock_t memtableMutex = PTHREAD_RWLOCK_INITIALIZER;
 
-static void _delete_memtable_table(void* elem)
+static void _delete_memtable_table(void* registros)
 {
-    t_elem_memtable* mt = elem;
-    Free(mt->nombreTabla);
-    Vector_Destruct(&mt->registros);
-    Free(mt);
+    Vector_Destruct(registros);
+    Free(registros);
 }
 
 static void _delete_memtable_register(void* elem)
@@ -54,17 +46,16 @@ void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value,
 
     pthread_rwlock_wrlock(&memtableMutex);
 
-    t_elem_memtable* table = dictionary_get(memtable, nombreTabla);
-    if (!table)
+    Vector* registros = dictionary_get(memtable, nombreTabla);
+    if (!registros)
     {
-        table = Malloc(sizeof(t_elem_memtable));
-        table->nombreTabla = string_duplicate(nombreTabla);
-        Vector_Construct(&table->registros, sizeof(t_registro), _delete_memtable_register, 0);
+        registros = Malloc(sizeof(Vector));
+        Vector_Construct(registros, sizeof(t_registro), _delete_memtable_register, 0);
 
-        dictionary_put(memtable, nombreTabla, table);
+        dictionary_put(memtable, nombreTabla, registros);
     }
 
-    Vector_push_back(&table->registros, &new);
+    Vector_push_back(registros, &new);
 
     pthread_rwlock_unlock(&memtableMutex);
 }
@@ -83,16 +74,16 @@ t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key
 {
     pthread_rwlock_rdlock(&memtableMutex);
 
-    t_elem_memtable* const elemento = dictionary_get(memtable, nombreTabla);
+    Vector* const registros = dictionary_get(memtable, nombreTabla);
 
-    size_t const cantElementos = Vector_size(&elemento->registros);
+    size_t const cantElementos = Vector_size(registros);
 
     t_registro* registroMayor = NULL;
     uint64_t timestampMayor = 0;
 
     for (size_t i = 0; i < cantElementos; ++i)
     {
-        t_registro* const registro = Vector_at(&elemento->registros, i);
+        t_registro* const registro = Vector_at(registros, i);
         if (registro->key == key)
         {
             if (!registroMayor || registro->timestamp > timestampMayor)
@@ -136,14 +127,10 @@ static void _dump_element(void* element, void* path)
     escribirArchivoLFS(pathTemporal, field, len);
 }
 
-static void _dump_table(char const* key, void* element)
+static void _dump_table(char const* nombreTabla, void* registros)
 {
-    (void) key;
-
-    t_elem_memtable* table = element;
-
     char pathTable[PATH_MAX];
-    snprintf(pathTable, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, table->nombreTabla);
+    snprintf(pathTable, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, nombreTabla);
     if (!existeDir(pathTable))
     {
         LISSANDRA_LOG_ERROR("La tabla hallada en la memtable no se encuentra en el File System... Esto no deberia estar pasando");
@@ -152,13 +139,13 @@ static void _dump_table(char const* key, void* element)
 
     //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
     char pathTemporal[PATH_MAX];
-    for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, table->nombreTabla, j), existeArchivo(pathTemporal); ++j);
+    for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, nombreTabla, j), existeArchivo(pathTemporal); ++j);
 
     size_t bloqueLibre;
     if (!buscarBloqueLibre(&bloqueLibre))
     {
-        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando memtable_dump");
-        return;
+        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando...");
+        exit(EXIT_FAILURE);
     }
 
     // todo crearArchivoVacio(pathTemporal, bloqueLibre);
@@ -167,7 +154,7 @@ static void _dump_table(char const* key, void* element)
     fprintf(temporal, "BLOCKS=[%d]\n", bloqueLibre);
     fclose(temporal);
 
-    Vector_iterate_with_data(&table->registros, _dump_element, pathTemporal);
+    Vector_iterate_with_data(registros, _dump_element, pathTemporal);
 }
 
 void memtable_dump(void)
