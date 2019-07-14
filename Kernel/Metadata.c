@@ -51,6 +51,10 @@ void Metadata_Update(char const* tableName, Packet* p)
     // bloquear mientras se actualiza porque podrian entrar nuevos request
     pthread_rwlock_wrlock(&MetadataLock);
 
+    // limpiar metadata de tabla si es una sola (podria haber sido dropeada)
+    if (tableName)
+        dictionary_remove_and_destroy(Metadata, tableName, Free);
+
     uint32_t num = 1;
     switch (Packet_GetOpcode(p))
     {
@@ -62,9 +66,7 @@ void Metadata_Update(char const* tableName, Packet* p)
             Packet_Read(p, &num);
             dictionary_clean_and_destroy_elements(Metadata, Free);
             break;
-        case MSG_DESCRIBE:
-            // el de una tabla borra esa tabla porque puede que haya sido dropeada
-            dictionary_remove_and_destroy(Metadata, tableName, Free);
+        default:
             break;
     }
 
