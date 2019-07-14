@@ -22,6 +22,12 @@ ScriptCommand const ScriptCommands[] =
     { NULL,       NULL           }
 };
 
+// issue: 1433
+// En el caso de que se caiga una Memoria mientras se esta realizando una request simplemente informá por consola
+// del Kernel que esa operación no se pudo realizar correctamente por una falla y seguí con la siguiente en el script
+// (o si es la última finalizá el script)
+#define LOG_MEMORY_DOWN() LISSANDRA_LOG_ERROR("La memoria se desconecto mientras corria script")
+
 bool HandleSelect(Vector const* args)
 {
     //           cmd args
@@ -66,7 +72,10 @@ bool HandleSelect(Vector const* args)
 
     // se desconecto la memoria! el sendrequest ya lo logueó
     if (!p)
-        return false;
+    {
+        LOG_MEMORY_DOWN();
+        return true;
+    }
 
     Criteria_AddMetric(ct, EVT_READ_LATENCY, GetMSTimeDiff(requestTime, GetMSTime()));
 
@@ -147,7 +156,10 @@ bool HandleInsert(Vector const* args)
 
     // se desconecto la memoria! el sendrequest ya lo logueó
     if (!p)
-        return false;
+    {
+        LOG_MEMORY_DOWN();
+        return true;
+    }
 
     switch (Packet_GetOpcode(p))
     {
@@ -222,8 +234,12 @@ bool HandleCreate(Vector const* args)
         return false;
 
     Packet* p = Memory_SendRequestWithAnswer(mem, OP_CREATE, &dbr);
-    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
-        return false;
+    // se desconecto la memoria! el sendrequest ya lo logueó
+    if (!p)
+    {
+        LOG_MEMORY_DOWN();
+        return true;
+    }
 
     if (Packet_GetOpcode(p) != MSG_CREATE_RESPUESTA)
     {
@@ -283,8 +299,12 @@ bool HandleDescribe(Vector const* args)
         return false;
 
     Packet* p = Memory_SendRequestWithAnswer(mem, OP_DESCRIBE, &dbr);
-    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
-        return false;
+    // se desconecto la memoria! el sendrequest ya lo logueó
+    if (!p)
+    {
+        LOG_MEMORY_DOWN();
+        return true;
+    }
 
     if (Packet_GetOpcode(p) != MSG_ERR_TABLE_NOT_EXISTS && Packet_GetOpcode(p) != MSG_DESCRIBE && Packet_GetOpcode(p) != MSG_DESCRIBE_GLOBAL)
     {
@@ -331,8 +351,12 @@ bool HandleDrop(Vector const* args)
         return false;
 
     Packet* p = Memory_SendRequestWithAnswer(mem, OP_DROP, &dbr);
-    if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
-        return false;
+    // se desconecto la memoria! el sendrequest ya lo logueó
+    if (!p)
+    {
+        LOG_MEMORY_DOWN();
+        return true;
+    }
 
     if (Packet_GetOpcode(p) != MSG_DROP_RESPUESTA)
     {
