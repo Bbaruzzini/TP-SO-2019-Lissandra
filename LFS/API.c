@@ -1,16 +1,18 @@
 
 #include "API.h"
 #include "Config.h"
-#include "Memtable.h"
+#include "LissandraLibrary.h"
 #include <Consistency.h>
 #include <fcntl.h>
+#include <Logger.h>
+#include <Malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-t_registro* api_select(char* nombreTabla, uint16_t key)
+bool api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestamp)
 {
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
@@ -25,7 +27,15 @@ t_registro* api_select(char* nombreTabla, uint16_t key)
     //Obtener la metadata asociada a dicha tabla
     char pathMetadata[PATH_MAX];
     generarPathArchivo(nombreTabla, "Metadata.bin", pathMetadata);
-    t_describe* infoTabla = get_table_metadata(pathMetadata, nombreTabla);
+
+    t_describe infoTabla;
+    if (!get_table_metadata(pathMetadata, nombreTabla, &infoTabla))
+        return NULL;
+
+    //Calcular cual es la particion que contiene dicho KEY
+    uint16_t const particion = get_particion(infoTabla.partitions, key);
+    char pathParticion[PATH_MAX];
+    generarPathParticion(particion, path, pathParticion);
 
     // bloqueo sugerido compartido tabla (lectura)
     int fd = open(path, O_RDONLY);
@@ -41,25 +51,48 @@ t_registro* api_select(char* nombreTabla, uint16_t key)
         return NULL;
     }
 
-    //Calcular cual es la particion que contiene dicho KEY
-    uint16_t particion = get_particion(infoTabla->partitions, key);
-    char pathParticion[PATH_MAX];
-    generarPathParticion(particion, path, pathParticion);
+    size_t const tamRegistro = sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1;
 
     //Ecanear la particion objetivo
-    t_registro* particion_timestamp = scanParticion(pathParticion, key);
+    t_registro* resultadoParticion = Malloc(tamRegistro);
+    if (!scanParticion(pathParticion, key, resultadoParticion))
+    {
+        Free(resultadoParticion);
+        resultadoParticion = NULL;
+    }
 
     //Escanear todos los archivos temporales
-    t_registro* temporales_timestamp = temporales_get_biggest_timestamp(path, key);
+    t_registro* resultadoTemporales = Malloc(tamRegistro);
+    if (!temporales_get_biggest_timestamp(path, key, resultadoTemporales))
+    {
+        Free(resultadoTemporales);
+        resultadoTemporales = NULL;
+    }
 
     // quita el bloqueo sugerido
     close(fd);
 
     //Escanear la memoria temporal de dicha tabla buscando la key deseada
-    t_registro* memtable_timestamp = memtable_get_biggest_timestamp(nombreTabla, key);
+    t_registro* resultadoMemtable = Malloc(tamRegistro);
+    if (!memtable_get_biggest_timestamp(nombreTabla, key, resultadoMemtable))
+    {
+        Free(resultadoMemtable);
+        resultadoMemtable = NULL;
+    }
 
     //Encontradas las entradas para dicha KEY, se retorna el valor con el Timestamp más grande
-    return get_newest(particion_timestamp, temporales_timestamp, memtable_timestamp);
+    t_registro const* maximo = get_newest(resultadoParticion, resultadoTemporales, resultadoMemtable);
+    if (maximo)
+    {
+        strncpy(value, maximo->value, confLFS.TAMANIO_VALUE + 1);
+        *timestamp = maximo->timestamp;
+    }
+
+    Free(resultadoMemtable);
+    Free(resultadoTemporales);
+    Free(resultadoParticion);
+
+    return maximo != NULL;
 }
 
 uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
@@ -76,17 +109,6 @@ uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t 
         return EXIT_FAILURE;
 
     }
-
-    //Esto comentado creo que no va. No recuerdo ni por que lo hice...
-    /*
-    //Si la tabla existe, carga los datos de su metadata en tableMetadata
-    char* pathMetadataTabla = string_new();
-    string_append(&pathMetadataTabla, path);
-    string_append(&pathMetadataTabla, "/Metadata.bin");
-
-    t_describe* tableMetadata;
-    tableMetadata = get_table_metadata(pathMetadataTabla, nombreTabla);
-    */
 
     //Verifica si hay datos a dumpear, y si no existen aloca memoria
     memtable_new_elem(nombreTabla, key, value, timestamp);
@@ -208,7 +230,6 @@ uint8_t api_drop(char* nombreTabla)
 
 void* api_describe(char* nombreTabla)
 {
-    //SI NO ANDA, CAMBIAR ESTE STRCOM POR UNA VERIFICACION SI LA TABLA=NULL
     if (nombreTabla == NULL)
     {
         char dirTablas[PATH_MAX];
@@ -234,15 +255,24 @@ void* api_describe(char* nombreTabla)
     }
 
     //Pruebas Brenda/Denise desde ACA
-    /*t_describe* tableMetadata = get_table_metadata(pathMetadata, nombreTabla);
-
-    printf("Por aca tambien paso\n");
-    printf("Tabla: %s\n", tableMetadata->table);
-    printf("Consistencia: %s\n", tableMetadata->consistency);
-    printf("Particiones: %d\n", tableMetadata->partitions);
-    printf("Tiempo: %d\n", tableMetadata->compaction_time);
-     */
+    /*t_describe tableMetadata;
+    if (get_table_metadata(pathMetadata, nombreTabla, &tableMetadata))
+    {
+        printf("Por aca tambien paso\n");
+        printf("Tabla: %s\n", tableMetadata->table);
+        printf("Consistencia: %s\n", tableMetadata->consistency);
+        printf("Particiones: %d\n", tableMetadata->partitions);
+        printf("Tiempo: %d\n", tableMetadata->compaction_time);
+    }
+    */
     //HASTA ACA
 
-    return get_table_metadata(pathTableMeta, nombreTabla);
+    t_describe* desc = Malloc(sizeof(t_describe));
+    if (!get_table_metadata(pathTableMeta, nombreTabla, desc))
+    {
+        Free(desc);
+        return NULL;
+    }
+
+    return desc;
 }

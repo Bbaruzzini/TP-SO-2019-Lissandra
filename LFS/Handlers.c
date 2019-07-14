@@ -2,6 +2,7 @@
 #include "Handlers.h"
 #include "API.h"
 #include "Config.h"
+#include "LissandraLibrary.h"
 #include <Consistency.h>
 #include <Logger.h>
 #include <Opcodes.h>
@@ -39,21 +40,19 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     Packet_Read(p, &nombreTabla);
     Packet_Read(p, &key);
 
-    t_registro* resultado = api_select(nombreTabla, key);
-    Packet* respuesta;
+    char value[confLFS.TAMANIO_VALUE + 1];
+    uint64_t timestamp;
 
-    if (resultado)
+    Packet* respuesta;
+    if (api_select(nombreTabla, key, value, &timestamp))
     {
         // adivino size
         respuesta = Packet_Create(MSG_SELECT, 100);
-        Packet_Append(respuesta, resultado->timestamp);
-        Packet_Append(respuesta, resultado->value);
-        Free(resultado->value);
+        Packet_Append(respuesta, timestamp);
+        Packet_Append(respuesta, value);
     }
     else
         respuesta = Packet_Create(MSG_ERR_NOT_FOUND, 0);
-
-    Free(resultado);
 
     Socket_SendPacket(s, respuesta);
     Packet_Destroy(respuesta);

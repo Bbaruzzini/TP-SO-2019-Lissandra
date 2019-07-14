@@ -4,20 +4,13 @@
 
 #include "CLIHandlers.h"
 #include "API.h"
+#include "Config.h"
+#include "LissandraLibrary.h"
 #include <Consistency.h>
 #include <ConsoleInput.h>
 #include <Malloc.h>
 #include <stdio.h>
 #include <Timer.h>
-
-
-static void _printSelect(void* elem)
-{
-    t_registro* elemento = elem;
-    printf("Key: %d\n", elemento->key);
-    printf("Value: %s\n", elemento->value);
-    printf("Timestamp: %llu\n", elemento->timestamp);
-}
 
 void HandleSelect(Vector const* args)
 {
@@ -43,12 +36,13 @@ void HandleSelect(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    //TODO: completar con lo que falta desde aca
-    t_registro* resultadoSelect = api_select(table, k);
-    if (resultadoSelect != NULL)
+    char value[confLFS.TAMANIO_VALUE + 1];
+    uint64_t timestamp;
+    if (api_select(table, k, value, &timestamp))
     {
-        _printSelect(resultadoSelect);
-        Free(resultadoSelect);
+        LISSANDRA_LOG_INFO("Key: %u", k);
+        LISSANDRA_LOG_INFO("Value: %s", value);
+        LISSANDRA_LOG_INFO("Timestamp: %llu", timestamp);
     }
     else
         LISSANDRA_LOG_ERROR("No se pudo realizar el SELECT: la tabla ingresada no existe en el File System");

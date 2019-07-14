@@ -269,22 +269,22 @@ void escribirValorBitarray(bool valor, size_t pos)
         bitarray_clean_bit(bitArray, pos);
 }
 
-t_describe* get_table_metadata(char const* path, char const* tabla)
+bool get_table_metadata(char const* path, char const* tabla, t_describe* res)
 {
     t_config* contenido = config_create(path);
     char const* consistency = config_get_string_value(contenido, "CONSISTENCY");
     CriteriaType ct;
     if (!CriteriaFromString(consistency, &ct)) // error!
-        return NULL;
+        return false;
+
     uint16_t partitions = config_get_int_value(contenido, "PARTITIONS");
     uint32_t compaction_time = config_get_long_value(contenido, "COMPACTION_TIME");
     config_destroy(contenido);
 
-    t_describe* infoMetadata = Malloc(sizeof(t_describe));
-    snprintf(infoMetadata->table, NAME_MAX + 1, "%s", tabla);
-    infoMetadata->consistency = (uint8_t) ct;
-    infoMetadata->partitions = partitions;
-    infoMetadata->compaction_time = compaction_time;
+    snprintf(res->table, NAME_MAX + 1, "%s", tabla);
+    res->consistency = (uint8_t) ct;
+    res->partitions = partitions;
+    res->compaction_time = compaction_time;
 
     //Pruebas Brenda/Denise desde ACA
     /*
@@ -296,7 +296,7 @@ t_describe* get_table_metadata(char const* path, char const* tabla)
     */
     //HASTA ACA
 
-    return infoMetadata;
+    return true;
 }
 
 int traverse(char const* fn, t_list* lista, char const* tabla)
@@ -330,19 +330,22 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                     if (resultado == -1)
                         return -1;
                 }
-                else
+                else if (S_ISREG(info.st_mode))
                 {
-                    if (S_ISREG(info.st_mode))
+                    if (strcmp(entry->d_name, "Metadata.bin") == 0)
                     {
-                        if (strcmp(entry->d_name, "Metadata.bin") == 0)
+                        t_describe* desc = Malloc(sizeof(t_describe));
+                        if (!get_table_metadata(path, tabla, desc))
                         {
-                            list_add(lista, get_table_metadata(path, tabla));
-                            break;
+                            Free(desc);
+                            continue;
                         }
+
+                        list_add(lista, desc);
+                        break;
                     }
                 }
             }
-
         }
     }
 
@@ -489,70 +492,65 @@ void generarPathParticion(uint16_t particion, char* pathTabla, char* pathPartici
     snprintf(pathParticion, PATH_MAX, "%s/%d.bin", pathTabla, particion);
 }
 
-t_registro* get_biggest_timestamp(char const* contenido, uint16_t key)
+bool get_biggest_timestamp(char const* contenido, uint16_t key, t_registro* resultado)
 {
     Vector registros = string_split(contenido, "\n");
 
-    t_registro* resultado = NULL;
+    bool found = false;
     char** const tokens = Vector_data(&registros);
     for (size_t i = 0; i < Vector_size(&registros); ++i)
     {
         char* const registro = tokens[i];
 
-        uint64_t timestamp;
-        uint16_t keyToken;
-        char* value;
+        Vector campos = string_split(registro, ";");
+        // timestamp;key;value
+        char** const fields = Vector_data(&campos);
+        uint64_t const timestamp = strtoull(fields[0], NULL, 10);
 
+        uint16_t keyRegistro;
+        if (!ValidateKey(fields[1], &keyRegistro))
         {
-            Vector campos = string_split(registro, ";");
-            // timestamp;key;value
-            char** const fields = Vector_data(&campos);
-            timestamp = strtoull(fields[0], NULL, 10);
-            if (!ValidateKey(fields[1], &keyToken))
-                break;
-
-            value = string_duplicate(fields[2]);
             Vector_Destruct(&campos);
+            break;
         }
 
-        if (key == keyToken)
+        if (key == keyRegistro)
         {
-            if (!resultado)
+            char* const value = fields[2];
+            if (!found)
             {
-                resultado = Malloc(sizeof(t_registro));
+                found = true;
 
-                resultado->key = keyToken;
-                resultado->value = string_duplicate(value);
+                resultado->key = keyRegistro;
                 resultado->timestamp = timestamp;
+                strncpy(resultado->value, value, confLFS.TAMANIO_VALUE + 1);
             }
             else if (resultado->timestamp < timestamp)
             {
-                resultado->key = keyToken;
-
-                Free(resultado->value);
-                resultado->value = string_duplicate(value);
-
                 resultado->timestamp = timestamp;
+                strncpy(resultado->value, value, confLFS.TAMANIO_VALUE + 1);
             }
         }
+
+        Vector_Destruct(&campos);
     }
 
     Vector_Destruct(&registros);
-    return resultado;
+    return found;
 }
 
-t_registro* scanParticion(char const* pathParticion, uint16_t key)
+bool scanParticion(char const* pathParticion, uint16_t key, t_registro* registro)
 {
     char* contenido = leerArchivoLFS(pathParticion);
     if (!contenido)
         return NULL;
 
-    t_registro* registro = get_biggest_timestamp(contenido, key);
+    bool resultado = get_biggest_timestamp(contenido, key, registro);
     Free(contenido);
-    return registro;
+    return resultado;
 }
 
-t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key)
+bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_registro* registro)
 {
     DIR* dir;
     if (!(dir = opendir(pathTabla)))
@@ -561,8 +559,7 @@ t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key
         return NULL;
     }
 
-    t_registro* resultado = NULL;
-
+    bool foundAny = false;
     struct dirent* entry;
     while ((entry = readdir(dir)))
     {
@@ -598,42 +595,40 @@ t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key
             if (!contenido)
                 continue;
 
-            t_registro* registroAux = get_biggest_timestamp(contenido, key);
-            if (!registroAux)
+            size_t const tamRegistro = sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1;
+            t_registro* registroTemp = Malloc(tamRegistro);
+            if (!get_biggest_timestamp(contenido, key, registroTemp))
             {
+                Free(registroTemp);
                 Free(contenido);
                 continue;
             }
 
-            if (!resultado)
+            if (!foundAny)
             {
-                resultado = Malloc(sizeof(t_registro));
-                resultado->key = registroAux->key;
-                resultado->value = string_duplicate(registroAux->value);
-                resultado->timestamp = registroAux->timestamp;
+                foundAny = true;
+
+                memcpy(registro, registroTemp, tamRegistro);
             }
-            else if (resultado->timestamp < registroAux->timestamp)
+            else if (registro->timestamp < registroTemp->timestamp)
             {
-                resultado->key = registroAux->key;
-
-                Free(resultado->value);
-                resultado->value = string_duplicate(registroAux->value);
-
-                resultado->timestamp = registroAux->timestamp;
+                registro->timestamp = registroTemp->timestamp;
+                strncpy(registro->value, registroTemp->value, confLFS.TAMANIO_VALUE + 1);
             }
 
+            Free(registroTemp);
             Free(contenido);
         }
     }
 
     closedir(dir);
-    return resultado;
+    return foundAny;
 }
 
-t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro* memtable)
+t_registro const* get_newest(t_registro const* particion, t_registro const* temporales, t_registro const* memtable)
 {
     size_t num = 0;
-    t_registro* registros[3];
+    t_registro const* registros[3];
 
     if (particion)
         registros[num++] = particion;
@@ -644,7 +639,7 @@ t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro
     if (memtable)
         registros[num++] = memtable;
 
-    t_registro* mayor = NULL;
+    t_registro const* mayor = NULL;
     uint64_t timestampMayor = 0;
     for (size_t i = 0; i < num; ++i)
     {
@@ -676,11 +671,6 @@ char* leerArchivoLFS(const char* path)
     }
 
     size_t const longitudArchivo = bytesLeft;
-    if (!longitudArchivo)
-    {
-        Vector_Destruct(&bloques);
-        return NULL;
-    }
 
     size_t const bloquesTotales = Vector_size(&bloques);
 
@@ -690,7 +680,7 @@ char* leerArchivoLFS(const char* path)
         readLen = longitudArchivo;
 
     char* const contenido = Malloc(longitudArchivo + 1);
-    char* rpos = contenido;
+    size_t offset = 0;
 
     char** const arrayBloques = Vector_data(&bloques);
     for (size_t i = 0; i < bloquesTotales; ++i)
@@ -707,15 +697,15 @@ char* leerArchivoLFS(const char* path)
             exit(EXIT_FAILURE);
         }
 
-        char* mapping = mmap(0, confLFS.TAMANIO_BLOQUES, PROT_READ, MAP_SHARED, fd, 0);
+        char* mapping = mmap(0, confLFS.TAMANIO_BLOQUES, PROT_READ, MAP_PRIVATE, fd, 0);
         if (mapping == MAP_FAILED)
         {
             LISSANDRA_LOG_SYSERROR("mmap");
             exit(EXIT_FAILURE);
         }
 
-        memcpy(rpos, mapping, readLen);
-        rpos += readLen;
+        memcpy(contenido + offset, mapping, readLen);
+        offset += readLen;
         bytesLeft -= readLen;
 
         if (munmap(mapping, confLFS.TAMANIO_BLOQUES) == -1)

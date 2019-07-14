@@ -5,12 +5,12 @@
 #ifndef LISSANDRA_LISSANDRALIBRARY_H
 #define LISSANDRA_LISSANDRALIBRARY_H
 
+#include "Memtable.h"
 #include <libcommons/list.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <Timer.h>
-#include "Memtable.h"
 
 typedef struct
 {
@@ -36,7 +36,7 @@ void generarPathBloque(size_t numBloque, char* buf);
 
 void escribirValorBitarray(bool valor, size_t pos);
 
-t_describe* get_table_metadata(char const* path, char const* tabla);
+bool get_table_metadata(char const* path, char const* tabla, t_describe* res);
 
 int traverse(char const* fn, t_list* lista, char const* tabla);
 
@@ -54,13 +54,13 @@ uint16_t get_particion(uint16_t particiones, uint16_t key);
 
 void generarPathParticion(uint16_t particion, char* pathTabla, char* pathParticion);
 
-t_registro* get_biggest_timestamp(char const* contenido, uint16_t key);
+bool get_biggest_timestamp(char const* contenido, uint16_t key, t_registro* resultado);
 
-t_registro* scanParticion(char const* pathParticion, uint16_t key);
+bool scanParticion(char const* pathParticion, uint16_t key, t_registro* registro);
 
-t_registro* temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key);
+bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_registro* registro);
 
-t_registro* get_newest(t_registro* particion, t_registro* temporales, t_registro* memtable);
+t_registro const* get_newest(t_registro const* particion, t_registro const* temporales, t_registro const* memtable);
 
 // primitivas FS
 char* leerArchivoLFS(char const* path);

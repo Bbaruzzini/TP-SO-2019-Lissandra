@@ -20,32 +20,27 @@
 static t_dictionary* memtable = NULL;
 static pthread_rwlock_t memtableMutex = PTHREAD_RWLOCK_INITIALIZER;
 
+static size_t tamRegistro;
+
 static void _delete_memtable_table(void* registros)
 {
     Vector_Destruct(registros);
     Free(registros);
 }
 
-static void _delete_memtable_register(void* elem)
-{
-    t_registro* r = elem;
-    Free(r->value);
-}
-
 void memtable_create(void)
 {
     memtable = dictionary_create();
+    tamRegistro = sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1;
     LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
 void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
-    t_registro new =
-    {
-        .key = key,
-        .value = string_duplicate(value),
-        .timestamp = timestamp
-    };
+    t_registro* new = Malloc(tamRegistro);
+    new->key = key;
+    new->timestamp = timestamp;
+    strncpy(new->value, value, confLFS.TAMANIO_VALUE + 1);
 
     pthread_rwlock_wrlock(&memtableMutex);
 
@@ -53,12 +48,13 @@ void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value,
     if (!registros)
     {
         registros = Malloc(sizeof(Vector));
-        Vector_Construct(registros, sizeof(t_registro), _delete_memtable_register, 0);
+        Vector_Construct(registros, tamRegistro, NULL, 0);
 
         dictionary_put(memtable, nombreTabla, registros);
     }
 
-    Vector_push_back(registros, &new);
+    Vector_push_back(registros, new);
+    Free(new);
 
     pthread_rwlock_unlock(&memtableMutex);
 }
@@ -73,7 +69,7 @@ bool memtable_has_table(char const* nombreTabla)
     return res;
 }
 
-t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key)
+bool memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key, t_registro* resultado)
 {
     pthread_rwlock_rdlock(&memtableMutex);
 
@@ -102,16 +98,11 @@ t_registro* memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key
         }
     }
 
-    t_registro* resultado = NULL;
     if (registroMayor)
-    {
-        resultado = Malloc(sizeof(t_registro));
-        *resultado = *registroMayor;
-        resultado->value = strdup(registroMayor->value);
-    }
+        memcpy(resultado, registroMayor, tamRegistro);
 
     pthread_rwlock_unlock(&memtableMutex);
-    return resultado;
+    return registroMayor != NULL;
 }
 
 void memtable_delete_table(char const* nombreTabla)
@@ -121,18 +112,6 @@ void memtable_delete_table(char const* nombreTabla)
     dictionary_remove_and_destroy(memtable, nombreTabla, _delete_memtable_table);
 
     pthread_rwlock_unlock(&memtableMutex);
-}
-
-static void _dump_element(void* element, void* path)
-{
-    t_registro* registro = element;
-    char const* pathTemporal = path;
-
-    size_t len = snprintf(NULL, 0, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
-    char field[len + 1];
-    snprintf(field, len + 1, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
-
-    escribirArchivoLFS(pathTemporal, field, len);
 }
 
 static void _dump_table(char const* nombreTabla, void* registros)
@@ -153,6 +132,19 @@ static void _dump_table(char const* nombreTabla, void* registros)
         exit(EXIT_FAILURE);
     }
 
+    Vector content;
+    Vector_Construct(&content, sizeof(char), NULL, 0);
+
+    for (size_t i = 0; i < Vector_size(registros); ++i)
+    {
+        t_registro* const registro = Vector_at(registros, i);
+
+        size_t len = snprintf(NULL, 0, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
+        char field[len + 1];
+        snprintf(field, len + 1, "%llu;%d;%s\n", registro->timestamp, registro->key, registro->value);
+        Vector_insert_range(&content, Vector_size(&content), field, field + len);
+    }
+
     // bloqueo sugerido exclusivo (escritura, para no pisar el compactador o select)
     flock(fd, LOCK_EX);
 
@@ -162,10 +154,12 @@ static void _dump_table(char const* nombreTabla, void* registros)
 
     crearArchivoLFS(pathTemporal, bloqueLibre);
 
-    Vector_iterate_with_data(registros, _dump_element, pathTemporal);
+    escribirArchivoLFS(pathTemporal, Vector_data(&content), Vector_size(&content));
 
     // fin bloqueo
     close(fd);
+
+    Vector_Destruct(&content);
 }
 
 void memtable_dump(PeriodicTimer* pt)

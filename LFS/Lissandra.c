@@ -2,13 +2,15 @@
 #include "API.h"
 #include "CLIHandlers.h"
 #include "Config.h"
-#include "Memtable.h"
+#include "FileSystem.h"
+#include "LissandraLibrary.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
 #include <EventDispatcher.h>
 #include <FileWatcher.h>
 #include <libcommons/config.h>
+#include <libcommons/string.h>
 #include <Logger.h>
 #include <Malloc.h>
 #include <pthread.h>
@@ -220,24 +222,19 @@ int main(void)
 
   //Pruebas para memtable_dump para la cual hace falta tener creada la tabla FRUTAS
     /*
-    new_elem_memtable("FRUTAS", 3, "Manzana", 1548421507);
-    new_elem_memtable("FRUTAS", 2, "Pera", 1348451807);
-    new_elem_memtable("FRUTAS", 3, "Banana", 1548421508);
-    new_elem_memtable("FRUTAS", 2, "Frutilla", 1548436508);
-    new_elem_memtable("FRUTAS", 2, "Anana", 1548436508);
-    new_elem_memtable("FRUTAS", 2, "Mandarina", 1548156508);
-    new_elem_memtable("FRUTAS", 2, "Pomelo", 1548148908);
-    new_elem_memtable("FRUTAS", 2, "Naranja", 1548144508);
-    new_elem_memtable("FRUTAS", 2, "Limon", 1545555508);
+    memtable_new_elem("FRUTAS", 3, "Manzana", 1548421507);
+    memtable_new_elem("FRUTAS", 2, "Pera", 1348451807);
+    memtable_new_elem("FRUTAS", 3, "Banana", 1548421508);
+    memtable_new_elem("FRUTAS", 2, "Frutilla", 1548436508);
+    memtable_new_elem("FRUTAS", 2, "Anana", 1548436508);
+    memtable_new_elem("FRUTAS", 2, "Mandarina", 1548156508);
+    memtable_new_elem("FRUTAS", 2, "Pomelo", 1548148908);
+    memtable_new_elem("FRUTAS", 2, "Naranja", 1548144508);
+    memtable_new_elem("FRUTAS", 2, "Limon", 1545555508);
     memtable_new_elem("FRUTAS", 2, "Melon", 1548140008);
 
-    t_elem_memtable* new = memtable_get("FRUTAS");
-
-    printf("Este es el nombre de la tabla: %s\n", new->nombreTabla);
-
-    size_t cantElementos = Vector_size(&new->registros);
-
-    printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
+    if (memtable_has_table("FRUTAS"))
+        printf("Este es el nombre de la tabla: FRUTAS\n");
 
     memtable_dump();
     */

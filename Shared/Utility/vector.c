@@ -209,9 +209,10 @@ void Vector_insert_range(Vector* v, size_t pos, void* begin, void* end)
     void* shiftDst = _calculateOffset(v->Elements, pos + n, v->ElemSize);
     size_t const blockSize = (v->Size - pos) * v->ElemSize;
 
-    memmove(shiftDst, shiftSrc, blockSize);
-    for (size_t i = 0; i < n; ++i)
-        memcpy(_calculateOffset(shiftSrc, i, v->ElemSize), _calculateOffset(begin, i, v->ElemSize), v->ElemSize);
+    if (blockSize)
+        memmove(shiftDst, shiftSrc, blockSize);
+
+    memcpy(shiftSrc, begin, n * v->ElemSize);
     v->Size += n;
 }
 
