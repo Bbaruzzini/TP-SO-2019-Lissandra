@@ -69,12 +69,4 @@ void escribirArchivoLFS(char const* path, void const* buf, size_t len);
 
 void crearArchivoLFS(char const* path, size_t block);
 
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//ATENCION!!!!!!!!!!!!! BRENDAAAAA DENISEEEEE --> t_pedido hay que armarlo nosotras!!!
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// TODO: dejo hecho un typedef solo para que compile
-typedef struct pedido t_pedido;
-
-t_pedido* obtener_pedido(void);
-
 #endif //LISSANDRA_LISSANDRALIBRARY_H

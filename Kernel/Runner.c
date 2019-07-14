@@ -27,7 +27,6 @@ static bool _parseCommand(char const* command);
 
 static void* _workerThread(void*);
 
-// no uso LockedQueue porque quiero hacer algo de sincronizacion en el medio
 static t_queue* ReadyQueue;
 static pthread_mutex_t QueueLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t QueueCond = PTHREAD_COND_INITIALIZER;

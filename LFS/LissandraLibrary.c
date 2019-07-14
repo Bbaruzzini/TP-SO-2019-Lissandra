@@ -15,10 +15,8 @@
 #include <File.h>
 #include <libcommons/config.h>
 #include <libcommons/string.h>
-#include <LockedQueue.h>
 #include <Opcodes.h>
 #include <Packet.h>
-#include <semaphore.h>
 #include <Socket.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,58 +30,6 @@
 //static hace que las variables no se puedan referenciar desde otro .c utilizando 'extern'
 //si lo desean cambiar, quitenlo
 static Socket* sock_LFS = NULL;
-
-static LockedQueue* lista_pedidos = NULL;
-
-static sem_t sem_pedido = { 0 }; //Cuando hagamos copy paste, cambiar el semaforo "pedido" por "sem_pedido"
-
-t_pedido* obtener_pedido(void)
-{
-    return LockedQueue_Next(lista_pedidos);
-}
-
-void* atender_pedidos(void* arg)
-{
-    (void) arg;
-
-    while (ProcessRunning)
-    {
-        //----Utilizo un semáforo (originalmente iniciado en 0) para saber cuándo hay pedidos en la lista de pedidos y atenderlos.
-        sem_wait(&sem_pedido);
-
-        //----Busco el pedido que hizo esta memoria
-        //----La lista ya trae un mutex por lo que sencillamente extraigo el pedido
-        t_pedido* pedido = obtener_pedido();
-
-        // TODO: implementar logica, dejo comentado para que compile
-/*
-        //----Segun el id del pedido, ejecuto el procedimiento correspondiente
-        switch (pedido->id)
-        {
-            case SELECT:
-                funcion_select(pedido);
-                break;
-            case INSERT:
-                funcion_insert(pedido);
-                break;
-            case CREATE:
-                funcion_create(pedido);
-                break;
-            case DESCRIBE:
-                funcion_describe(pedido);
-                break;
-            case DROP:
-                funcion_drop(pedido);
-                break;
-        }
-
-        Free(pedido->path);
-*/
-        Free(pedido);
-    }
-
-    return NULL;
-}
 
 void* atender_memoria(void* socketMemoria)
 {
