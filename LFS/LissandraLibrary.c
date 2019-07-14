@@ -31,6 +31,8 @@
 //si lo desean cambiar, quitenlo
 static Socket* sock_LFS = NULL;
 
+static pthread_mutex_t bitarrayLock = PTHREAD_MUTEX_INITIALIZER;
+
 void* atender_memoria(void* socketMemoria)
 {
     printf("Y tambien paso por atender_memoria\n");
@@ -189,16 +191,23 @@ void generarPathTabla(char* nombreTabla, char* buf)
 
 bool buscarBloqueLibre(size_t* bloqueLibre)
 {
+    pthread_mutex_lock(&bitarrayLock);
+
     size_t i = 0;
     for (; bitarray_test_bit(bitArray, i) && i < confLFS.CANTIDAD_BLOQUES; ++i);
 
     if (i >= confLFS.CANTIDAD_BLOQUES)
+    {
+        pthread_mutex_unlock(&bitarrayLock);
         return false;
+    }
 
     *bloqueLibre = i;
 
     // marca el bloque como ocupado
-    escribirValorBitarray(true, i);
+    bitarray_set_bit(bitArray, i);
+
+    pthread_mutex_unlock(&bitarrayLock);
     return true;
 }
 
@@ -209,10 +218,14 @@ void generarPathBloque(size_t numBloque, char* buf)
 
 void escribirValorBitarray(bool valor, size_t pos)
 {
+    pthread_mutex_lock(&bitarrayLock);
+
     if (valor)
         bitarray_set_bit(bitArray, pos);
     else
         bitarray_clean_bit(bitArray, pos);
+
+    pthread_mutex_unlock(&bitarrayLock);
 }
 
 bool get_table_metadata(char const* path, char const* tabla, t_describe* res)
