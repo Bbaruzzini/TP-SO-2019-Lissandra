@@ -1,9 +1,9 @@
 
+#include "LissandraLibrary.h"
 #include "API.h"
 #include "CLIHandlers.h"
 #include "Config.h"
 #include "FileSystem.h"
-#include "LissandraLibrary.h"
 #include <Appender.h>
 #include <AppenderConsole.h>
 #include <AppenderFile.h>
@@ -14,10 +14,10 @@
 #include <Logger.h>
 #include <Malloc.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <stdint.h>
+#include <Threads.h>
 
 CLICommand const CLICommands[] =
 {
@@ -37,6 +37,7 @@ static Appender* consoleLog;
 static Appender* fileLog;
 
 static PeriodicTimer* DumpTimer = NULL;
+static void _initDumpThread(PeriodicTimer* pt);
 
 t_config_FS confLFS = { 0 };
 
@@ -120,7 +121,7 @@ static void LoadConfigInitial(char const* fileName)
     EventDispatcher_AddFDI(fw);
 
     // timers
-    DumpTimer = PeriodicTimer_Create(confLFS.TIEMPO_DUMP, memtable_dump);
+    DumpTimer = PeriodicTimer_Create(confLFS.TIEMPO_DUMP, _initDumpThread);
     EventDispatcher_AddFDI(DumpTimer);
 
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
@@ -247,4 +248,11 @@ int main(void)
     // limpieza
     EventDispatcher_Terminate();
     terminarFileSystem();
+}
+
+static void _initDumpThread(PeriodicTimer* pt)
+{
+    PeriodicTimer_SetEnabled(pt, false);
+
+    Threads_CreateDetached(memtable_dump_thread, pt);
 }

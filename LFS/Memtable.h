@@ -31,6 +31,8 @@ bool memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key, t_reg
 //Funcion para eliminar un elemento de la memtable
 void memtable_delete_table(char const* nombreTabla);
 
-void memtable_dump(PeriodicTimer*);
+void* memtable_dump_thread(void*);
+
+void memtable_dump(void);
 
 #endif //LISSANDRA_MEMTABLE_H

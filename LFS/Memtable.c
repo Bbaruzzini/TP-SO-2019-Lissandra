@@ -162,10 +162,16 @@ static void _dump_table(char const* nombreTabla, void* registros)
     Vector_Destruct(&content);
 }
 
-void memtable_dump(PeriodicTimer* pt)
+void* memtable_dump_thread(void* pt)
 {
-    (void) pt;
+    memtable_dump();
 
+    PeriodicTimer_SetEnabled(pt, true);
+    return NULL;
+}
+
+void memtable_dump(void)
+{
     t_dictionary* oldMemtable;
 
     {
