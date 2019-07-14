@@ -39,14 +39,13 @@ static PeriodicTimer* DiscoverTimer = NULL;
 
 static void IniciarLogger(void)
 {
-    Logger_Init(LOG_LEVEL_TRACE);
+    Logger_Init();
 
-    AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LMAGENTA, LCYAN, WHITE, YELLOW, LRED, RED);
+    AppenderFlags const loggerFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_INFO, loggerFlags, LMAGENTA, LCYAN, WHITE, YELLOW, LRED, RED);
     Logger_AddAppender(consoleLog);
 
-    AppenderFlags const fileFlags = consoleFlags | APPENDER_FLAGS_USE_TIMESTAMP | APPENDER_FLAGS_MAKE_FILE_BACKUP;
-    fileLog = AppenderFile_Create(LOG_LEVEL_ERROR, fileFlags, "kernel.log", "w", 0);
+    fileLog = AppenderFile_Create(LOG_LEVEL_TRACE, loggerFlags, "kernel.log", "w", 0);
     Logger_AddAppender(fileLog);
 }
 

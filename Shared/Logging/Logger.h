@@ -11,20 +11,10 @@
 typedef struct Appender Appender;
 typedef struct LogMessage LogMessage;
 
-typedef struct
-{
-    LogLevel Level;
-    Vector Appenders;
-    char TimeStampStr[23 + 1];
-} Logger;
-
-void Logger_Init(LogLevel level);
+void Logger_Init(void);
 void Logger_AddAppender(Appender* appender);
 void Logger_DelAppenders(void);
-LogLevel Logger_GetLogLevel(void);
-void Logger_SetLogLevel(LogLevel level);
 void Logger_Write(LogMessage* message);
-bool Logger_ShouldLog(LogLevel level);
 void Logger_Format(LogLevel level, char const* format, ...);
 char const* Logger_GetLogTimeStampStr(void);
 void Logger_Terminate(void);
@@ -32,16 +22,13 @@ void Logger_Terminate(void);
 // este voodoo chequea strings de formato en tiempo de compilación :)
 void check_args(char const*, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 
-#define LISSANDRA_LOG_MESSAGE(level__, ...)   \
-    do                                        \
-    {                                         \
-        if (Logger_ShouldLog(level__))           \
-        {                                     \
-            if (false)                        \
-                check_args(__VA_ARGS__);      \
-                                              \
-            Logger_Format(level__, __VA_ARGS__); \
-        }                                     \
+#define LISSANDRA_LOG_MESSAGE(level__, ...)  \
+    do                                       \
+    {                                        \
+        if (false)                           \
+            check_args(__VA_ARGS__);         \
+                                             \
+        Logger_Format(level__, __VA_ARGS__); \
     } while(false)
 
 #define LISSANDRA_LOG_TRACE(...) \

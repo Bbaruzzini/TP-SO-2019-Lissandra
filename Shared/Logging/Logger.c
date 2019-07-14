@@ -7,7 +7,11 @@
 #include <stdio.h>
 #include <string.h>
 
-static Logger sLogger;
+static struct
+{
+    Vector Appenders;
+    char TimeStampStr[23 + 1];
+} sLogger;
 
 void _vectorFreeFn(void* elem)
 {
@@ -15,9 +19,8 @@ void _vectorFreeFn(void* elem)
     Appender_Destroy(appender);
 }
 
-void Logger_Init(LogLevel level)
+void Logger_Init(void)
 {
-    sLogger.Level = level;
     Vector_Construct(&sLogger.Appenders, sizeof(Appender*), _vectorFreeFn, 0);
 
     struct timespec time;
@@ -35,16 +38,6 @@ void Logger_DelAppenders(void)
     Vector_clear(&sLogger.Appenders);
 }
 
-LogLevel Logger_GetLogLevel(void)
-{
-    return sLogger.Level;
-}
-
-void Logger_SetLogLevel(LogLevel level)
-{
-    sLogger.Level = level;
-}
-
 void _writeWrapper(void* elem, void* data)
 {
     Appender* appender = *((Appender**) elem);
@@ -54,16 +47,11 @@ void _writeWrapper(void* elem, void* data)
 
 void Logger_Write(LogMessage* message)
 {
-    if (!sLogger.Level || sLogger.Level > message->Level || !strlen(message->Text))
+    if (*message->Text == '\0')
         return;
 
     Vector_iterate_with_data(&sLogger.Appenders, _writeWrapper, message);
     LogMessage_Destroy(message);
-}
-
-bool Logger_ShouldLog(LogLevel level)
-{
-    return sLogger.Level != LOG_LEVEL_DISABLED && sLogger.Level <= level;
 }
 
 void Logger_Format(LogLevel level, char const* format, ...)

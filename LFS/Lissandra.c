@@ -43,15 +43,15 @@ t_config_FS confLFS = { 0 };
 
 static void IniciarLogger(void)
 {
-    Logger_Init(LOG_LEVEL_TRACE);
+    Logger_Init();
 
     AppenderFlags const consoleFlags = APPENDER_FLAGS_PREFIX_TIMESTAMP | APPENDER_FLAGS_PREFIX_LOGLEVEL;
     //Cambiamos el color "198EDC por "EA899A""
-    consoleLog = AppenderConsole_Create(LOG_LEVEL_TRACE, consoleFlags, LMAGENTA, LRED, LRED, YELLOW, LGREEN, WHITE);
+    consoleLog = AppenderConsole_Create(LOG_LEVEL_INFO, consoleFlags, LMAGENTA, LRED, LRED, YELLOW, LGREEN, WHITE);
     Logger_AddAppender(consoleLog);
 
     AppenderFlags const fileFlags = consoleFlags;
-    fileLog = AppenderFile_Create(LOG_LEVEL_TRACE, fileFlags, "lfs.log", NULL, 0);
+    fileLog = AppenderFile_Create(LOG_LEVEL_TRACE, fileFlags, "lfs.log", "w", 0);
     Logger_AddAppender(fileLog);
 
 }
