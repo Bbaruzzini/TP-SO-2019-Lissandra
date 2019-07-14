@@ -707,6 +707,11 @@ void escribirArchivoLFS(char const* path, void const* buf, size_t len)
             ++blocksNeeded;
     }
 
+    // edge case: si no queda remanente porque la escritura anterior entro 'justa'
+    // voy a empezar en un nuevo bloque. En ese caso 'me sobra' el bloque entero
+    if (!remaining)
+        remaining = confLFS.TAMANIO_BLOQUES;
+
     // guardar bloques nuevos
     for (size_t i = 0; i < blocksNeeded; ++i)
     {

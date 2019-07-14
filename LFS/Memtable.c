@@ -153,7 +153,6 @@ static void _dump_table(char const* nombreTabla, void* registros)
     for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, nombreTabla, j), existeArchivo(pathTemporal); ++j);
 
     crearArchivoLFS(pathTemporal, bloqueLibre);
-
     escribirArchivoLFS(pathTemporal, Vector_data(&content), Vector_size(&content));
 
     // fin bloqueo
