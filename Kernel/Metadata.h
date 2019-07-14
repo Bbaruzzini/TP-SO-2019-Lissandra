@@ -11,9 +11,7 @@ void Metadata_Add(char const* name, CriteriaType ct);
 
 bool Metadata_Get(char const* name, CriteriaType* ct);
 
-void Metadata_Del(char const* name);
-
-void Metadata_Clear(void);
+void Metadata_Update(char const* tableName, Packet* p);
 
 void Metadata_Destroy(void);
 

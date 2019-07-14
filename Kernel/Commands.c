@@ -273,14 +273,12 @@ bool HandleDescribe(Vector const* args)
     DBRequest dbr;
     dbr.TableName = table;
 
-    // el global actualiza metadatos
-    if (!table)
-        Metadata_Clear();
-    else // el local borra la de la tabla pedida ya que puede que se haya DROPeado
-        Metadata_Del(table);
+    // para el describe se utiliza cualquier memoria (a menos que tenga metadatos, en cuyo caso se envia al criterio de tabla)
+    CriteriaType ct = CRITERIA_ANY;
+    if (table)
+        (void) Metadata_Get(table, &ct);
 
-    // para el describe se utiliza cualquier memoria
-    Memory* mem = Criteria_GetMemoryFor(CRITERIA_ANY, OP_DESCRIBE, &dbr);
+    Memory* mem = Criteria_GetMemoryFor(ct, OP_DESCRIBE, &dbr);
     if (!mem) // no hay memorias conectadas? criteria loguea el error
         return false;
 
@@ -288,41 +286,14 @@ bool HandleDescribe(Vector const* args)
     if (!p) // se desconecto la memoria! el sendrequest ya lo logueó
         return false;
 
-    if (Packet_GetOpcode(p) != MSG_DESCRIBE && Packet_GetOpcode(p) != MSG_DESCRIBE_GLOBAL)
+    if (Packet_GetOpcode(p) != MSG_ERR_TABLE_NOT_EXISTS && Packet_GetOpcode(p) != MSG_DESCRIBE && Packet_GetOpcode(p) != MSG_DESCRIBE_GLOBAL)
     {
         LISSANDRA_LOG_FATAL("DESCRIBE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
         Packet_Destroy(p);
         return false;
     }
 
-    uint32_t num = 1;
-    if (Packet_GetOpcode(p) == MSG_DESCRIBE_GLOBAL)
-        Packet_Read(p, &num);
-
-    LISSANDRA_LOG_INFO("DESCRIBE: numero de tablas %u", num);
-
-    for (uint32_t i = 0; i < num; ++i)
-    {
-        char* name;
-        Packet_Read(p, &name);
-
-        uint8_t type;
-        Packet_Read(p, &type);
-
-        uint16_t partitions;
-        Packet_Read(p, &partitions);
-
-        uint32_t compaction_time;
-        Packet_Read(p, &compaction_time);
-
-        LISSANDRA_LOG_INFO(
-                "DESCRIBE: Tabla nº %u: nombre: %s, tipo consistencia %u, particiones: %u, tiempo entre compactaciones %u",
-                i + 1, name, type, partitions, compaction_time);
-
-        Metadata_Add(name, type);
-        Free(name);
-    }
-
+    Metadata_Update(table, p);
     Packet_Destroy(p);
     return true;
 }
