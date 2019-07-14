@@ -147,15 +147,19 @@ void HandleDescribeOpcode(Socket* s, Packet* p)
     else
     {
         t_describe* elemento = api_describe(nombreTabla);
+        if (!elemento)
+            resp = Packet_Create(MSG_ERR_TABLE_NOT_EXISTS, 0);
+        else
+        {
+            size_t const tam = sizeof(t_describe);
+            resp = Packet_Create(MSG_DESCRIBE, tam);
 
-        size_t const tam = sizeof(t_describe);
-        resp = Packet_Create(MSG_DESCRIBE, tam);
-
-        _addToPacket(elemento, resp);
-        Free(elemento);
+            _addToPacket(elemento, resp);
+            Free(elemento);
+        }
     }
 
-    free(nombreTabla);
+    Free(nombreTabla);
     Socket_SendPacket(s, resp);
     Packet_Destroy(resp);
 }
