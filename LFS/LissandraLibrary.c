@@ -686,92 +686,126 @@ char* leerArchivoLFS(const char* path)
     return contenido;
 }
 
-void escribirArchivoLFS(char const* path, void const* buf, size_t len)
+static bool _pedirBloquesNuevos(char const* path, Vector* bloques, size_t n)
+{
+    Vector nuevos;
+    Vector_Construct(&nuevos, sizeof(size_t), NULL, n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        size_t bloque;
+        if (!buscarBloqueLibre(&bloque))
+        {
+            LISSANDRA_LOG_ERROR("No hay más bloques disponibles para guardar el archivo %s! Se perderán datos", path);
+
+            // liberar los que pude pedir hasta ahora
+            for (size_t j = 0; j < Vector_size(&nuevos); ++j)
+            {
+                size_t* const b = Vector_at(&nuevos, j);
+                escribirValorBitarray(false, *b);
+            }
+
+            Vector_Destruct(&nuevos);
+            return false;
+        }
+
+        Vector_push_back(&nuevos, &bloque);
+    }
+
+    for (size_t i = 0; i < Vector_size(&nuevos); ++i)
+    {
+        size_t* const bloque = Vector_at(&nuevos, i);
+
+        char* blockNum = string_from_format("%u", *bloque);
+        Vector_push_back(bloques, &blockNum);
+    }
+
+    Vector_Destruct(&nuevos);
+    return true;
+}
+
+static inline void _escribirBloque(size_t block, char const* buf, size_t len)
+{
+    char pathBloque[PATH_MAX];
+    generarPathBloque(block, pathBloque);
+
+    int fd = open(pathBloque, O_RDWR);
+    if (fd == -1)
+    {
+        LISSANDRA_LOG_SYSERROR("open");
+        exit(EXIT_FAILURE);
+    }
+
+    char* mapping = mmap(NULL, confLFS.TAMANIO_BLOQUES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapping == MAP_FAILED)
+    {
+        LISSANDRA_LOG_SYSERROR("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    memcpy(mapping, buf, len);
+
+    munmap(mapping, confLFS.TAMANIO_BLOQUES);
+    close(fd);
+}
+
+void escribirArchivoLFS(char const* path, char const* buf, size_t len)
 {
     t_config* file = config_create(path);
     if (!file)
         return;
 
-    size_t oldSize = config_get_long_value(file, "SIZE");
+    size_t bloquesTotales = len / confLFS.TAMANIO_BLOQUES;
+    if (len % confLFS.TAMANIO_BLOQUES)
+        ++bloquesTotales;
+
     Vector blocks = config_get_array_value(file, "BLOCKS");
 
-    // el archivo ocupa actualmente N bloques, calcular espacio restante en el ultimo bloque
-    size_t remaining = Vector_size(&blocks) * confLFS.TAMANIO_BLOQUES - oldSize;
-
-    // calcular cuantos bloques nuevos se requieren
-    size_t blocksNeeded = 0;
-    if (len > remaining)
+    size_t const bloquesActuales = Vector_size(&blocks);
+    if (bloquesActuales < bloquesTotales)
     {
-        blocksNeeded = (len - remaining) / confLFS.TAMANIO_BLOQUES;
-        if ((len - remaining) % confLFS.TAMANIO_BLOQUES)
-            ++blocksNeeded;
-    }
+        // calcular cuantos bloques nuevos se requieren
+        size_t const bloquesNecesarios = bloquesTotales - bloquesActuales;
 
-    // edge case: si no queda remanente porque la escritura anterior entro 'justa'
-    // voy a empezar en un nuevo bloque. En ese caso 'me sobra' el bloque entero
-    if (!remaining)
-        remaining = confLFS.TAMANIO_BLOQUES;
-
-    // guardar bloques nuevos
-    for (size_t i = 0; i < blocksNeeded; ++i)
-    {
-        size_t bloque;
-        if (!buscarBloqueLibre(&bloque))
+        // pedir bloques nuevos
+        if (!_pedirBloquesNuevos(path, &blocks, bloquesNecesarios))
         {
-            LISSANDRA_LOG_FATAL("No hay más bloques disponibles en el FS!");
-            exit(EXIT_FAILURE);
+            Vector_Destruct(&blocks);
+            config_destroy(file);
+            return;
         }
+    }
+    else
+    {
+        size_t const bloquesSobrantes = bloquesActuales - bloquesTotales;
 
-        char* blockNum = string_from_format("%u", bloque);
-        Vector_push_back(&blocks, &blockNum);
+        // descartar los ultimos
+        for (size_t i = 0; i < bloquesSobrantes; ++i)
+        {
+            char** const b = Vector_back(&blocks);
+            size_t const blockNum = strtoull(*b, NULL, 10);
+
+            // liberar bloque
+            escribirValorBitarray(false, blockNum);
+            Vector_pop_back(&blocks);
+        }
     }
 
-    // calcular nuevo tamaño, bytes
-    char* newSize = string_from_format("%u", oldSize + len);
+    char* newSize = string_from_format("%u", len);
 
     // listo, ya el archivo tiene los bloques suficientes, escribamos bloque a bloque
-    // comenzando por el ultimo viejo
-    size_t writeLength = remaining;
-    if (len < remaining)
-        writeLength = len;
-
     char** const blockArray = Vector_data(&blocks);
-
-    size_t offset = confLFS.TAMANIO_BLOQUES - remaining; // en donde debo pararme en el ultimo bloque viejo
-    for (size_t i = oldSize / confLFS.TAMANIO_BLOQUES; i < Vector_size(&blocks); ++i)
+    size_t i = 0;
+    while (i < len / confLFS.TAMANIO_BLOQUES)
     {
-        size_t const blockNum = strtoul(blockArray[i], NULL, 10);
+        size_t const blockNum = strtoul(blockArray[i++], NULL, 10);
 
-        char pathBloque[PATH_MAX];
-        generarPathBloque(blockNum, pathBloque);
-
-        int fd = open(pathBloque, O_RDWR);
-        if (fd == -1)
-        {
-            LISSANDRA_LOG_SYSERROR("open");
-            exit(EXIT_FAILURE);
-        }
-
-        char* mapping = mmap(NULL, confLFS.TAMANIO_BLOQUES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (mapping == MAP_FAILED)
-        {
-            LISSANDRA_LOG_SYSERROR("mmap");
-            exit(EXIT_FAILURE);
-        }
-
-        memcpy(mapping + offset, buf, writeLength);
-        buf = (char const*) buf + writeLength;
-        len -= writeLength;
-
-        munmap(mapping, confLFS.TAMANIO_BLOQUES);
-        close(fd);
-
-        // los proximos bloques estan vacios
-        offset = 0;
-        writeLength = confLFS.TAMANIO_BLOQUES;
-        if (len < confLFS.TAMANIO_BLOQUES)
-            writeLength = len;
+        _escribirBloque(blockNum, buf, confLFS.TAMANIO_BLOQUES);
+        buf += confLFS.TAMANIO_BLOQUES;
     }
+
+    // ultimo bloque
+    if (len % confLFS.TAMANIO_BLOQUES)
+        _escribirBloque(strtoul(blockArray[i], NULL, 10), buf, len % confLFS.TAMANIO_BLOQUES);
 
     config_set_value(file, "SIZE", newSize);
     Free(newSize);

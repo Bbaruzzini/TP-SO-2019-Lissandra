@@ -65,7 +65,7 @@ t_registro const* get_newest(t_registro const* particion, t_registro const* temp
 // primitivas FS
 char* leerArchivoLFS(char const* path);
 
-void escribirArchivoLFS(char const* path, void const* buf, size_t len);
+void escribirArchivoLFS(char const* path, char const* buf, size_t len);
 
 void crearArchivoLFS(char const* path, size_t block);
 
