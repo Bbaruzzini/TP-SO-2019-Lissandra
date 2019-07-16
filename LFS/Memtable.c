@@ -1,6 +1,3 @@
-//
-// Created by Denise on 07/06/2019.
-//
 
 #include "Memtable.h"
 #include "Config.h"
@@ -31,7 +28,7 @@ static void _delete_memtable_table(void* registros)
 void memtable_create(void)
 {
     memtable = dictionary_create();
-    tamRegistro = sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1;
+    tamRegistro = REGISTRO_SIZE;
     LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
@@ -57,16 +54,6 @@ void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value,
     Free(new);
 
     pthread_rwlock_unlock(&memtableMutex);
-}
-
-bool memtable_has_table(char const* nombreTabla)
-{
-    bool res;
-    pthread_rwlock_rdlock(&memtableMutex);
-    res = dictionary_has_key(memtable, nombreTabla);
-    pthread_rwlock_unlock(&memtableMutex);
-
-    return res;
 }
 
 bool memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key, t_registro* resultado)
@@ -125,11 +112,17 @@ static void _dump_table(char const* nombreTabla, void* registros)
         return;
     }
 
+    // bloqueo sugerido exclusivo (escritura, para no pisar el compactador o select)
+    // "un dump tiene que bloquear tanto los select como las compactaciones"
+    // Maximiliano Felice 15/07/2019 21:41
+    flock(fd, LOCK_EX);
+
     size_t bloqueLibre;
     if (!buscarBloqueLibre(&bloqueLibre))
     {
-        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Abortando...");
-        exit(EXIT_FAILURE);
+        LISSANDRA_LOG_ERROR("No hay espacio en el File System. Se perderan datos...");
+        close(fd);
+        return;
     }
 
     Vector content;
@@ -145,9 +138,6 @@ static void _dump_table(char const* nombreTabla, void* registros)
         Vector_insert_range(&content, Vector_size(&content), field, field + len);
     }
 
-    // bloqueo sugerido exclusivo (escritura, para no pisar el compactador o select)
-    flock(fd, LOCK_EX);
-
     //Arma el path del archivo temporal. Si ese path ya existe, le busca nombre hasta encontrar uno libre
     char pathTemporal[PATH_MAX];
     for (size_t j = 0; snprintf(pathTemporal, PATH_MAX, "%sTables/%s/%d.tmp", confLFS.PUNTO_MONTAJE, nombreTabla, j), existeArchivo(pathTemporal); ++j);
@@ -155,10 +145,10 @@ static void _dump_table(char const* nombreTabla, void* registros)
     crearArchivoLFS(pathTemporal, bloqueLibre);
     escribirArchivoLFS(pathTemporal, Vector_data(&content), Vector_size(&content));
 
+    Vector_Destruct(&content);
+
     // fin bloqueo
     close(fd);
-
-    Vector_Destruct(&content);
 }
 
 void* memtable_dump_thread(void* pt)

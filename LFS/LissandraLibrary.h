@@ -36,7 +36,7 @@ void generarPathBloque(size_t numBloque, char* buf);
 
 void escribirValorBitarray(bool valor, size_t pos);
 
-bool get_table_metadata(char const* path, char const* tabla, t_describe* res);
+bool get_table_metadata(char const* tabla, t_describe* res);
 
 int traverse(char const* fn, t_list* lista, char const* tabla);
 
@@ -46,9 +46,7 @@ bool is_any(char const* nombreArchivo);
 
 void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char* buf);
 
-void borrarArchivo(char const* nombreTabla, char const* nombreArchivo);
-
-int traverse_to_drop(char const* fn, char const* nombreTabla);
+int traverse_to_drop(char const* pathTabla);
 
 uint16_t get_particion(uint16_t particiones, uint16_t key);
 
@@ -68,5 +66,7 @@ char* leerArchivoLFS(char const* path);
 void escribirArchivoLFS(char const* path, char const* buf, size_t len);
 
 void crearArchivoLFS(char const* path, size_t block);
+
+void borrarArchivoLFS(char const* pathArchivo);
 
 #endif //LISSANDRA_LISSANDRALIBRARY_H

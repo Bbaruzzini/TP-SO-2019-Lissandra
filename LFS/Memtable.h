@@ -17,13 +17,12 @@ typedef struct
     char value[];
 } t_registro;
 
+#define REGISTRO_SIZE sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1
+
 void memtable_create(void);
 
 //Funcion para meterle nuevos elementos a la memtable
 void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp);
-
-//Funcion para saber si existe area temporal de la tabla
-bool memtable_has_table(char const* nombreTabla);
 
 //Funcion para buscar segun una key dada el registro con mayor timestamp
 bool memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key, t_registro* resultado);

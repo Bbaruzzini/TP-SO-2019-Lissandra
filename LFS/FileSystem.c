@@ -1,7 +1,9 @@
 
 #include "FileSystem.h"
+#include "Compactador.h"
 #include "Config.h"
 #include "LissandraLibrary.h"
+#include <dirent.h>
 #include <fcntl.h>
 #include <libcommons/config.h>
 #include <Logger.h>
@@ -122,16 +124,41 @@ void iniciarFileSystem(void)
             }
         }
     }
-    else
+
+    // crear hilos para las tablas que existen
+    inicializarCompactador();
+
+    DIR* dir = opendir(pathTablas);
+    if (!dir)
     {
-        /// todo?
+        LISSANDRA_LOG_FATAL("No pude abrir el directorio de tablas!");
+        exit(EXIT_FAILURE);
     }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)))
+    {
+        if (*entry->d_name == '.')
+            continue;
+
+        t_describe tableMetadata;
+        if (!get_table_metadata(entry->d_name, &tableMetadata))
+        {
+            LISSANDRA_LOG_FATAL("No se pudo encontrar metadatos para la tabla %s!", entry->d_name);
+            exit(EXIT_FAILURE);
+        }
+
+        agregarTablaCompactador(tableMetadata.table, tableMetadata.compaction_time);
+    }
+
+    closedir(dir);
 
     LISSANDRA_LOG_TRACE("Se finalizo la creacion del File System");
 }
 
 void terminarFileSystem(void)
 {
+    terminarCompactador();
     bitarray_destroy(bitArray);
     munmap(bitmap, sizeBitArray);
 }

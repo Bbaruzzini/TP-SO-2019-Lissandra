@@ -35,19 +35,17 @@ static pthread_mutex_t bitarrayLock = PTHREAD_MUTEX_INITIALIZER;
 
 void* atender_memoria(void* socketMemoria)
 {
-    printf("Y tambien paso por atender_memoria\n");
-
     while (ProcessRunning)
     {
         if (!Socket_HandlePacket(socketMemoria))
         {
             /// ya hace logs si hubo errores, cerrar conexión
             Socket_Destroy(socketMemoria);
-            return (void*) false;
+            break;
         }
     }
 
-    return (void*) true;
+    return NULL;
 }
 
 void memoria_conectar(Socket* fs, Socket* memoriaNueva)
@@ -65,7 +63,6 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
 
     }
 
-    /// Ariel: aca copie lo que habia en el manejador anterior de Handshake ya que no lo van a usar como un handler
     uint8_t id;
     Packet_Read(p, &id);
 
@@ -73,40 +70,20 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
     if (id != MEMORIA)
     {
         LISSANDRA_LOG_ERROR("Se conecto un desconocido! (id %d)", id);
-        /// agregado, libero memoria
         Packet_Destroy(p);
-        /// agregado, desconecto al desconocido
         Socket_Destroy(memoriaNueva);
         return;
     }
 
     LISSANDRA_LOG_INFO("Se conecto una memoria en el socket: %d\n", memoriaNueva->_impl.Handle);
 
-    //TODO: deberia ser que si esta funcion me retorna "success", sigue, y sino hace un return
-    //Ariel, si lees este mensaje, como no entiendo como manejas esto del handshake, no se si deberia
-    //estar usando esta funcion aca directamente o en realidad esta funcion se invoca de otra manera.
-    //Si se usa de otra manera, por favor mostrame como. Gracias!!! :D
-
-    ///Esto es para cuando usan el EventDispatcher_Loop, el solito llama a los handler al recibir un paquete
-    ///Pero como van a atender las memorias mediante hilos necesitan hacer algo de codigo custom. Les dejo un esqueleto
-    ///más abajo (ver atender_memoria)
-    ///HandleHandshake(memoriaNueva, p);
-
     Packet_Destroy(p);
 
-    //Le envia a la memoria el TAMANIO_VALUE
-    //Ariel: para paquetes conviene que usen los tipos de tamaño fijo (stdint.h)
-    // en este caso al ser un tamaño yo uso un entero no signado de 32 bits
+    //Le envia a la memoria el TAMANIO_VALUE y el punto de montaje
     uint32_t const tamanioValue = confLFS.TAMANIO_VALUE;
     char const* const puntoMontaje = confLFS.PUNTO_MONTAJE;
-    //A este Packet_Create en vez de un 2 habría que pasarle un opcode, pero como no se cual ponerle
-    //le pase cualquiera para ver como funcionaba. Creo que hay que agregar uno nuevo en Opcodes.h
-    //que se podría llamar "MSG_TAM_VALUE"
-    /// Ariel: Esto está perfecto
 
-    //Pero como no se si lo que estoy haciendo esta bien porque no entiendo nada, voy a esperar a que
-    //Ariel lea esto y lo corrija :D Con mucho amor, Denise
-    p = Packet_Create(MSG_HANDSHAKE_RESPUESTA, 20 /*ya que el tamaño es conocido (4 bytes) lo inicializo*/);
+    p = Packet_Create(MSG_HANDSHAKE_RESPUESTA, 50);
     Packet_Append(p, tamanioValue);
     Packet_Append(p, puntoMontaje);
     Socket_SendPacket(memoriaNueva, p);
@@ -228,9 +205,15 @@ void escribirValorBitarray(bool valor, size_t pos)
     pthread_mutex_unlock(&bitarrayLock);
 }
 
-bool get_table_metadata(char const* path, char const* tabla, t_describe* res)
+bool get_table_metadata(char const* tabla, t_describe* res)
 {
-    t_config* contenido = config_create(path);
+    char pathMetadata[PATH_MAX];
+    generarPathArchivo(tabla, "Metadata.bin", pathMetadata);
+
+    t_config* contenido = config_create(pathMetadata);
+    if (!contenido)
+        return false;
+
     char const* consistency = config_get_string_value(contenido, "CONSISTENCY");
     CriteriaType ct;
     if (!CriteriaFromString(consistency, &ct)) // error!
@@ -245,56 +228,46 @@ bool get_table_metadata(char const* path, char const* tabla, t_describe* res)
     res->partitions = partitions;
     res->compaction_time = compaction_time;
 
-    //Pruebas Brenda/Denise desde ACA
-    /*
-    printf("Estoy en get_table_metadata\n");
-    printf("Tabla: %s\n", infoMetadata->table);
-    printf("Consistencia: %d\n", infoMetadata->consistency);
-    printf("Particiones: %d\n", infoMetadata->partitions);
-    printf("Tiempo: %d\n", infoMetadata->compaction_time);
-    */
-    //HASTA ACA
-
     return true;
 }
 
 int traverse(char const* fn, t_list* lista, char const* tabla)
 {
-    DIR* dir;
-    if (!(dir = opendir(fn)))
+    DIR* dir = opendir(fn);
+    if (!dir)
     {
-        printf("ERROR: La ruta especificada es invalida\n");
-        return -1;
+        LISSANDRA_LOG_ERROR("ERROR: La ruta %s especificada es invalida!", fn);
+        return EXIT_FAILURE;
     }
 
     struct dirent* entry;
     while ((entry = readdir(dir)))
     {
-        char path[PATH_MAX];
-        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+        if (*entry->d_name != '.')
         {
             struct stat info;
 
+            char path[PATH_MAX];
             snprintf(path, PATH_MAX, "%s/%s", fn, entry->d_name);
             if (stat(path, &info) != 0)
             {
                 LISSANDRA_LOG_ERROR("Error stat() en %s", path);
-                return -1;
+                return EXIT_FAILURE;
             }
             else
             {
                 if (S_ISDIR(info.st_mode))
                 {
                     int resultado = traverse(path, lista, entry->d_name);
-                    if (resultado == -1)
-                        return -1;
+                    if (resultado == EXIT_FAILURE)
+                        return EXIT_FAILURE;
                 }
                 else if (S_ISREG(info.st_mode))
                 {
                     if (strcmp(entry->d_name, "Metadata.bin") == 0)
                     {
                         t_describe* desc = Malloc(sizeof(t_describe));
-                        if (!get_table_metadata(path, tabla, desc))
+                        if (!get_table_metadata(tabla, desc))
                         {
                             Free(desc);
                             continue;
@@ -309,24 +282,23 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
     }
 
     closedir(dir);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 bool dirIsEmpty(char const* path)
 {
     int n = 0;
-    DIR* dir;
-    struct dirent* entry;
+    DIR* dir = opendir(path);
+    if (!dir)
+        return true;
 
-    dir = opendir(path);
-    while ((entry = readdir(dir)))
-    {
+    while (readdir(dir))
         if (++n > 2)
             break;
-    }
+
     closedir(dir);
 
-    //Directorio vacio contiene solo 2 entradas: "." y ".."
+    // Directorio vacio contiene solo 2 entradas: "." y ".."
     return n <= 2;
 }
 
@@ -353,86 +325,30 @@ void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char
     snprintf(buf, PATH_MAX, "%sTables/%s/%s", confLFS.PUNTO_MONTAJE, nombreTabla, nombreArchivo);
 }
 
-void borrarArchivo(char const* nombreTabla, char const* nombreArchivo)
+int traverse_to_drop(char const* pathTabla)
 {
-    char pathAbsoluto[PATH_MAX];
-    generarPathArchivo(nombreTabla, nombreArchivo, pathAbsoluto);
-
-    t_config* data = config_create(pathAbsoluto);
-
-    /// Ariel: config_get_array_value devuelve un Vector de char*
-    /// Los chars se liberan automaticamente cuando se llama a vector_destruct
-    Vector bloques = config_get_array_value(data, "BLOCKS");
-    size_t cantElementos = Vector_size(&bloques);
-
-    size_t j = 0;
-    t_config* elemento;
-
-    while (j < cantElementos)
+    DIR* dir = opendir(pathTabla);
+    if (!dir)
     {
-        ///Ariel: problema: estan asumiendo que el elemento de bloques es un t_config
-        /// vector maneja una abstraccion de "puntero a elemento" por lo cual el verdadero tipo de lo que les tira
-        /// vector_at es char* * (puntero al elemento, que es un char*)
-
-        elemento = Vector_at(&bloques, j);
-        escribirValorBitarray(false, atoi(elemento->path));
-        ++j;
-    }
-
-    unlink(pathAbsoluto);
-    config_destroy(data);
-    //config_destroy(elemento);
-}
-
-int traverse_to_drop(char const* fn, char const* nombreTabla)
-{
-    DIR* dir;
-    struct dirent* entry;
-    struct stat info;
-    char* path;
-
-    if ((dir = opendir(fn)) == NULL)
-    {
-        printf("ERROR: La ruta especificada es invalida\n");
+        LISSANDRA_LOG_ERROR("ERROR: La ruta %s especificada es invalida!", pathTabla);
         return -1;
     }
-    else
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)))
     {
-        while ((entry = readdir(dir)) != NULL)
+        if (*entry->d_name != '.')
         {
-            path = string_new();
-            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+            char pathArchivo[PATH_MAX];
+            snprintf(pathArchivo, PATH_MAX, "%s/%s", pathTabla, entry->d_name);
+
+            if (is_any(entry->d_name))
             {
-                string_append(&path, fn);
-                string_append(&path, "/");
-                string_append(&path, entry->d_name);
-                if (stat(path, &info) != 0)
-                {
-                    LISSANDRA_LOG_ERROR("Error stat() en %s", path);
-                    return -1;
-                }
-                else
-                {
-                    if (S_ISREG(info.st_mode))
-                    {
-                        if (is_any(entry->d_name))
-                        {
-                            borrarArchivo(nombreTabla, entry->d_name);
-                        }
-                        else
-                        {
-                            if (strcmp(entry->d_name, "Metadata.bin") == 0)
-                            {
-                                char path_metadata[PATH_MAX];
-                                generarPathArchivo(nombreTabla, entry->d_name, path_metadata);
-                                unlink(path_metadata);
-                            }
-                        }
-                    }
-                }
+                borrarArchivoLFS(pathArchivo);
+                continue;
             }
 
-
+            unlink(pathArchivo);
         }
     }
 
@@ -469,8 +385,9 @@ bool get_biggest_timestamp(char const* contenido, uint16_t key, t_registro* resu
         uint16_t keyRegistro;
         if (!ValidateKey(fields[1], &keyRegistro))
         {
+            LISSANDRA_LOG_ERROR("Error! clave invalida %s en archivo!!", fields[1]);
             Vector_Destruct(&campos);
-            break;
+            continue;
         }
 
         if (key == keyRegistro)
@@ -554,8 +471,7 @@ bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_reg
             if (!contenido)
                 continue;
 
-            size_t const tamRegistro = sizeof(t_registro) + confLFS.TAMANIO_VALUE + 1;
-            t_registro* registroTemp = Malloc(tamRegistro);
+            t_registro* registroTemp = Malloc(REGISTRO_SIZE);
             if (!get_biggest_timestamp(contenido, key, registroTemp))
             {
                 Free(registroTemp);
@@ -567,7 +483,7 @@ bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_reg
             {
                 foundAny = true;
 
-                memcpy(registro, registroTemp, tamRegistro);
+                memcpy(registro, registroTemp, REGISTRO_SIZE);
             }
             else if (registro->timestamp < registroTemp->timestamp)
             {
@@ -823,4 +739,31 @@ void crearArchivoLFS(char const* path, size_t block)
     fprintf(temporal, "SIZE=0\n");
     fprintf(temporal, "BLOCKS=[%u]\n", block);
     fclose(temporal);
+}
+
+void borrarArchivoLFS(char const* pathArchivo)
+{
+    Vector bloques;
+    {
+        t_config* data = config_create(pathArchivo);
+        if (!data)
+            return;
+
+        bloques = config_get_array_value(data, "BLOCKS");
+        config_destroy(data);
+    }
+
+    size_t const bloquesTotales = Vector_size(&bloques);
+
+    char** const arrayBloques = Vector_data(&bloques);
+    for (size_t i = 0; i < bloquesTotales; ++i)
+    {
+        size_t const numBloque = strtoul(arrayBloques[i], NULL, 10);
+
+        // marco el bloque como libre
+        escribirValorBitarray(false, numBloque);
+    }
+
+    unlink(pathArchivo);
+    Vector_Destruct(&bloques);
 }
