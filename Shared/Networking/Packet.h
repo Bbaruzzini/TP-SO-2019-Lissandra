@@ -21,8 +21,6 @@ declare_append_func(int32_t);
 declare_append_func(uint32_t);
 declare_append_func(int64_t);
 declare_append_func(uint64_t);
-declare_append_func(float);
-declare_append_func(double);
 declare_append_func(bool);
 static inline void Packet_Append_str(Packet* p, char const* str);
 
@@ -40,8 +38,6 @@ declare_read_func(int32_t);
 declare_read_func(uint32_t);
 declare_read_func(int64_t);
 declare_read_func(uint64_t);
-declare_read_func(float);
-declare_read_func(double);
 declare_read_func(bool);
 
 static inline void Packet_Read_str(Packet* p, char** res);
@@ -132,8 +128,6 @@ static inline void Packet_Clear(Packet* p)
    uint32_t: Packet_Append_uint32_t,      \
     int64_t: Packet_Append_int64_t,       \
    uint64_t: Packet_Append_uint64_t,      \
-      float: Packet_Append_float,         \
-     double: Packet_Append_double,        \
       char*: Packet_Append_str,           \
 char const*: Packet_Append_str,           \
        bool: Packet_Append_bool           \
@@ -152,8 +146,6 @@ char const*: Packet_Append_str,           \
   uint32_t*: Packet_Read_uint32_t,      \
    int64_t*: Packet_Read_int64_t,       \
   uint64_t*: Packet_Read_uint64_t,      \
-     float*: Packet_Read_float,         \
-    double*: Packet_Read_double,        \
      char**: Packet_Read_str,           \
       bool*: Packet_Read_bool           \
 ) ((p), (X))
@@ -167,12 +159,10 @@ static inline void Packet_Destroy(Packet* p)
     Free(p);
 }
 
-#define append_to_packet(src, cnt)                      \
+#define append_to_packet(src, len)                      \
 do                                                      \
 {                                                       \
-    assert(Vector_size(&p->data) < 10000000);           \
-                                                        \
-    size_t const newSize = p->wpos + (cnt);             \
+    size_t const newSize = p->wpos + (len);             \
     if (Vector_capacity(&p->data) < newSize)            \
     {                                                   \
         if (newSize < 100)                              \
@@ -185,20 +175,18 @@ do                                                      \
             Vector_reserve(&p->data, 400000);           \
     }                                                   \
                                                         \
-    /* just in case */                                  \
     if (Vector_size(&p->data) < newSize)                \
         Vector_resize_zero(&p->data, newSize);          \
                                                         \
-    memcpy(Vector_at(&p->data, p->wpos), (src), (cnt)); \
+    memcpy(Vector_at(&p->data, p->wpos), (src), (len)); \
     p->wpos = newSize;                                  \
 } while (false)
 
-#define read_from_packet(dst, cnt)                      \
+#define read_from_packet(dst, len)                      \
 do                                                      \
 {                                                       \
-    assert(p->rpos + (cnt) <= Vector_size(&p->data));   \
-    memcpy((dst), Vector_at(&p->data, p->rpos), (cnt)); \
-    p->rpos += (cnt);                                   \
+    memcpy((dst), Vector_at(&p->data, p->rpos), (len)); \
+    p->rpos += (len);                                   \
 } while (false)
 
 #define define_append_numeric_value(type)                    \
@@ -217,8 +205,6 @@ define_append_numeric_value(int32_t)
 define_append_numeric_value(uint32_t)
 define_append_numeric_value(int64_t)
 define_append_numeric_value(uint64_t)
-define_append_numeric_value(float)
-define_append_numeric_value(double)
 
 #undef define_append_numeric_value
 
@@ -256,22 +242,6 @@ define_read_numeric_value(int64_t)
 define_read_numeric_value(uint64_t)
 
 #undef define_read_numeric_value
-
-static inline void Packet_Read_float(Packet* p, float* res)
-{
-    float val;
-    read_from_packet(&val, sizeof(float));
-    *res = EndianConvert(val);
-    assert(isfinite(*res));
-}
-
-static inline void Packet_Read_double(Packet* p, double* res)
-{
-    double val;
-    read_from_packet(&val, sizeof(double));
-    *res = EndianConvert(val);
-    assert(isfinite(*res));
-}
 
 static inline void Packet_Read_str(Packet* p, char** res)
 {

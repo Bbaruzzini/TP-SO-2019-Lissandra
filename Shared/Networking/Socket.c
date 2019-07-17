@@ -10,7 +10,6 @@
 #include <netdb.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
 #include <unistd.h>
 
 #pragma pack(push, 1)
@@ -75,8 +74,8 @@ Socket* Socket_Create(SocketOpts const* opts)
 
 void Socket_SendPacket(Socket* s, Packet const* packet)
 {
-    uint16_t opcode = Packet_GetOpcode(packet);
-    uint16_t packetSize = Packet_Size(packet);
+    uint16_t const opcode = Packet_GetOpcode(packet);
+    uint16_t const packetSize = Packet_Size(packet);
 
     PacketHdr header =
     {
@@ -86,15 +85,26 @@ void Socket_SendPacket(Socket* s, Packet const* packet)
 
     LISSANDRA_LOG_TRACE("Enviando paquete a %s: %s (opcode: %u, tam: %u)", s->Address.HostIP, OpcodeNames[opcode], opcode, packetSize);
 
-    // Enviar header+paquete en un solo write
-    struct iovec iovecs[2] =
+    // Enviar header+paquete en un solo send
+    struct iovec iovecs[] =
     {
         { .iov_base = &header,                 .iov_len = sizeof header },
         { .iov_base = Packet_Contents(packet), .iov_len = packetSize    }
     };
 
-    if (writev(s->Handle, iovecs, 2) < 0)
-        LISSANDRA_LOG_SYSERROR("writev");
+    struct msghdr const hdr =
+    {
+        .msg_name = NULL,
+        .msg_namelen = 0,
+        .msg_iov = iovecs,
+        .msg_iovlen = sizeof iovecs / sizeof *iovecs,
+        .msg_control = NULL,
+        .msg_controllen = 0,
+        .msg_flags = 0
+    };
+
+    if (sendmsg(s->Handle, &hdr, MSG_NOSIGNAL | MSG_WAITALL) < 0)
+        LISSANDRA_LOG_SYSERROR("sendmsg");
 }
 
 Packet* Socket_RecvPacket(Socket* s)

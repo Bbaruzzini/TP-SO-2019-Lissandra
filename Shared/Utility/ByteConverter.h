@@ -1,10 +1,14 @@
 
+// Macros para convertir de y hacia network-byte-order aka Big-Endian
+
 #ifndef ByteConverter_h__
 #define ByteConverter_h__
 
-#ifdef __BIG_ENDIAN__
+#include <endian.h>
+
+#if BYTE_ORDER == BIG_ENDIAN
 #define EndianConvert(val) val
-#else
+#elif BYTE_ORDER == LITTLE_ENDIAN
 #include <byteswap.h>
 #include <stdint.h>
 
@@ -30,18 +34,6 @@ static inline uint32_t bswap32u(uint32_t x)
     return bswap_32(x);
 }
 
-static inline float bswap32f(float x)
-{
-    union
-    {
-        float f;
-        uint32_t i;
-    } u;
-    u.f = x;
-    u.i = bswap32u(u.i);
-    return u.f;
-}
-
 static inline int64_t bswap64(int64_t x)
 {
     return bswap_64(x);
@@ -50,18 +42,6 @@ static inline int64_t bswap64(int64_t x)
 static inline uint64_t bswap64u(uint64_t x)
 {
     return bswap_64(x);
-}
-
-static inline double bswap64f(double x)
-{
-    union
-    {
-        double d;
-        uint64_t i;
-    } u;
-    u.d = x;
-    u.i = bswap64u(u.i);
-    return u.d;
 }
 
 static inline char charid(char x)
@@ -81,12 +61,12 @@ static inline uint8_t ucharid(uint8_t x)
    uint32_t: bswap32u,                     \
     int64_t: bswap64,                      \
    uint64_t: bswap64u,                     \
-      float: bswap32f,                     \
-     double: bswap64f,                     \
        char: charid,                       \
      int8_t: charid,                       \
     uint8_t: ucharid                       \
 ) (val)
-#endif //__BIG_ENDIAN__
+#else
+#error Endianness not supported!
+#endif //BYTE_ORDER
 
 #endif //ByteConverter_h__
