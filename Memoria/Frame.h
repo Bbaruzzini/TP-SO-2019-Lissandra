@@ -6,12 +6,14 @@
 #include <time.h>
 
 // Una frame es la página en memoria (registro)
+#pragma pack(push, 1)
 typedef struct
 {
     uint64_t Timestamp;
     uint16_t Key;
     char Value[]; // tamaño maximo seteado en tiempo de ejecucion!
 } Frame;
+#pragma pack(pop)
 
 typedef struct
 {
