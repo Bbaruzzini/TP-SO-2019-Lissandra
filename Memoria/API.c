@@ -207,14 +207,14 @@ static void Journal_Register(void* dirtyFrame)
 
     Packet* p = Packet_Create(LQL_INSERT, 50);
     Packet_Append(p, df->TableName);
-    Packet_Append(p, df->Key);
+    Packet_Append(p, df->Frame->Key);
 
     char value[maxValueLength + 1];
     *value = '\0';
-    strncat(value, df->Value, maxValueLength);
+    strncat(value, df->Frame->Value, maxValueLength);
     Packet_Append(p, value);
 
-    Packet_Append(p, df->Timestamp);
+    Packet_Append(p, df->Frame->Timestamp);
 
     Socket_SendPacket(FileSystemSocket, p);
     Packet_Destroy(p);

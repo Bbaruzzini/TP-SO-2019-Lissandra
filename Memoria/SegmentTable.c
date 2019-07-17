@@ -94,7 +94,7 @@ bool SegmentTable_GetLRUFrame(size_t* frame)
     return true;
 }
 
-static void GetDirtyFrames(char const* qualifiedPath, void* segment, void* vec)
+static void _getDirtyFrames(char const* qualifiedPath, void* segment, void* vec)
 {
     (void) qualifiedPath;
 
@@ -104,7 +104,7 @@ static void GetDirtyFrames(char const* qualifiedPath, void* segment, void* vec)
 
 void SegmentTable_GetDirtyFrames(Vector* dirtyFrames)
 {
-    dictionary_iterator_with_data(SegmentTable, GetDirtyFrames, dirtyFrames);
+    dictionary_iterator_with_data(SegmentTable, _getDirtyFrames, dirtyFrames);
 }
 
 void SegmentTable_DeleteSegment(char const* tableName)

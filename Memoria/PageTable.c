@@ -125,6 +125,8 @@ static void _saveLRUPage(int key, void* page, void* param)
 
 static void _addDirtyFrame(int key, void* page, void* param)
 {
+    (void) key;
+
     Page* const p = page;
     if (!p->Dirty)
         return;
@@ -134,9 +136,7 @@ static void _addDirtyFrame(int key, void* page, void* param)
     DirtyFrame df =
     {
         .TableName = data->tableName,
-        .Timestamp = f->Timestamp,
-        .Key = key,
-        .Value = f->Value
+        .Frame = f
     };
 
     Vector_push_back(data->dirtyFrames, &df);

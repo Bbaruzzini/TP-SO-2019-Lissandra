@@ -18,9 +18,7 @@ typedef struct
 typedef struct
 {
     char const* TableName;
-    uint64_t Timestamp;
-    uint16_t Key;
-    char const* Value;
+    Frame const* Frame;
 } DirtyFrame;
 
 #endif //Frame_h__
