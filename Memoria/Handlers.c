@@ -111,7 +111,7 @@ void HandleSelectOpcode(Socket* s, Packet* p)
             Packet_Append(resp, value);
             break;
         case KeyNotFound:
-            resp = Packet_Create(MSG_ERR_NOT_FOUND, 0);
+            resp = Packet_Create(MSG_ERR_KEY_NOT_FOUND, 0);
             break;
         case MemoryFull:
             resp = Packet_Create(MSG_ERR_MEM_FULL, maxValueLength + 1);

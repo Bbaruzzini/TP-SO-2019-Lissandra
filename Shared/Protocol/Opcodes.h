@@ -91,14 +91,14 @@ enum
                                  */                                            \
                                                                                \
     /* erores */                                                               \
-    OPC(MSG_ERR_NOT_FOUND) /* key no encontrado */                             \
+    OPC(MSG_ERR_KEY_NOT_FOUND) /* key no encontrado */                         \
                                                                                \
     OPC(MSG_ERR_MEM_FULL)  /* memoria está full. Si es SELECT contiene:        \
                             *                                                  \
                             * char*: value                                     \
                             */                                                 \
                                                                                \
-    OPC(MSG_ERR_TABLE_NOT_EXISTS) /* tabla no existe (ejemplo DROP, DESCRIBE)  \
+    OPC(MSG_ERR_TABLE_NOT_EXISTS) /* tabla no existe                           \
                                    */                                          \
                                                                                \
     /* gossiping */                                                            \

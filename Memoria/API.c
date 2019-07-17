@@ -57,7 +57,7 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
     {
         case MSG_SELECT:
             break;
-        case MSG_ERR_NOT_FOUND:
+        case MSG_ERR_KEY_NOT_FOUND:
             Packet_Destroy(p);
             return KeyNotFound;
         default:

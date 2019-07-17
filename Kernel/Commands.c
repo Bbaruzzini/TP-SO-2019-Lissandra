@@ -90,7 +90,7 @@ bool HandleSelect(Vector const* args)
             Memory_SendRequest(mem, OP_JOURNAL, NULL /*unused*/);
             break;
         }
-        case MSG_ERR_NOT_FOUND:
+        case MSG_ERR_KEY_NOT_FOUND:
             LISSANDRA_LOG_ERROR("SELECT: key %hu no encontrada", k);
             Packet_Destroy(p);
             return true; // no se toma como fallo de script que una clave no exista (#1406)

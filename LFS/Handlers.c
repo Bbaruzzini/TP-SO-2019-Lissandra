@@ -52,7 +52,7 @@ void HandleSelectOpcode(Socket* s, Packet* p)
         Packet_Append(respuesta, value);
     }
     else
-        respuesta = Packet_Create(MSG_ERR_NOT_FOUND, 0);
+        respuesta = Packet_Create(MSG_ERR_KEY_NOT_FOUND, 0);
 
     Socket_SendPacket(s, respuesta);
     Packet_Destroy(respuesta);
