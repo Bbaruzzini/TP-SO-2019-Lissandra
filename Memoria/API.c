@@ -86,15 +86,24 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
     return Ok;
 }
 
-bool API_Insert(char const* tableName, uint16_t key, char const* value)
+InsertResult API_Insert(char const* tableName, uint16_t key, char const* value)
 {
+    size_t const maxLen = Memory_GetMaxValueLength();
+
+    size_t len = strlen(value);
+    if (len > Memory_GetMaxValueLength())
+    {
+        LISSANDRA_LOG_ERROR("El valor '%s' (longitud: %u) supera el máximo de %u caracteres!!", value, len, maxLen);
+        return InsertOverflow;
+    }
+
     LISSANDRA_LOG_DEBUG("INSERT %s %u %s", tableName, key, value);
     if (!Memory_UpsertValue(tableName, key, value))
-        return false;
+        return InsertFull;
 
     // delay artificial acceso a memoria (write latency)
     MSSleep(ConfigMemoria.RETARDO_MEM);
-    return true;
+    return InsertOk;
 }
 
 uint8_t API_Create(char const* tableName, CriteriaType consistency, uint16_t partitions, uint32_t compactionTime)

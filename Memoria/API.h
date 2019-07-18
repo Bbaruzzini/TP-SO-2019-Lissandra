@@ -37,9 +37,15 @@ typedef enum
 // value debe apuntar a un espacio con (maxValueLength+1) bytes
 SelectResult API_Select(char const* tableName, uint16_t key, char* value);
 
+typedef enum
+{
+    InsertOk,
+    InsertOverflow,
+    InsertFull
+} InsertResult;
+
 // en memoria va sin timestamp el request, se calcula luego. ver #1355
-// devuelve false si la memoria está llena
-bool API_Insert(char const* tableName, uint16_t key, char const* value);
+InsertResult API_Insert(char const* tableName, uint16_t key, char const* value);
 
 // devuelve EXIT_FAILURE si la tabla ya existe en el FS
 uint8_t API_Create(char const* tableName, CriteriaType ct, uint16_t partitions, uint32_t compactionTime);

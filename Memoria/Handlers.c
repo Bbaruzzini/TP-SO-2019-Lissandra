@@ -144,14 +144,23 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     Packet_Read(p, &key);
     Packet_Read(p, &value);
 
-    Opcodes opcode = MSG_INSERT_RESPUESTA;
-    if (!API_Insert(tableName, key, value))
-        opcode = MSG_ERR_MEM_FULL;
+    Opcodes opcode;
+    switch (API_Insert(tableName, key, value))
+    {
+        case InsertOverflow:
+            opcode = MSG_ERR_VALUE_TOO_LONG;
+            break;
+        case InsertFull:
+            opcode = MSG_ERR_MEM_FULL;
+            break;
+        default:
+            opcode = MSG_INSERT_RESPUESTA;
+            break;
+    }
 
     Free(tableName);
     Free(value);
 
-    // respuesta vacia para que el kernel sepa que procese el comando
     Packet* res = Packet_Create(opcode, 0);
     Socket_SendPacket(s, res);
     Packet_Destroy(res);

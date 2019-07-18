@@ -169,6 +169,10 @@ bool HandleInsert(Vector const* args)
     {
         case MSG_INSERT_RESPUESTA:
             break;
+        case MSG_ERR_VALUE_TOO_LONG:
+            LISSANDRA_LOG_ERROR("INSERT: El valor '%s' es demasiado largo!", value);
+            Packet_Destroy(p);
+            return false;
         case MSG_ERR_MEM_FULL:
         {
             // se debe vaciar la memoria e intentar el request nuevamente. Esto aumenta la latencia de escritura.

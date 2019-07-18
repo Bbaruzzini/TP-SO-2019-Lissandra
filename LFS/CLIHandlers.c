@@ -83,6 +83,13 @@ void HandleInsert(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
+    size_t len = strlen(value);
+    if (len > confLFS.TAMANIO_VALUE)
+    {
+        LISSANDRA_LOG_ERROR("El valor '%s' (longitud: %u) supera el máximo de %u caracteres!!", value, len, confLFS.TAMANIO_VALUE);
+        return;
+    }
+
     uint64_t ts = GetMSEpoch();
     if (timestamp != NULL)
         ts = strtoull(timestamp, NULL, 10);

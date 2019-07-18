@@ -91,6 +91,8 @@ enum
                                  */                                            \
                                                                                \
     /* erores */                                                               \
+    OPC(MSG_ERR_VALUE_TOO_LONG) /* valor demasiado largo */                    \
+                                                                               \
     OPC(MSG_ERR_KEY_NOT_FOUND) /* key no encontrado */                         \
                                                                                \
     OPC(MSG_ERR_MEM_FULL)  /* memoria está full. Si es SELECT contiene:        \
