@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <Logger.h>
 #include <Malloc.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/file.h>
@@ -15,6 +16,8 @@
 
 SelectResult api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestamp)
 {
+    MSSleep(atomic_load(&confLFS.RETARDO));
+
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
 
@@ -92,6 +95,8 @@ SelectResult api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* 
 
 uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
+    MSSleep(atomic_load(&confLFS.RETARDO));
+
     //Verifica si la tabla existe en el File System
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
@@ -111,6 +116,8 @@ uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t 
 
 uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroParticiones, uint32_t compactionTime)
 {
+    MSSleep(atomic_load(&confLFS.RETARDO));
+
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
 
@@ -178,6 +185,8 @@ uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroP
 
 uint8_t api_drop(char* nombreTabla)
 {
+    MSSleep(atomic_load(&confLFS.RETARDO));
+
     char pathAbsoluto[PATH_MAX];
     generarPathTabla(nombreTabla, pathAbsoluto);
 
@@ -208,6 +217,8 @@ uint8_t api_drop(char* nombreTabla)
 
 void* api_describe(char* nombreTabla)
 {
+    MSSleep(atomic_load(&confLFS.RETARDO));
+
     if (!nombreTabla)
     {
         char dirTablas[PATH_MAX];

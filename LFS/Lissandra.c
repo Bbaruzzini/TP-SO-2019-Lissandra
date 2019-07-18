@@ -59,7 +59,7 @@ static void IniciarLogger(void)
 static void _loadReloadableFields(t_config const* config)
 {
     // solo los campos recargables en tiempo ejecucion
-    confLFS.RETARDO = config_get_long_value(config, "RETARDO");
+    atomic_store(&confLFS.RETARDO, config_get_long_value(config, "RETARDO"));
     confLFS.TIEMPO_DUMP = config_get_long_value(config, "TIEMPO_DUMP");
 }
 

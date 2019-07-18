@@ -16,7 +16,7 @@ typedef struct
     size_t CANTIDAD_BLOQUES;
 
     // Campos recargables en runtime
-    uint32_t RETARDO;
+    _Atomic uint32_t RETARDO;
     uint32_t TIEMPO_DUMP;
 } t_config_FS;
 
