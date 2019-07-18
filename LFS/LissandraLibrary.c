@@ -99,7 +99,6 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
 
 void iniciar_servidor(void)
 {
-    /* -- codigo de inicializacion -- */
     //----Creo socket de LFS, hago el bind y comienzo a escuchar
     SocketOpts opts =
     {
@@ -112,12 +111,8 @@ void iniciar_servidor(void)
     };
     sock_LFS = Socket_Create(&opts);
 
-    //----Hago un log
     LISSANDRA_LOG_TRACE("Servidor LFS iniciado");
 
-    /* -- main loop y threads -- */
-
-    //Ariel: Monitorear socket de conexiones entrantes
     EventDispatcher_AddFDI(sock_LFS);
 }
 

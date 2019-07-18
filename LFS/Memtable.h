@@ -32,6 +32,6 @@ void memtable_delete_table(char const* nombreTabla);
 
 void* memtable_dump_thread(void*);
 
-void memtable_dump(void);
+void memtable_destroy(void);
 
 #endif //LISSANDRA_MEMTABLE_H

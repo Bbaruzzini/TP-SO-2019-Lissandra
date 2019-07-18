@@ -127,10 +127,9 @@ static void LoadConfigInitial(char const* fileName)
     LISSANDRA_LOG_TRACE("Config LFS iniciado");
 }
 
-static void pruebaConsola(void)
+static void MainLoop(void)
 {
     // el kokoro
-    printf("Llego a esta prueba\n");
     pthread_t consoleTid;
     pthread_create(&consoleTid, NULL, CliThread, NULL);
 
@@ -139,115 +138,30 @@ static void pruebaConsola(void)
     pthread_join(consoleTid, NULL);
 }
 
+static void Cleanup(void)
+{
+    memtable_destroy();
+    terminarFileSystem();
+    EventDispatcher_Terminate();
+    Logger_Terminate();
+}
+
 int main(void)
 {
     static char const configFileName[] = "lissandra.conf";
 
-    //pthread_t hiloIniciarServidor;
-
     IniciarLogger();
-
     EventDispatcher_Init();
-
+    SigintSetup();
     LoadConfigInitial(configFileName);
 
-    //pthread_create(&hiloIniciarServidor,NULL,(void*)&iniciar_servidor,NULL);
-
     iniciarFileSystem();
-
     memtable_create();
-/*
- * Estas de aca son pruebas para ver si las funciones de la memtable andan
- *
-    t_elem_memtable* elementoA = memtable_new_elem("TABLA1");
 
-    t_registro* registro1 = new_elem_registro(3, "\"Este es el primer registro que pruebo\"", 1548421507);
-    t_registro* registro2 = new_elem_registro(2, "\"Este es el segundo registro que pruebo\"", 1348451807);
-    t_registro* registro3 = new_elem_registro(3, "\"Este es el tercer registro que pruebo\"", 1548421508);
-
-    printf("Elementos del registro1: %d, %s, %d\n", registro1->key, registro1->value, registro1->timestamp);
-    printf("Elementos del registro2: %d, %s, %d\n", registro2->key, registro2->value, registro2->timestamp);
-    printf("Elementos del registro1: %d, %s, %d\n", registro3->key, registro3->value, registro3->timestamp);
-
-    insert_new_in_memtable(elementoA);
-
-    insert_new_in_registros("TABLA1", registro1);
-    insert_new_in_registros("TABLA1", registro2);
-    insert_new_in_registros("TABLA1", registro3);
-
-    t_elem_memtable* new = memtable_get("TABLA1");
-
-    printf("Este es el nombre de la tabla: %s\n", new->nombreTabla);
-
-    size_t cantElementos = Vector_size(&new->registros);
-
-    printf("La cantidad de elementos del elemento es: %d\n", cantElementos);
-
-    t_registro* registro = memtable_get_biggest_timestamp(new, 3);
-
-    if(registro == NULL){
-        printf("Esta vacio!!!\n");
-    } else {
-        printf("Este es el mayor timestamp: %d\n", registro->timestamp);
-    }
-*/
-    //Pruebas Brenda/Denise desde ACA
-
-    //api_create("Tabla3", "SC", 5, 2000);
-    //api_create("Tabla2", "SC", 4, 1000);
-
-    //t_list* prueba = malloc(sizeof(t_list));
-
-    //prueba = api_describe("");
-
-    //size_t tamanio = list_size(prueba);
-
-    //printf("tamanio: %d\n", tamanio);
-
-    //t_describe* prueba2 = Malloc(sizeof(t_describe));
-
-    //prueba2 = api_describe("TABLA2");
-
-    //printf("Tabla: %s\n", prueba2->table);
-    //printf("Consistencia: %d\n", prueba2->consistency);
-    //printf("Particiones: %d\n", prueba2->partitions);
-    //printf("Tiempo: %d\n", prueba2->compaction_time);
-
-    //HASTA ACA
-
-    //api_drop("TABLA3");
-
-    //printf("hora ariel: %d\n", GetMSEpoch());
-    //printf("hora denise: %d\n", time(NULL));
-
-
-  //Pruebas para memtable_dump para la cual hace falta tener creada la tabla FRUTAS
-    /*
-    memtable_new_elem("FRUTAS", 3, "Manzana", 1548421507);
-    memtable_new_elem("FRUTAS", 2, "Pera", 1348451807);
-    memtable_new_elem("FRUTAS", 3, "Banana", 1548421508);
-    memtable_new_elem("FRUTAS", 2, "Frutilla", 1548436508);
-    memtable_new_elem("FRUTAS", 2, "Anana", 1548436508);
-    memtable_new_elem("FRUTAS", 2, "Mandarina", 1548156508);
-    memtable_new_elem("FRUTAS", 2, "Pomelo", 1548148908);
-    memtable_new_elem("FRUTAS", 2, "Naranja", 1548144508);
-    memtable_new_elem("FRUTAS", 2, "Limon", 1545555508);
-    memtable_new_elem("FRUTAS", 2, "Melon", 1548140008);
-
-    if (memtable_has_table("FRUTAS"))
-        printf("Este es el nombre de la tabla: FRUTAS\n");
-
-    memtable_dump();
-    */
     iniciar_servidor();
+    MainLoop();
 
-    //Aca va consola ->Update: La consola subio para aca
-    pruebaConsola();
-
-    //TODO: armar una funcion para que esto quede por fuera y el main mas limpio
-    // limpieza
-    EventDispatcher_Terminate();
-    terminarFileSystem();
+    Cleanup();
 }
 
 static void _initDumpThread(PeriodicTimer* pt)

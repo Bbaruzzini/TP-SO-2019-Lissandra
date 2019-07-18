@@ -17,7 +17,7 @@
 static t_dictionary* memtable = NULL;
 static pthread_rwlock_t memtableMutex = PTHREAD_RWLOCK_INITIALIZER;
 
-static size_t tamRegistro;
+void _dump(void);
 
 static void _delete_memtable_table(void* registros)
 {
@@ -28,13 +28,12 @@ static void _delete_memtable_table(void* registros)
 void memtable_create(void)
 {
     memtable = dictionary_create();
-    tamRegistro = REGISTRO_SIZE;
     LISSANDRA_LOG_TRACE("Memtable creada");
 }
 
 void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
 {
-    t_registro* new = Malloc(tamRegistro);
+    t_registro* new = Malloc(REGISTRO_SIZE);
     new->key = key;
     new->timestamp = timestamp;
     strncpy(new->value, value, confLFS.TAMANIO_VALUE + 1);
@@ -45,7 +44,7 @@ void memtable_new_elem(char const* nombreTabla, uint16_t key, char const* value,
     if (!registros)
     {
         registros = Malloc(sizeof(Vector));
-        Vector_Construct(registros, tamRegistro, NULL, 0);
+        Vector_Construct(registros, REGISTRO_SIZE, NULL, 0);
 
         dictionary_put(memtable, nombreTabla, registros);
     }
@@ -86,7 +85,7 @@ bool memtable_get_biggest_timestamp(char const* nombreTabla, uint16_t key, t_reg
     }
 
     if (registroMayor)
-        memcpy(resultado, registroMayor, tamRegistro);
+        memcpy(resultado, registroMayor, REGISTRO_SIZE);
 
     pthread_rwlock_unlock(&memtableMutex);
     return registroMayor != NULL;
@@ -153,13 +152,19 @@ static void _dump_table(char const* nombreTabla, void* registros)
 
 void* memtable_dump_thread(void* pt)
 {
-    memtable_dump();
+    _dump();
 
     PeriodicTimer_SetEnabled(pt, true);
     return NULL;
 }
 
-void memtable_dump(void)
+void memtable_destroy(void)
+{
+    dictionary_destroy_and_destroy_elements(memtable, _delete_memtable_table);
+}
+
+/* PRIVATE */
+void _dump(void)
 {
     t_dictionary* oldMemtable;
 
