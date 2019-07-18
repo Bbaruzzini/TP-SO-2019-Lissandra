@@ -52,15 +52,19 @@ void memoria_conectar(Socket* fs, Socket* memoriaNueva)
 {
     (void) fs;
 
-    printf("Paso por memoria_conectar\n");
     //Recibe el handshake
     Packet* p = Socket_RecvPacket(memoriaNueva);
+    if (!p)
+    {
+        LISSANDRA_LOG_ERROR("Memoria se desconecto durante handshake!");
+        return;
+    }
+
     if (Packet_GetOpcode(p) != MSG_HANDSHAKE)
     {
         LISSANDRA_LOG_ERROR("HANDSHAKE: recibido opcode no esperado %hu", Packet_GetOpcode(p));
-        Packet_Destroy(p); /// agregado, libero memoria
+        Packet_Destroy(p);
         return;
-
     }
 
     uint8_t id;
@@ -159,8 +163,6 @@ bool existeDir(char const* pathDir)
 
 void generarPathTabla(char* nombreTabla, char* buf)
 {
-    LISSANDRA_LOG_INFO("Generando el path de la tabla");
-
     //Como los nombres de las tablas deben estar en uppercase, primero me aseguro de que así sea y luego genero el path de esa tabla
     string_to_upper(nombreTabla);
     snprintf(buf, PATH_MAX, "%sTables/%s", confLFS.PUNTO_MONTAJE, nombreTabla);
