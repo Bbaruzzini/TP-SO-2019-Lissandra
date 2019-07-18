@@ -44,15 +44,24 @@ void HandleSelectOpcode(Socket* s, Packet* p)
     uint64_t timestamp;
 
     Packet* respuesta;
-    if (api_select(nombreTabla, key, value, &timestamp))
+    switch (api_select(nombreTabla, key, value, &timestamp))
     {
-        // adivino size
-        respuesta = Packet_Create(MSG_SELECT, 100);
-        Packet_Append(respuesta, timestamp);
-        Packet_Append(respuesta, value);
+        case Ok:
+            // adivino size
+            respuesta = Packet_Create(MSG_SELECT, 100);
+            Packet_Append(respuesta, timestamp);
+            Packet_Append(respuesta, value);
+            break;
+        case KeyNotFound:
+            respuesta = Packet_Create(MSG_ERR_KEY_NOT_FOUND, 0);
+            break;
+        case TableNotFound:
+            respuesta = Packet_Create(MSG_ERR_TABLE_NOT_EXISTS, 0);
+            break;
+        default:
+            Free(nombreTabla);
+            return;
     }
-    else
-        respuesta = Packet_Create(MSG_ERR_KEY_NOT_FOUND, 0);
 
     Socket_SendPacket(s, respuesta);
     Packet_Destroy(respuesta);
@@ -70,9 +79,6 @@ void HandleInsertOpcode(Socket* s, Packet* p)
     Packet_Read(p, &key);
     Packet_Read(p, &value);
     Packet_Read(p, &timestamp);
-
-    //Hay que agregar algo al define de Packet_Read?????
-    //Packet_Read(p, &timestamp);
 
     //resultadoInsert es EXIT_SUCCESS o EXIT_FAILURE
     uint8_t resultadoInsert = api_insert(nombreTabla, key, value, timestamp);

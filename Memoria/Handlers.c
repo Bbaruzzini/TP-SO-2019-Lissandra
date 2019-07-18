@@ -113,6 +113,9 @@ void HandleSelectOpcode(Socket* s, Packet* p)
         case KeyNotFound:
             resp = Packet_Create(MSG_ERR_KEY_NOT_FOUND, 0);
             break;
+        case TableNotFound:
+            resp = Packet_Create(MSG_ERR_TABLE_NOT_EXISTS, 0);
+            break;
         case MemoryFull:
             resp = Packet_Create(MSG_ERR_MEM_FULL, maxValueLength + 1);
             Packet_Append(resp, value);

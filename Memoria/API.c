@@ -60,6 +60,9 @@ SelectResult API_Select(char const* tableName, uint16_t key, char* value)
         case MSG_ERR_KEY_NOT_FOUND:
             Packet_Destroy(p);
             return KeyNotFound;
+        case MSG_ERR_TABLE_NOT_EXISTS:
+            Packet_Destroy(p);
+            return TableNotFound;
         default:
             // deberia ser otra cosa pero para no confundir al llamante con un estado de "otro error"
             LOG_INVALID_OPCODE("SELECT");
@@ -228,6 +231,15 @@ static void Journal_Register(void* dirtyFrame)
         LOG_INVALID_OPCODE("JOURNAL_INSERT");
         return;
     }
+
+    // En el caso que al momento de realizar el Journaling una tabla no exista,
+    // deberá informar por archivo de log esta situación,
+    // pero el proceso deberá actualizar correctamente las tablas que sí existen.
+    uint8_t respuestaInsert;
+    Packet_Read(p, &respuestaInsert);
+
+    if (respuestaInsert == EXIT_FAILURE)
+        LISSANDRA_LOG_WARN("JOURNAL: Intento de insertar key %u, valor '%s' en tabla %s no existente!", df->Frame->Key, value, df->TableName);
 
     Packet_Destroy(p);
 }

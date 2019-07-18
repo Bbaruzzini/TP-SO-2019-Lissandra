@@ -94,6 +94,10 @@ bool HandleSelect(Vector const* args)
             LISSANDRA_LOG_ERROR("SELECT: key %hu no encontrada", k);
             Packet_Destroy(p);
             return true; // no se toma como fallo de script que una clave no exista (#1406)
+        case MSG_ERR_TABLE_NOT_EXISTS:
+            LISSANDRA_LOG_FATAL("SELECT: tabla %s no existe en el FS! Esto no deberia estar pasando...", table);
+            Packet_Destroy(p);
+            return false;
         default:
             LISSANDRA_LOG_FATAL("SELECT: recibido opcode no esperado %hu", Packet_GetOpcode(p));
             Packet_Destroy(p);

@@ -22,6 +22,7 @@ static uint8_t* FrameBitmap = NULL;
 static t_bitarray* FrameStatus = NULL;
 static bool Full = false; // valor cacheado para no tener que pasar por LRU de nuevo
 
+static void _cleanMemory(void);
 static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key);
 static void WriteFrame(size_t frameNumber, uint64_t timestamp, uint16_t key, char const* value);
 static bool GetFreeFrame(size_t* frame);
@@ -128,11 +129,10 @@ void Memory_DoJournal(void(*insertFn)(void*))
 
     Vector_iterate(&v, insertFn);
 
-    memset(FrameBitmap, 0, bitarray_get_max_bit(FrameStatus) / 8);
-    SegmentTable_Clean();
+    // limpiar memoria
+    _cleanMemory();
 
     Vector_Destruct(&v);
-    Full = false;
 }
 
 void Memory_Destroy(void)
@@ -144,6 +144,13 @@ void Memory_Destroy(void)
 }
 
 /* PRIVATE */
+static void _cleanMemory(void)
+{
+    memset(FrameBitmap, 0, bitarray_get_max_bit(FrameStatus) / 8);
+    SegmentTable_Clean();
+    Full = false;
+}
+
 static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key)
 {
     PageTable* pt = SegmentTable_GetPageTable(tableName);

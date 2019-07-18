@@ -29,6 +29,7 @@ typedef enum
 {
     Ok,
     KeyNotFound,
+    TableNotFound,
     MemoryFull
 } SelectResult;
 

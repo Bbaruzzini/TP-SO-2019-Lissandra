@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-bool api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestamp)
+SelectResult api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestamp)
 {
     char path[PATH_MAX];
     generarPathTabla(nombreTabla, path);
@@ -22,13 +22,13 @@ bool api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestam
     if (!existeDir(path))
     {
         LISSANDRA_LOG_ERROR("La tabla ingresada para SELECT: %s no existe en el File System", nombreTabla);
-        return NULL;
+        return TableNotFound;
     }
 
     //Obtener la metadata asociada a dicha tabla
     t_describe infoTabla;
     if (!get_table_metadata(nombreTabla, &infoTabla))
-        return NULL;
+        return TableNotFound;
 
     //Calcular cual es la particion que contiene dicho KEY
     uint16_t const particion = get_particion(infoTabla.partitions, key);
@@ -40,7 +40,7 @@ bool api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestam
     if (fd == -1)
     {
         LISSANDRA_LOG_SYSERROR("open");
-        return NULL;
+        return TableNotFound;
     }
 
     // dump bloquea select/compactacion durante el renombre y el bajado a archivo
@@ -85,7 +85,9 @@ bool api_select(char* nombreTabla, uint16_t key, char* value, uint64_t* timestam
     Free(resultadoTemporales);
     Free(resultadoParticion);
 
-    return maximo != NULL;
+    if (!maximo)
+        return KeyNotFound;
+    return Ok;
 }
 
 uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t timestamp)
@@ -98,7 +100,6 @@ uint8_t api_insert(char* nombreTabla, uint16_t key, char const* value, uint64_t 
     {
         LISSANDRA_LOG_ERROR("La tabla ingresada para INSERT: %s no existe en el File System", nombreTabla);
         return EXIT_FAILURE;
-
     }
 
     //Verifica si hay datos a dumpear, y si no existen aloca memoria
@@ -204,7 +205,6 @@ uint8_t api_drop(char* nombreTabla)
     LISSANDRA_LOG_INFO("Tabla %s borrada con exito", nombreTabla);
     return EXIT_SUCCESS;
 }
-
 
 void* api_describe(char* nombreTabla)
 {

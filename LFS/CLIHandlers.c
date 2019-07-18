@@ -38,14 +38,20 @@ void HandleSelect(Vector const* args)
 
     char value[confLFS.TAMANIO_VALUE + 1];
     uint64_t timestamp;
-    if (api_select(table, k, value, &timestamp))
+    switch (api_select(table, k, value, &timestamp))
     {
-        LISSANDRA_LOG_INFO("Key: %u", k);
-        LISSANDRA_LOG_INFO("Value: %s", value);
-        LISSANDRA_LOG_INFO("Timestamp: %llu", timestamp);
+        case Ok:
+            LISSANDRA_LOG_INFO("Key: %u", k);
+            LISSANDRA_LOG_INFO("Value: %s", value);
+            LISSANDRA_LOG_INFO("Timestamp: %llu", timestamp);
+            break;
+        case KeyNotFound:
+            LISSANDRA_LOG_ERROR("SELECT: la key %s no existe en la tabla %s!", key, table);
+            break;
+        case TableNotFound:
+            LISSANDRA_LOG_ERROR("SELECT: la tabla %s no existe en el File System!", table);
+            break;
     }
-    else
-        LISSANDRA_LOG_ERROR("No se pudo realizar el SELECT: la tabla ingresada no existe en el File System");
 }
 
 void HandleInsert(Vector const* args)
