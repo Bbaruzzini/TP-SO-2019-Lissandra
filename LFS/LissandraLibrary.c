@@ -111,6 +111,12 @@ void iniciar_servidor(void)
     };
     sock_LFS = Socket_Create(&opts);
 
+    if (!sock_LFS)
+    {
+        LISSANDRA_LOG_FATAL("No pudo iniciarse el socket de escucha!!");
+        exit(1);
+    }
+
     LISSANDRA_LOG_TRACE("Servidor LFS iniciado");
 
     EventDispatcher_AddFDI(sock_LFS);
