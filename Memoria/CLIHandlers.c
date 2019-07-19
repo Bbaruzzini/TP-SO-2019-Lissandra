@@ -44,8 +44,8 @@ void HandleSelect(Vector const* args)
         case KeyNotFound:
             LISSANDRA_LOG_ERROR("SELECT: clave %hu no encontrada!", k);
             break;
-        default:
-            LISSANDRA_LOG_ERROR("API_Select retornó valor inválido!!");
+        case TableNotFound:
+            LISSANDRA_LOG_ERROR("SELECT: tabla %s no existe!", table);
             break;
     }
 
@@ -78,8 +78,16 @@ void HandleInsert(Vector const* args)
     if (!ValidateKey(key, &k))
         return;
 
-    if (!API_Insert(table, k, value))
-        LISSANDRA_LOG_ERROR("INSERT: Memoria llena, valor no insertado. Hacer JOURNAL!");
+    switch (API_Insert(table, k, value))
+    {
+        case InsertOk:
+            break;
+        case InsertOverflow:
+            break;
+        case InsertFull:
+            LISSANDRA_LOG_ERROR("INSERT: Memoria llena, valor no insertado. Hacer JOURNAL!");
+            break;
+    }
 }
 
 void HandleCreate(Vector const* args)
