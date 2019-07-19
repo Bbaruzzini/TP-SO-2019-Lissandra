@@ -185,23 +185,21 @@ void hashmap_destroy_and_destroy_elements(t_hashmap* me, void(*data_destroyer)(v
 
 static void hashmap_resize(t_hashmap* me, unsigned int new_max_size)
 {
-    Vector* new_table = Malloc(sizeof(Vector));
-    Vector_Construct(new_table, sizeof(t_hash_element*), NULL, 0);
-    Vector_resize_zero(new_table, new_max_size);
-
-    Vector* old_table = &me->elements;
+    Vector new_table;
+    Vector_Construct(&new_table, sizeof(t_hash_element*), NULL, 0);
+    Vector_resize_zero(&new_table, new_max_size);
 
     me->table_current_size = 0;
 
     for (unsigned int table_index = 0; table_index < me->table_max_size; ++table_index)
     {
-        t_hash_element* old_element = *((t_hash_element**) Vector_at(old_table, table_index));
+        t_hash_element* old_element = *((t_hash_element**) Vector_at(&me->elements, table_index));
         t_hash_element* next_element;
         while (old_element != NULL)
         {
             // new position
             unsigned int new_index = old_element->hashcode % new_max_size;
-            t_hash_element** elemAccessor = ((t_hash_element**) Vector_at(new_table, new_index));
+            t_hash_element** elemAccessor = ((t_hash_element**) Vector_at(&new_table, new_index));
             if (*elemAccessor == NULL)
             {
                 *elemAccessor = old_element;
@@ -222,9 +220,10 @@ static void hashmap_resize(t_hashmap* me, unsigned int new_max_size)
         }
     }
 
-    me->elements = *new_table;
     me->table_max_size = new_max_size;
-    Vector_Destruct(old_table);
+
+    Vector_swap(&me->elements, &new_table);
+    Vector_Destruct(&new_table);
 }
 
 /*
