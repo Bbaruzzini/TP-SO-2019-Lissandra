@@ -6,7 +6,6 @@
 
 typedef enum
 {
-    EVT_MEM_OP,        // loguea operacion SELECT/INSERT en memoria
     EVT_READ_LATENCY,  // loguea un tiempo de ejecucion SELECT
     EVT_WRITE_LATENCY  // loguea un tiempo de ejecucion INSERT
 } MetricEvent;
@@ -17,9 +16,7 @@ Metrics* Metrics_Create(void);
 
 void Metrics_Add(Metrics*, MetricEvent, uint64_t);
 
-void Metrics_Report(Metrics*, uint64_t);
-
-uint64_t Metrics_GetInsertSelect(Metrics*, uint64_t);
+void Metrics_Report(Metrics*);
 
 void Metrics_Destroy(Metrics*);
 

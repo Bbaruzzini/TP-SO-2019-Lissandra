@@ -4,6 +4,7 @@
 #include "PacketBuilders.h"
 #include <Defines.h>
 #include <libcommons/hashmap.h>
+#include <libcommons/list.h>
 #include <Logger.h>
 #include <Malloc.h>
 #include <pthread.h>
@@ -16,11 +17,16 @@
 typedef struct Memory
 {
     uint32_t MemId;
-    Metrics* MemMetrics;
+    uint64_t MemoryOperations;
     Socket* MemSocket;
     pthread_mutex_t MemLock;
-    uint64_t MemoryOps; // valor cacheado
 } Memory;
+
+typedef struct
+{
+    uint32_t MemId;
+    uint64_t MemOperations;
+} MemoryStats;
 
 // feo copypaste de Memoria/Gossip.c pero we
 typedef struct
@@ -50,7 +56,7 @@ static void _disconnectMemory(uint32_t memId);
 
 typedef void AddMemoryFnType(Memory* mem);
 typedef Memory* GetMemFnType(MemoryOps op, DBRequest const* dbr);
-typedef void MemoryLoadFnType(uint64_t now);
+typedef void MemoryCountOperationsFnType(t_list*);
 typedef void DestroyFnType(void);
 
 typedef struct
@@ -60,7 +66,7 @@ typedef struct
 
     AddMemoryFnType* AddMemoryFn;
     GetMemFnType* GetMemFn;
-    MemoryLoadFnType* MemoryLoadFn;
+    MemoryCountOperationsFnType* CountFn;
     DestroyFnType* DestroyFn;
 } Criteria;
 
@@ -75,9 +81,9 @@ static GetMemFnType _sc_get;
 static GetMemFnType _shc_get;
 static GetMemFnType _ec_get;
 
-static MemoryLoadFnType _sc_report;
-static MemoryLoadFnType _shc_report;
-static MemoryLoadFnType _ec_report;
+static MemoryCountOperationsFnType _sc_count;
+static MemoryCountOperationsFnType _shc_count;
+static MemoryCountOperationsFnType _ec_count;
 
 static DestroyFnType _sc_destroy;
 static DestroyFnType _shc_destroy;
@@ -89,21 +95,21 @@ static struct
 
     // SC: Maneja una sola memoria
     Memory SCMem;
-} Criteria_SC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _sc_add, _sc_get, _sc_report, _sc_destroy }, { 0 } };
+} Criteria_SC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _sc_add, _sc_get, _sc_count, _sc_destroy }, { 0 } };
 
 static struct
 {
     Criteria _impl;
 
     Vector MemoryArr;
-} Criteria_SHC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _shc_add, _shc_get, _shc_report, _shc_destroy }, { 0 } };
+} Criteria_SHC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _shc_add, _shc_get, _shc_count, _shc_destroy }, { 0 } };
 
 static struct
 {
     Criteria _impl;
 
     Vector MemoryArr;
-} Criteria_EC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _ec_add, _ec_get, _ec_report, _ec_destroy }, { 0 } };
+} Criteria_EC = { { NULL, PTHREAD_MUTEX_INITIALIZER, _ec_add, _ec_get, _ec_count, _ec_destroy }, { 0 } };
 
 static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr);
 
@@ -200,7 +206,7 @@ void Criteria_AddMemory(CriteriaType type, uint32_t memId)
 
     Memory mem;
     mem.MemId = memId;
-    mem.MemMetrics = Metrics_Create();
+    mem.MemoryOperations = 0;
     mem.MemSocket = s;
     pthread_mutex_init(&mem.MemLock, NULL);
 
@@ -216,6 +222,41 @@ void Criteria_AddMetric(CriteriaType type, MetricEvent event, uint64_t value)
     pthread_mutex_unlock(&itr->CritLock);
 }
 
+static bool _sortByMemIdPred(void* left, void* right)
+{
+    MemoryStats* const a = left;
+    MemoryStats* const b = right;
+
+    return a->MemId < b->MemId;
+}
+
+static void* _sumOperations(void* partial, void* elem)
+{
+    uint64_t* const partialSum = partial;
+    MemoryStats* const stats = elem;
+
+    *partialSum += stats->MemOperations;
+    return partialSum;
+}
+
+static void _report_one(void* elem, void* sum)
+{
+    MemoryStats* const stats = elem;
+    uint64_t* const total = sum;
+
+    double load = 0.0;
+    if (*total)
+        load = stats->MemOperations / (double) *total;
+
+    static char const* fullbar = "##################################################";
+    uint32_t const prog_width = 30;
+
+    uint32_t const prog_print = (uint32_t) (load * prog_width + 0.5);
+    uint32_t const rest_print = prog_width - prog_print;
+
+    LISSANDRA_LOG_INFO("Carga de memoria %u: %6.2f%% [%.*s%*s]", stats->MemId, load * 100.0, prog_print, fullbar, rest_print, "");
+}
+
 void Criterias_Report(PeriodicTimer* pt)
 {
     (void) pt;
@@ -228,6 +269,9 @@ void Criterias_Report(PeriodicTimer* pt)
     };
 
     LISSANDRA_LOG_INFO("========REPORTE========");
+    // para memory load
+    t_list* memStatisticList = list_create();
+
     for (unsigned type = 0; type < NUM_CRITERIA; ++type)
     {
         LISSANDRA_LOG_INFO("CRITERIO %s", CRITERIA_NAMES[type]);
@@ -235,16 +279,29 @@ void Criterias_Report(PeriodicTimer* pt)
         Criteria* const itr = Criterias[type];
         pthread_mutex_lock(&itr->CritLock);
 
-        uint64_t now = GetMSTime();
-        Metrics_Report(itr->CritMetrics, now);
+        Metrics_Report(itr->CritMetrics);
 
-        // imprimir carga de memorias
-        itr->MemoryLoadFn(now);
+        // contabilizar cantidad de operaciones por memoria
+        itr->CountFn(memStatisticList);
 
         pthread_mutex_unlock(&itr->CritLock);
 
         LISSANDRA_LOG_INFO("\n");
     }
+
+    // ordenamos la lista por memId
+    list_sort(memStatisticList, _sortByMemIdPred);
+
+    // recorrer la lista para conocer el total de operaciones
+    uint64_t totalOps = 0;
+    list_reduce(memStatisticList, &totalOps, _sumOperations);
+
+    // imprimir carga de memoria (operaciones mem/total)
+    list_iterate_with_data(memStatisticList, _report_one, &totalOps);
+
+    // liberar memoria
+    list_destroy_and_destroy_elements(memStatisticList, Free);
+
     LISSANDRA_LOG_INFO("======FIN REPORTE======");
 }
 
@@ -445,7 +502,6 @@ static void _destroy_mem(void* elem)
     Memory* const m = elem;
     m->MemId = 0;
     pthread_mutex_destroy(&m->MemLock);
-    Metrics_Destroy(m->MemMetrics);
     Socket_Destroy(m->MemSocket);
 }
 
@@ -549,60 +605,57 @@ static Memory* _ec_get(MemoryOps op, DBRequest const* dbr)
     return Vector_at(&Criteria_EC.MemoryArr, random() % Vector_size(&Criteria_EC.MemoryArr));
 }
 
-static void _report_one(uint32_t memId, uint64_t memOps, uint64_t total)
+static bool _getStatByMemIdPred(void* elem, void* memId)
 {
-    double load = 0.0;
-    if (total)
-        load = memOps / (double) total;
-
-    static char const* fullbar = "##################################################";
-    uint32_t const prog_width = 30;
-
-    uint32_t const prog_print = (uint32_t) (load * prog_width + 0.5);
-    uint32_t const rest_print = prog_width - prog_print;
-
-    LISSANDRA_LOG_INFO("Carga de memoria %u: %6.2f%% [%.*s%*s]", memId, load * 100.0, prog_print, fullbar, rest_print, "");
+    MemoryStats* const stats = elem;
+    return stats->MemId == *(uint32_t*) memId;
 }
 
-static void _sc_report(uint64_t now)
+static inline void _addStatistic(t_list* memList, uint32_t memId, uint64_t operations)
+{
+    MemoryStats* stats = list_find(memList, _getStatByMemIdPred, &memId);
+    if (!stats)
+    {
+        stats = Malloc(sizeof(MemoryStats));
+        stats->MemId = memId;
+        stats->MemOperations = 0;
+        list_add(memList, stats);
+    }
+
+    stats->MemOperations += operations;
+}
+
+static void _sc_count(t_list* memList)
 {
     Memory* const mem = &Criteria_SC.SCMem;
     if (!mem->MemId)
         return;
 
     pthread_mutex_lock(&mem->MemLock);
-    mem->MemoryOps = Metrics_GetInsertSelect(mem->MemMetrics, now);
+    _addStatistic(memList, mem->MemId, mem->MemoryOperations);
     pthread_mutex_unlock(&mem->MemLock);
-
-    _report_one(mem->MemId, mem->MemoryOps, mem->MemoryOps);
 }
 
-static void _sendReportArray(Vector* array, uint64_t now)
+static inline void _countAllInArray(Vector* array, t_list* memList)
 {
     Memory* const data = Vector_data(array);
 
-    uint64_t total = 0;
     for (size_t i = 0; i < Vector_size(array); ++i)
     {
         pthread_mutex_lock(&data[i].MemLock);
-        data[i].MemoryOps = Metrics_GetInsertSelect(data[i].MemMetrics, now);
+        _addStatistic(memList, data[i].MemId, data[i].MemoryOperations);
         pthread_mutex_unlock(&data[i].MemLock);
-
-        total += data[i].MemoryOps;
     }
-
-    for (size_t i = 0; i < Vector_size(array); ++i)
-        _report_one(data[i].MemId, data[i].MemoryOps, total);
 }
 
-static void _shc_report(uint64_t now)
+static void _shc_count(t_list* memList)
 {
-    _sendReportArray(&Criteria_SHC.MemoryArr, now);
+    _countAllInArray(&Criteria_SHC.MemoryArr, memList);
 }
 
-static void _ec_report(uint64_t now)
+static void _ec_count(t_list* memList)
 {
-    _sendReportArray(&Criteria_EC.MemoryArr, now);
+    _countAllInArray(&Criteria_EC.MemoryArr, memList);
 }
 
 static void _sc_destroy(void)
@@ -636,7 +689,7 @@ static void _send_one(Memory* mem, MemoryOps op, DBRequest const* dbr)
 
     // metrica por memoria
     if (op == OP_SELECT || op == OP_INSERT)
-        Metrics_Add(mem->MemMetrics, EVT_MEM_OP, 0);
+        ++mem->MemoryOperations;
 
     Packet* p = PacketBuilders[op](dbr);
     Socket_SendPacket(mem->MemSocket, p);

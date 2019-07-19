@@ -17,17 +17,15 @@ typedef struct Metric
 
 typedef struct Metrics
 {
-    size_t Size;
     Metric* Head;
     Metric* Tail;
 } Metrics;
 
-static void _pruneOldEvents(Metrics*, uint64_t);
+static void _pruneOldEvents(Metrics*);
 
 Metrics* Metrics_Create(void)
 {
     Metrics* m = Malloc(sizeof(Metrics));
-    m->Size = 0;
     m->Head = NULL;
     m->Tail = NULL;
     return m;
@@ -51,14 +49,12 @@ void Metrics_Add(Metrics* m, MetricEvent event, uint64_t value)
         m->Tail->Next = metric;
         m->Tail = metric;
     }
-
-    ++m->Size;
 }
 
-void Metrics_Report(Metrics* m, uint64_t now)
+void Metrics_Report(Metrics* m)
 {
     // limpiar eventos viejos
-    _pruneOldEvents(m, now);
+    _pruneOldEvents(m);
 
     uint64_t readLatencySum = 0;
     uint64_t selectCount = 0;
@@ -99,15 +95,6 @@ void Metrics_Report(Metrics* m, uint64_t now)
     LISSANDRA_LOG_INFO("Cantidad INSERT/30s: %" PRIu64, insertCount);
 }
 
-uint64_t Metrics_GetInsertSelect(Metrics* m, uint64_t now)
-{
-    // limpiar eventos viejos
-    _pruneOldEvents(m, now);
-
-    // las unicas metricas que logueamos son insert y select asi que devolver tamaño de lista
-    return m->Size;
-}
-
 void Metrics_Destroy(Metrics* m)
 {
     Metric* metric = m->Head;
@@ -122,7 +109,7 @@ void Metrics_Destroy(Metrics* m)
 }
 
 /* PRIVATE */
-static void _pruneOldEvents(Metrics* m, uint64_t now)
+static void _pruneOldEvents(Metrics* m)
 {
     // reportar eventos ocurridos en los ultimos 30 segundos inclusive
     static uint32_t const CUT_INTERVAL_MS = 30000U;
@@ -130,6 +117,8 @@ static void _pruneOldEvents(Metrics* m, uint64_t now)
     // la lista está ordenada. el evento mas reciente es el ultimo
     // hay que considerar solo los eventos que ocurrieron hasta 30 segs antes, descartando los otros
     // por lo tanto el primer elemento que no cumpla es mi condicion de corte
+
+    uint64_t now = GetMSTime();
 
     Metric* metric = m->Head;
     for (; metric != NULL; metric = metric->Next)
@@ -145,8 +134,6 @@ static void _pruneOldEvents(Metrics* m, uint64_t now)
         Metric* next = i->Next;
         Free(i);
         i = next;
-
-        --m->Size;
     }
 
     m->Head = metric;
