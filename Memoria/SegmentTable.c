@@ -26,6 +26,11 @@ typedef struct
 } SLRUPageParameters;
 static void _saveLRUPage(char const* qualifiedPath, void* segment, void* param);
 
+static inline void _printFullKey(char const* tableName, char* tablePathBuf)
+{
+    snprintf(tablePathBuf, PATH_MAX, "%sTables/%s", TablePath, tableName);
+}
+
 void SegmentTable_Initialize(char const* tablePath)
 {
     SegmentTable = dictionary_create();
@@ -40,7 +45,7 @@ PageTable* SegmentTable_CreateSegment(char const* tableName)
     PageTable_Construct(&s->Pages);
 
     char qualifiedPath[PATH_MAX];
-    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
+    _printFullKey(tableName, qualifiedPath);
     dictionary_put(SegmentTable, qualifiedPath, s);
 
     return &s->Pages;
@@ -49,7 +54,7 @@ PageTable* SegmentTable_CreateSegment(char const* tableName)
 PageTable* SegmentTable_GetPageTable(char const* tableName)
 {
     char qualifiedPath[PATH_MAX];
-    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
+    _printFullKey(tableName, qualifiedPath);
 
     Segment* s = dictionary_get(SegmentTable, qualifiedPath);
     if (!s)
@@ -86,7 +91,7 @@ bool SegmentTable_GetLRUFrame(size_t* frame)
     {
         // era la ultima pagina de este segmento, borrarlo
         char qualifiedPath[PATH_MAX];
-        snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, minPageSegment->Table);
+        _printFullKey(minPageSegment->Table, qualifiedPath);
 
         dictionary_remove_and_destroy(SegmentTable, qualifiedPath, _segmentDestroy);
     }
@@ -110,7 +115,7 @@ void SegmentTable_GetDirtyFrames(Vector* dirtyFrames)
 void SegmentTable_DeleteSegment(char const* tableName)
 {
     char qualifiedPath[PATH_MAX];
-    snprintf(qualifiedPath, PATH_MAX, "%s%s", TablePath, tableName);
+    _printFullKey(tableName, qualifiedPath);
 
     dictionary_remove_and_destroy(SegmentTable, qualifiedPath, _segmentDestroy);
 }
