@@ -226,11 +226,13 @@ void* api_describe(char* nombreTabla)
 
         t_list* listTableMetadata = list_create();
         int resultado = traverse(dirTablas, listTableMetadata, NULL);
-        if (resultado == EXIT_SUCCESS)
-            return listTableMetadata;
+        if (resultado != EXIT_SUCCESS)
+        {
+            LISSANDRA_LOG_ERROR("DESCRIBE: Se produjo un error al recorrer el directorio /Tables");
+            return NULL;
+        }
 
-        printf("ERROR: Se produjo un error al recorrer el directorio /Tables");
-        return NULL;
+        return listTableMetadata;
     }
 
     t_describe* desc = Malloc(sizeof(t_describe));

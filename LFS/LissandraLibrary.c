@@ -176,19 +176,16 @@ bool buscarBloqueLibre(size_t* bloqueLibre)
     size_t i = 0;
     for (; bitarray_test_bit(bitArray, i) && i < confLFS.CANTIDAD_BLOQUES; ++i);
 
-    if (i >= confLFS.CANTIDAD_BLOQUES)
+    if (i < confLFS.CANTIDAD_BLOQUES)
     {
-        pthread_mutex_unlock(&bitarrayLock);
-        return false;
+        *bloqueLibre = i;
+
+        // marca el bloque como ocupado
+        bitarray_set_bit(bitArray, i);
     }
 
-    *bloqueLibre = i;
-
-    // marca el bloque como ocupado
-    bitarray_set_bit(bitArray, i);
-
     pthread_mutex_unlock(&bitarrayLock);
-    return true;
+    return i < confLFS.CANTIDAD_BLOQUES;
 }
 
 void generarPathBloque(size_t numBloque, char* buf)
@@ -206,6 +203,8 @@ void escribirValorBitarray(bool valor, size_t pos)
         bitarray_clean_bit(bitArray, pos);
 
     pthread_mutex_unlock(&bitarrayLock);
+
+    LISSANDRA_LOG_TRACE("FS: Marcado bloque %u como %s", pos, valor ? "ocupado" : "libre");
 }
 
 bool get_table_metadata(char const* tabla, t_describe* res)
@@ -433,7 +432,7 @@ bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_reg
     DIR* dir;
     if (!(dir = opendir(pathTabla)))
     {
-        printf("ERROR: La ruta especificada es invalida\n");
+        LISSANDRA_LOG_FATAL("SELECT: No pude abrir directorio %s. No debería pasar!", pathTabla);
         return NULL;
     }
 
@@ -718,6 +717,8 @@ void escribirArchivoLFS(char const* path, char const* buf, size_t len)
 
     config_save(file);
     config_destroy(file);
+
+    LISSANDRA_LOG_TRACE("FS: Escribo %u bytes en archivo %s!", len, path);
 }
 
 void crearArchivoLFS(char const* path, size_t block)
@@ -726,6 +727,8 @@ void crearArchivoLFS(char const* path, size_t block)
     fprintf(temporal, "SIZE=0\n");
     fprintf(temporal, "BLOCKS=[%u]\n", block);
     fclose(temporal);
+
+    LISSANDRA_LOG_TRACE("FS: Creado archivo %s!", path);
 }
 
 void borrarArchivoLFS(char const* pathArchivo)
@@ -753,4 +756,6 @@ void borrarArchivoLFS(char const* pathArchivo)
 
     unlink(pathArchivo);
     Vector_Destruct(&bloques);
+
+    LISSANDRA_LOG_TRACE("FS: Borrado archivo %s!", pathArchivo);
 }

@@ -74,8 +74,6 @@ static void _reLoadConfig(char const* fileName)
     }
 
     _loadReloadableFields(config);
-
-    //printf("configTamValue %d\n", confLFS.TAMANIO_VALUE); //era para probar por consola, NO LO SAQUEN
     config_destroy(config);
 
     // recargo el intervalo de dumps
@@ -104,8 +102,6 @@ static void LoadConfigInitial(char const* fileName)
     }
     else
         snprintf(confLFS.PUNTO_MONTAJE, PATH_MAX, "%s", mountPoint);
-
-    //printf("configTamValue %s\n",confLFS.PUNTO_MONTAJE); //era para probar por consola, NO LO SAQUEN
 
     confLFS.TAMANIO_VALUE = config_get_long_value(config, "TAMANIO_VALUE");
     confLFS.TAMANIO_BLOQUES = config_get_long_value(config, "BLOCK_SIZE");

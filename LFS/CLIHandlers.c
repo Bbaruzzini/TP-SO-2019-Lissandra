@@ -135,24 +135,23 @@ void HandleCreate(Vector const* args)
     uint32_t const compTime = strtoul(compaction_time, NULL, 10);
 
     uint8_t resultadoCreate = api_create(table, ct, parts, compTime);
-    if (resultadoCreate == EXIT_SUCCESS)
+    if (resultadoCreate != EXIT_SUCCESS)
     {
-        printf("La tabla %s se creo con exito\n", table);
+        LISSANDRA_LOG_ERROR("No pude crear la tabla %s!", table);
+        return;
     }
-    else
-    {
-        printf("No se pudo crear la tabla %s\n", table);
-    }
+
+    LISSANDRA_LOG_INFO("La tabla %s se creo con exito!", table);
 
 }
 
 static void _printDescribe(void* elem)
 {
-    t_describe* elemento = elem;
-    printf("Tabla: %s\n", elemento->table);
-    printf("Consistencia: %s\n", CriteriaString[elemento->consistency].String);
-    printf("Particiones: %u\n", elemento->partitions);
-    printf("Tiempo: %u\n", elemento->compaction_time);
+    t_describe* const elemento = elem;
+    LISSANDRA_LOG_INFO("Tabla: %s", elemento->table);
+    LISSANDRA_LOG_INFO("Consistencia: %s", CriteriaString[elemento->consistency].String);
+    LISSANDRA_LOG_INFO("Particiones: %u", elemento->partitions);
+    LISSANDRA_LOG_INFO("Tiempo entre compactaciones: %u ms", elemento->compaction_time);
 }
 
 void HandleDescribe(Vector const* args)
@@ -216,13 +215,11 @@ void HandleDrop(Vector const* args)
 
     uint8_t resultado = api_drop(table);
 
-    if (resultado == EXIT_SUCCESS)
+    if (resultado != EXIT_SUCCESS)
     {
-        printf("Se borro con exito la tabla: %s\n", table);
-    }
-    else
-    {
-        printf("Se produjo un error intentando borrar la tabla: %s\n", table);
+        LISSANDRA_LOG_ERROR("Se produjo un error intentando borrar la tabla: %s", table);
+        return;
     }
 
+    LISSANDRA_LOG_INFO("Se borro con exito la tabla: %s", table);
 }
