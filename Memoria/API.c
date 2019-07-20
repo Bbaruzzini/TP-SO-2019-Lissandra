@@ -249,6 +249,8 @@ static void Journal_Register(void* dirtyFrame)
 
     if (respuestaInsert == EXIT_FAILURE)
         LISSANDRA_LOG_WARN("JOURNAL: Intento de insertar key %u, valor '%s' en tabla %s no existente!", df->Frame->Key, value, df->TableName);
+    else
+        LISSANDRA_LOG_TRACE("JOURNAL: insertado key %u, valor '%s' en tabla %s", df->Frame->Key, value, df->TableName);
 
     Packet_Destroy(p);
 }

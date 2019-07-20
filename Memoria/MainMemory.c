@@ -85,6 +85,8 @@ bool Memory_UpsertValue(char const* tableName, uint16_t key, char const* value)
 
     WriteFrame(frame, GetMSEpoch(), key, value);
     PageTable_MarkDirty(pt, key);
+
+    LISSANDRA_LOG_TRACE("Memoria: marcada page %hu como modificada. (Frame: %u)", key, frame);
     return true;
 }
 
@@ -149,6 +151,8 @@ static void _cleanMemory(void)
     memset(FrameBitmap, 0, bitarray_get_max_bit(FrameStatus) / 8);
     SegmentTable_Clean();
     Full = false;
+
+    LISSANDRA_LOG_TRACE("Memoria: limpiadas estructuras");
 }
 
 static PageTable* CreateNewPage(size_t frameNumber, char const* tableName, uint16_t key)
@@ -165,11 +169,12 @@ static void WriteFrame(size_t frameNumber, uint64_t timestamp, uint16_t key, cha
 {
     Frame* const f = Memory_Read(frameNumber);
 
-    LISSANDRA_LOG_DEBUG("WriteFrame: frame: %p, offset: %u", (void*)f, frameNumber);
-
     f->Key = key;
     f->Timestamp = timestamp;
     strncpy(f->Value, value, MaxValueLength);
+
+    LISSANDRA_LOG_TRACE("Memoria: escrito frame %p (offset: %u, timestamp: %" PRIu64
+                                ", key: %hu, value: '%s'", (void*) f, frameNumber, timestamp, key, value);
 }
 
 static bool GetFreeFrame(size_t* frame)
@@ -184,16 +189,22 @@ static bool GetFreeFrame(size_t* frame)
 
     if (i == NumFrames)
     {
+        LISSANDRA_LOG_TRACE("Memoria: no hay marcos libres, iniciando LRU");
+
         // no encontre ninguno libre, desalojar el LRU
         size_t freeFrame;
         if (!SegmentTable_GetLRUFrame(&freeFrame))
         {
+            LISSANDRA_LOG_TRACE("Memoria: estado FULL");
             Full = true;
             return false;
         }
 
+        LISSANDRA_LOG_TRACE("Memoria: desalojado marco %u", freeFrame);
         i = freeFrame;
     }
+    else
+        LISSANDRA_LOG_TRACE("Memoria: asignado marco %u", i);
 
     bitarray_set_bit(FrameStatus, i);
     *frame = i;

@@ -186,7 +186,7 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
     Socket* s = Socket_Create(&so);
     if (!s)
     {
-        LISSANDRA_LOG_INFO("GOSSIP: Memoria %s:%s no responde", gp->IP, gp->Port);
+        LISSANDRA_LOG_DEBUG("GOSSIP: Memoria %s:%s no responde", gp->IP, gp->Port);
 
         // si no es la primer conexion conozco el mem id, borrar de tabla de gossip para mantenerla actualizada
         // y agrego a la blacklist para evitar que me pasen la memoria via gossip en esta iteracion
@@ -226,7 +226,7 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
     p = Socket_RecvPacket(s);
     if (!p)
     {
-        LISSANDRA_LOG_INFO("GOSSIP: Memoria seed (%s:%s) se desconectó durante gossip!", gp->IP, gp->Port);
+        LISSANDRA_LOG_DEBUG("GOSSIP: Memoria seed (%s:%s) se desconectó durante gossip!", gp->IP, gp->Port);
         // mismo de arriba
         if (gp->MemId)
             _removeAndBlock(storages->Blacklist, gp->MemId);
@@ -237,7 +237,7 @@ static void _iterateSuccessfulMemories(char const* _, void* value, void* param)
 
     if (Packet_GetOpcode(p) != MSG_GOSSIP_LIST)
     {
-        LISSANDRA_LOG_ERROR("GOSSIP: recibi mensaje invalido %hu de %s:%s!", Packet_GetOpcode(p), gp->IP, gp->Port);
+        LISSANDRA_LOG_TRACE("GOSSIP: recibi mensaje invalido %hu de %s:%s!", Packet_GetOpcode(p), gp->IP, gp->Port);
         Packet_Destroy(p);
         Socket_Destroy(s);
         return;
@@ -296,7 +296,7 @@ static void _addToKnownPeers(char const* key, void* value)
         dictionary_remove_and_destroy(GossipPeers, key, Free);
     }
     else
-        LISSANDRA_LOG_INFO("GOSSIP: Descubierta nueva memoria en %s:%s! (MemId: %u)", gp->IP, gp->Port, gp->MemId);
+        LISSANDRA_LOG_DEBUG("GOSSIP: Descubierta nueva memoria en %s:%s! (MemId: %u)", gp->IP, gp->Port, gp->MemId);
 
     _addToIPPortDict(GossipPeers, gp->MemId, gp->IP, gp->Port);
 }
@@ -314,7 +314,7 @@ static void _addNewGossipsToIterateList(int _, void* value)
 
 static void* _gossipWorkerTh(void* pt)
 {
-    LISSANDRA_LOG_INFO("GOSSIP: Iniciando gossiping...");
+    LISSANDRA_LOG_DEBUG("GOSSIP: Iniciando gossiping...");
 
     // primero cualquier memoria que hayamos descubierto antes del gossiping (porque otra memoria nos gossipeo primero)
     // se agrega a la lista de pares conocidos
