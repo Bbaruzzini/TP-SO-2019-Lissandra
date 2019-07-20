@@ -77,7 +77,10 @@ void compactar(char* nombreTabla)
 
     // no hay temporales? no compactamos nada!
     if (!_iterarDirectorioTabla(nombreTabla, _esTemporal, NULL, 0))
+    {
+        LISSANDRA_LOG_TRACE("COMPACTADOR: Tabla '%s': no hay temporales. Nada para hacer.", nombreTabla);
         return;
+    }
 
     char pathTabla[PATH_MAX];
     generarPathTabla(nombreTabla, pathTabla);
@@ -85,15 +88,22 @@ void compactar(char* nombreTabla)
     DIR* dir = opendir(pathTabla);
     if (!dir)
     {
-        LISSANDRA_LOG_ERROR("Directorio de tabla %s no encontrado... esto no deberia estar pasando!", nombreTabla);
+        LISSANDRA_LOG_ERROR("COMPACTADOR: Directorio de tabla %s no encontrado... esto no deberia estar pasando!", nombreTabla);
         return;
     }
 
+    uint64_t blockedTime = 0;
+    uint64_t curTime;
+
     // mini SC (renombre a .tmpc)
     {
+        curTime = GetMSTime();
+
         flock(dirfd(dir), LOCK_EX);
         _convertirATmpc(nombreTabla);
         flock(dirfd(dir), LOCK_UN);
+
+        blockedTime += GetMSTimeDiff(curTime, GetMSTime());
     }
 
     uint16_t const numParticiones = infoTabla.partitions;
@@ -117,6 +127,8 @@ void compactar(char* nombreTabla)
 
     // SC (bajada de nuevos .bin)
     {
+        curTime = GetMSTime();
+
         flock(dirfd(dir), LOCK_EX);
 
         _iterarDirectorioTabla(nombreTabla, _borrarTmpc, NULL, 0);
@@ -136,12 +148,16 @@ void compactar(char* nombreTabla)
         }
 
         flock(dirfd(dir), LOCK_UN);
+
+        blockedTime += GetMSTimeDiff(curTime, GetMSTime());
     }
 
     for (uint16_t i = 0; i < numParticiones; ++i)
         hashmap_destroy_and_destroy_elements(clavesCompactadas[i], Free);
 
     closedir(dir);
+
+    LISSANDRA_LOG_DEBUG("COMPACTADOR: Compactación de '%s' terminada. Tiempo bloqueo: %" PRIu64 "ms.", nombreTabla, blockedTime);
 }
 
 void terminarCompactador(void)
