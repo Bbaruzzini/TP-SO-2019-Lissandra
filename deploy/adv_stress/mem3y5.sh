@@ -18,7 +18,7 @@ echo MEMORY_NUMBER=3 >> memoria.conf
 
 mkdir mem5
 cd mem5
-cp ..\Memoria .
+cp ../Memoria .
 
 echo PUERTO=8002 > memoria.conf
 echo IP_FS=$IPFS >> memoria.conf
@@ -35,7 +35,7 @@ echo MEMORY_NUMBER=5 >> memoria.conf
 cd ..
 
 tmux new-session -d './Memoria'
-tmux split-window -v '(cd mem5 && exec ./Memoria)'
+tmux split-window -p 66 '(cd mem5 && exec ./Memoria)'
 tmux split-window -v 'htop'
 tmux split-window -h
 tmux attach-session -d
