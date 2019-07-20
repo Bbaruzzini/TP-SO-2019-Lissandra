@@ -693,21 +693,6 @@ void escribirArchivoLFS(char const* path, char const* buf, size_t len)
             return;
         }
     }
-    else
-    {
-        size_t const bloquesSobrantes = bloquesActuales - bloquesTotales;
-
-        // descartar los ultimos
-        for (size_t i = 0; i < bloquesSobrantes; ++i)
-        {
-            char** const b = Vector_back(&blocks);
-            size_t const blockNum = strtoull(*b, NULL, 10);
-
-            // liberar bloque
-            escribirValorBitarray(false, blockNum);
-            Vector_pop_back(&blocks);
-        }
-    }
 
     char* newSize = string_from_format("%u", len);
 
