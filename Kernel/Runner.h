@@ -6,6 +6,6 @@
 
 void Runner_Init(void);
 
-void Runner_AddScript(File* sc);
+void Runner_AddScript(char const* scriptName, File* sc);
 
 #endif //Runner_h__

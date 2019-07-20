@@ -51,7 +51,7 @@ void Metrics_Add(Metrics* m, MetricEvent event, uint64_t value)
     }
 }
 
-void Metrics_Report(Metrics* m)
+void Metrics_Report(Metrics* m, LogLevel logLevel)
 {
     // limpiar eventos viejos
     _pruneOldEvents(m);
@@ -89,10 +89,10 @@ void Metrics_Report(Metrics* m)
     if (insertCount)
         writeLatencyMean = writeLatencySum / (double) insertCount;
 
-    LISSANDRA_LOG_INFO("Latencia promedio SELECT/30s: %.0fms", readLatencyMean);
-    LISSANDRA_LOG_INFO("Latencia promedio INSERT/30s: %.0fms", writeLatencyMean);
-    LISSANDRA_LOG_INFO("Cantidad SELECT/30s: %" PRIu64, selectCount);
-    LISSANDRA_LOG_INFO("Cantidad INSERT/30s: %" PRIu64, insertCount);
+    LISSANDRA_LOG_MESSAGE(logLevel, "Latencia promedio SELECT/30s: %.0fms", readLatencyMean);
+    LISSANDRA_LOG_MESSAGE(logLevel, "Latencia promedio INSERT/30s: %.0fms", writeLatencyMean);
+    LISSANDRA_LOG_MESSAGE(logLevel, "Cantidad SELECT/30s: %" PRIu64, selectCount);
+    LISSANDRA_LOG_MESSAGE(logLevel, "Cantidad INSERT/30s: %" PRIu64, insertCount);
 }
 
 void Metrics_Destroy(Metrics* m)

@@ -471,7 +471,7 @@ bool HandleRun(Vector const* args)
         return false;
     }
 
-    Runner_AddScript(script);
+    Runner_AddScript(fileName, script);
     return true;
 }
 

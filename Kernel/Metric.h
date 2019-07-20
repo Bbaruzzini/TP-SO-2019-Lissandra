@@ -2,6 +2,7 @@
 #ifndef Metric_h__
 #define Metric_h__
 
+#include <LogCommon.h>
 #include <stdint.h>
 
 typedef enum
@@ -16,7 +17,7 @@ Metrics* Metrics_Create(void);
 
 void Metrics_Add(Metrics*, MetricEvent, uint64_t);
 
-void Metrics_Report(Metrics*);
+void Metrics_Report(Metrics*, LogLevel);
 
 void Metrics_Destroy(Metrics*);
 

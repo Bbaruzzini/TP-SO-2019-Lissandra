@@ -239,14 +239,11 @@ static void* _sumOperations(void* partial, void* elem)
     return partialSum;
 }
 
-static void _report_one(void* elem, void* sum)
+static void _report_one(MemoryStats const* stats, uint64_t total, LogLevel logLevel)
 {
-    MemoryStats* const stats = elem;
-    uint64_t* const total = sum;
-
     double load = 0.0;
-    if (*total)
-        load = stats->MemOperations / (double) *total;
+    if (total)
+        load = stats->MemOperations / (double) total;
 
     static char const* fullbar = "##################################################";
     uint32_t const prog_width = 30;
@@ -254,12 +251,13 @@ static void _report_one(void* elem, void* sum)
     uint32_t const prog_print = (uint32_t) (load * prog_width + 0.5);
     uint32_t const rest_print = prog_width - prog_print;
 
-    LISSANDRA_LOG_INFO("Carga de memoria %u: %6.2f%% [%.*s%*s]", stats->MemId, load * 100.0, prog_print, fullbar, rest_print, "");
+    LISSANDRA_LOG_MESSAGE(logLevel, "Carga de memoria %u: %6.2f%% [%.*s%*s]", stats->MemId, load * 100.0, prog_print, fullbar, rest_print, "");
 }
 
 void Criterias_Report(PeriodicTimer* pt)
 {
-    (void) pt;
+    // si es por consola, logueo en consola las estadisticas
+    LogLevel const logLevel = pt ? LOG_LEVEL_TRACE : LOG_LEVEL_INFO;
 
     static char const* const CRITERIA_NAMES[NUM_CRITERIA] =
     {
@@ -268,25 +266,25 @@ void Criterias_Report(PeriodicTimer* pt)
         "EVENTUAL"
     };
 
-    LISSANDRA_LOG_INFO("========REPORTE========");
+    LISSANDRA_LOG_MESSAGE(logLevel, "========REPORTE========");
     // para memory load
     t_list* memStatisticList = list_create();
 
     for (unsigned type = 0; type < NUM_CRITERIA; ++type)
     {
-        LISSANDRA_LOG_INFO("CRITERIO %s", CRITERIA_NAMES[type]);
+        LISSANDRA_LOG_MESSAGE(logLevel, "CRITERIO %s", CRITERIA_NAMES[type]);
 
         Criteria* const itr = Criterias[type];
         pthread_mutex_lock(&itr->CritLock);
 
-        Metrics_Report(itr->CritMetrics);
+        Metrics_Report(itr->CritMetrics, logLevel);
 
         // contabilizar cantidad de operaciones por memoria
         itr->CountFn(memStatisticList);
 
         pthread_mutex_unlock(&itr->CritLock);
 
-        LISSANDRA_LOG_INFO("\n");
+        LISSANDRA_LOG_MESSAGE(logLevel, "\n");
     }
 
     // ordenamos la lista por memId
@@ -297,12 +295,13 @@ void Criterias_Report(PeriodicTimer* pt)
     list_reduce(memStatisticList, &totalOps, _sumOperations);
 
     // imprimir carga de memoria (operaciones mem/total)
-    list_iterate_with_data(memStatisticList, _report_one, &totalOps);
+    for (t_link_element* itr = memStatisticList->head; itr != NULL; itr = itr->next)
+        _report_one(itr->data, totalOps, logLevel);
 
     // liberar memoria
     list_destroy_and_destroy_elements(memStatisticList, Free);
 
-    LISSANDRA_LOG_INFO("======FIN REPORTE======");
+    LISSANDRA_LOG_MESSAGE(logLevel, "======FIN REPORTE======");
 }
 
 static void _journalize(void* mem)

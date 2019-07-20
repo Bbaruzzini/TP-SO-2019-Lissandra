@@ -13,11 +13,12 @@
 
 typedef struct
 {
+    char ScriptName[NAME_MAX + 1];
     Vector Data;
     size_t IP;
 } TCB;
 
-static TCB* _create_task(Vector const* data);
+static TCB* _create_task(char const* scriptName, Vector const* data);
 static void _delete_task(TCB* tcb);
 
 static void _addSingleLine(char const* line);
@@ -37,21 +38,24 @@ void Runner_Init(void)
 
     ReadyQueue = queue_create();
     for (uint32_t i = 0; i < ConfigKernel.MULTIPROCESAMIENTO; ++i)
-        Threads_CreateDetached(_workerThread, NULL);
+        Threads_CreateDetached(_workerThread, (void*) (i + 1));
 }
 
-void Runner_AddScript(File* sc)
+void Runner_AddScript(char const* scriptName, File* sc)
 {
     Vector script = file_getlines(sc);
     file_close(sc);
 
-    _addToReadyQueue(_create_task(&script));
+    _addToReadyQueue(_create_task(scriptName, &script));
 }
 
 /* PRIVATE*/
-static TCB* _create_task(Vector const* data)
+static TCB* _create_task(char const* scriptName, Vector const* data)
 {
     TCB* tcb = Malloc(sizeof(TCB));
+    *tcb->ScriptName = '\0';
+    strncat(tcb->ScriptName, scriptName, NAME_MAX);
+
     tcb->Data = *data;
     tcb->IP = 0;
 
@@ -67,7 +71,7 @@ static void _delete_task(TCB* tcb)
 static void _addSingleLine(char const* line)
 {
     Vector script = string_n_split(line, 1, NULL);
-    _addToReadyQueue(_create_task(&script));
+    _addToReadyQueue(_create_task("unitario", &script));
 }
 
 static void _addToReadyQueue(TCB* tcb)
@@ -106,7 +110,8 @@ static bool _parseCommand(char const* command)
 
 static void* _workerThread(void* arg)
 {
-    (void) arg;
+    uint32_t const execState = (uint32_t) arg;
+    LISSANDRA_LOG_TRACE("RUNNER: Iniciando estado EXEC %u", execState);
 
     while (ProcessRunning)
     {
@@ -132,7 +137,7 @@ static void* _workerThread(void* arg)
             MSSleep(delayMS);
             if (!res)
             {
-                LISSANDRA_LOG_ERROR("ScriptRunner: error al ejecutar linea %u (\"%s\")", tcb->IP, IR);
+                LISSANDRA_LOG_ERROR("RUNNER %u: error al ejecutar linea %u (\"%s\")", execState, tcb->IP, IR);
                 abnormalTermination = true;
                 break;
             }
@@ -144,6 +149,8 @@ static void* _workerThread(void* arg)
         // salimos por un error en ejecucion o termino el script?
         if (abnormalTermination || tcb->IP == Vector_size(&tcb->Data))
         {
+            LISSANDRA_LOG_TRACE("RUNNER %u: script %s termino por %s. Script pasa a EXIT", execState, tcb->ScriptName, abnormalTermination ? "error en ejecucion" : "fin de lineas");
+
             // borrar los datos
             _delete_task(tcb);
             continue;
@@ -151,6 +158,7 @@ static void* _workerThread(void* arg)
 
         // solo termino el quantum pero quedan lineas por ejecutar, replanificarlas
         _addToReadyQueue(tcb);
+        LISSANDRA_LOG_TRACE("RUNNER %u: desalojado script %s por fin de quantum. Script agregado a READY nuevamente", execState, tcb->ScriptName);
     }
 
     return NULL;
