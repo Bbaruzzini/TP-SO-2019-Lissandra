@@ -16,7 +16,7 @@ typedef struct
 typedef void CommandParserFn(char const*);
 
 extern CLICommand const CLICommands[];
-extern char const* CLIPrompt;
+extern char CLIPrompt[];
 extern atomic_bool ProcessRunning;
 extern CommandParserFn* CommandParser;
 

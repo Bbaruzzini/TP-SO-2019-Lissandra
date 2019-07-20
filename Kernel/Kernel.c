@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <Timer.h>
 
-char const* CLIPrompt = "KRNL_LISSANDRA> ";
+char CLIPrompt[] = "KRNL_LISSANDRA> ";
 
 atomic_bool ProcessRunning = true;
 

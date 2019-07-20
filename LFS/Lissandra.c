@@ -29,7 +29,7 @@ CLICommand const CLICommands[] =
     { NULL,       NULL           }
 };
 
-char const* CLIPrompt = "FS_LISSANDRA> ";
+char CLIPrompt[] = "FS_LISSANDRA> ";
 
 atomic_bool ProcessRunning = true;
 

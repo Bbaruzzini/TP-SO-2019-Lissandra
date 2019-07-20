@@ -51,7 +51,7 @@ char* file_readline(File const* file, uint32_t line)
     char* resBuffer = Malloc(MAX_STRING);
     size_t sz = MAX_STRING;
     uint32_t currLine = 1;
-    for (; currLine <= line; getline(&resBuffer, &sz, file->_imp), ++currLine);
+    for (; currLine <= line; (void) getline(&resBuffer, &sz, file->_imp), ++currLine);
     rewind(file->_imp);
 
     //trim eol
@@ -65,7 +65,7 @@ Vector file_getlines(File const* file)
     fstat(fileno(file->_imp), &stat_file);
 
     char* buffer = Calloc(stat_file.st_size + 1, 1);
-    fread(buffer, 1, stat_file.st_size, file->_imp);
+    (void) fread(buffer, 1, stat_file.st_size, file->_imp);
 
     Vector lines = string_split(buffer, "\n");
     Free(buffer);

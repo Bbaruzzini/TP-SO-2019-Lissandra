@@ -32,7 +32,11 @@ CLICommand const CLICommands[] =
     { NULL,       NULL           }
 };
 
-char const* CLIPrompt = "MEM_LISSANDRA> ";
+// "MEM" 3
+// maximo uint64: 20 chars
+// "_LISSANDRA> ": 12
+// '\0': 1
+char CLIPrompt[3 + 20 + 12 + 1];
 
 atomic_bool ProcessRunning = true;
 
@@ -132,7 +136,8 @@ static void SetupConfigInitial(char const* fileName)
 
 static void MainLoop(void)
 {
-    // el kokoro
+    snprintf(CLIPrompt, sizeof CLIPrompt / sizeof *CLIPrompt, "MEM%u_LISSANDRA> ", ConfigMemoria.MEMORY_NUMBER);
+
     pthread_t consoleTid;
     pthread_create(&consoleTid, NULL, CliThread, NULL);
 
