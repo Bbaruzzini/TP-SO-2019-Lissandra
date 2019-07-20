@@ -130,7 +130,7 @@ uint8_t api_create(char* nombreTabla, uint8_t tipoConsistencia, uint16_t numeroP
 
         //Crea el path de la metadata de la tabla y le carga los datos
         char pathMetadataTabla[PATH_MAX];
-        snprintf(pathMetadataTabla, PATH_MAX, "%s/Metadata.bin", path);
+        generarPathArchivo(nombreTabla, "Metadata", pathMetadataTabla);
 
         {
             FILE* metadata = fopen(pathMetadataTabla, "w");

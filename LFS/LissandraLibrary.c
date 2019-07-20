@@ -211,7 +211,7 @@ void escribirValorBitarray(bool valor, size_t pos)
 bool get_table_metadata(char const* tabla, t_describe* res)
 {
     char pathMetadata[PATH_MAX];
-    generarPathArchivo(tabla, "Metadata.bin", pathMetadata);
+    generarPathArchivo(tabla, "Metadata", pathMetadata);
 
     t_config* contenido = config_create(pathMetadata);
     if (!contenido)
@@ -267,18 +267,18 @@ int traverse(char const* fn, t_list* lista, char const* tabla)
                 }
                 else if (S_ISREG(info.st_mode))
                 {
-                    if (strcmp(entry->d_name, "Metadata.bin") == 0)
-                    {
-                        t_describe* desc = Malloc(sizeof(t_describe));
-                        if (!get_table_metadata(tabla, desc))
-                        {
-                            Free(desc);
-                            continue;
-                        }
+                    if (strcmp(entry->d_name, "Metadata") != 0)
+                        continue;
 
-                        list_add(lista, desc);
-                        break;
+                    t_describe* desc = Malloc(sizeof(t_describe));
+                    if (!get_table_metadata(tabla, desc))
+                    {
+                        Free(desc);
+                        continue;
                     }
+
+                    list_add(lista, desc);
+                    break;
                 }
             }
         }
@@ -305,20 +305,19 @@ bool dirIsEmpty(char const* path)
     return n <= 2;
 }
 
-bool is_any(char const* nombreArchivo)
+bool isLFSFile(char const* nombreArchivo)
 {
-    Vector strings = string_split(nombreArchivo, ".");
-    char** fileName = Vector_data(&strings);
-
-    char const* name = fileName[0];
-    char const* ext = fileName[1];
-
-    // tmpc || tmp || (bin && !Metadata)
     bool res = false;
-    if (0 == strcmp(ext, "tmpc") || 0 == strcmp(ext, "tmp") ||
-        (0 == strcmp(ext, "bin") && 0 != strcmp(name, "Metadata")))
-        res = true;
 
+    Vector strings = string_split(nombreArchivo, ".");
+    if (!Vector_empty(&strings))
+    {
+        char const** ext = Vector_back(&strings);
+
+        // tmpc || tmp || bin
+        if (0 == strcmp(*ext, "tmpc") || 0 == strcmp(*ext, "tmp") || 0 == strcmp(*ext, "bin"))
+            res = true;
+    }
     Vector_Destruct(&strings);
     return res;
 }
@@ -345,7 +344,7 @@ int traverse_to_drop(char const* pathTabla)
             char pathArchivo[PATH_MAX];
             snprintf(pathArchivo, PATH_MAX, "%s/%s", pathTabla, entry->d_name);
 
-            if (is_any(entry->d_name))
+            if (isLFSFile(entry->d_name))
             {
                 borrarArchivoLFS(pathArchivo);
                 continue;
@@ -458,12 +457,12 @@ bool temporales_get_biggest_timestamp(char const* pathTabla, uint16_t key, t_reg
             bool istmp = false;
             {
                 Vector aux = string_split(path, ".");
-                char** fileName = Vector_data(&aux);
-
-                char const* ext = fileName[1];
-                if (0 == strcmp(ext, "tmp") || 0 == strcmp(ext, "tmpc"))
-                    istmp = true;
-
+                if (!Vector_empty(&aux))
+                {
+                    char const** ext = Vector_back(&aux);
+                    if (0 == strcmp(*ext, "tmp") || 0 == strcmp(*ext, "tmpc"))
+                        istmp = true;
+                }
                 Vector_Destruct(&aux);
             }
 

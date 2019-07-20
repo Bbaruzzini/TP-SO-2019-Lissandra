@@ -42,7 +42,7 @@ int traverse(char const* fn, t_list* lista, char const* tabla);
 
 bool dirIsEmpty(char const* path);
 
-bool is_any(char const* nombreArchivo);
+bool isLFSFile(char const* nombreArchivo);
 
 void generarPathArchivo(char const* nombreTabla, char const* nombreArchivo, char* buf);
 
