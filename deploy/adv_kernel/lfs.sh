@@ -26,7 +26,7 @@ echo MEMORY_NUMBER=1 >> memoria.conf
 
 tmux new-session -d './LFS'
 sleep 1
-tmux split-window -v './Memoria'
+tmux split-window -p 66 './Memoria'
 tmux split-window -v 'htop'
 tmux split-window -h
 tmux attach-session -d
